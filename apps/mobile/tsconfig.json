@@ -1,0 +1,4 @@
+{
+  "extends": ["expo/tsconfig.base", "../../packages/tooling/tsconfig.base.json"],
+  "include": ["app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"]
+}

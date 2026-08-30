@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Monad Design",
+    "slug": "monad-design",
+    "scheme": "monaddesign",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "bundleIdentifier": "ai.monadix.design",
+      "infoPlist": {
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "NSLocalNetworkUsageDescription": "Monad Design connects to the Client running on your Mac to inspect and control local iOS Simulators.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "experiments": {
+      "typedRoutes": false
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Monad Design to scan a pairing code shown on your Mac."
+        }
+      ]
+    ]
+  }
+}
