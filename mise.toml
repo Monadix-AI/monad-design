@@ -1,0 +1,25 @@
+[settings]
+idiomatic_version_file_enable_tools = ["bun"]
+
+[tools]
+node = "26.7.0"
+
+[tasks.install]
+description = "Install workspace dependencies"
+run = "bun install"
+
+[tasks.dev]
+description = "Run workspace development tasks"
+run = "bun run dev"
+
+[tasks.build]
+description = "Build all workspaces"
+run = "bun run build"
+
+[tasks.check]
+description = "Run formatting, linting, type, and workspace checks"
+run = "bun run check"
+
+[tasks.fix]
+description = "Apply Biome fixes and formatting"
+run = "bun run check:fix"

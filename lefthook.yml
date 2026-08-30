@@ -1,0 +1,26 @@
+pre-commit:
+  commands:
+    staged-checks:
+      run: bunx --bun lint-staged --hide-all --relative
+
+post-merge:
+  commands:
+    sync-after-git:
+      run: bash .lefthook/sync-after-git.sh ORIG_HEAD HEAD
+      interactive: true
+
+post-checkout:
+  commands:
+    sync-after-git:
+      run: bash .lefthook/sync-after-git.sh {1} {2}
+      interactive: true
+
+post-rewrite:
+  commands:
+    sync-after-git:
+      interactive: true
+      run: bash .lefthook/sync-after-git.sh ORIG_HEAD HEAD
+
+commit-msg:
+  jobs:
+    - run: bun commitlint --edit {1}

@@ -1,0 +1,13 @@
+{
+  "name": "@monaddesign/tooling",
+  "version": "0.0.0",
+  "exports": {
+    "./tsconfig/base": "./tsconfig.base.json",
+    "./tsconfig/package": "./tsconfig.package.json"
+  },
+  "files": [
+    "tsconfig.*.json"
+  ],
+  "private": true,
+  "type": "module"
+}

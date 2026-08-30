@@ -1,0 +1,38 @@
+{
+  "name": "monad-design",
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@commitlint/format": "^21.2.2",
+    "@commitlint/types": "^21.2.0",
+    "lefthook": "^2.1.10",
+    "lint-staged": "^17.3.0",
+    "syncpack": "15.3.3",
+    "turbo": "^2.10.12"
+  },
+  "packageManager": "bun@1.4.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "check": "bun run check:repo && bun run check:deps && turbo run check",
+    "check:deps": "syncpack lint",
+    "check:fix": "biome check --write .",
+    "check:repo": "biome check --error-on-warnings .",
+    "dev": "turbo run dev --ui=tui",
+    "fix:deps": "syncpack fix",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint --error-on-warnings .",
+    "test": "bun test apps packages",
+    "test:e2e": "bun test apps/*/test/e2e",
+    "test:unit": "bun test apps/*/test/unit packages/*/test/unit",
+    "typecheck": "turbo run typecheck",
+    "typecheck:staged": "turbo run typecheck"
+  },
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

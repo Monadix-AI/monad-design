@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/syncpack/schema.json",
+  "versionGroups": [
+    {
+      "label": "Pin React Native to the Expo SDK 57 compatible version",
+      "packages": ["@monaddesign/mobile"],
+      "dependencies": ["react-native"],
+      "pinVersion": "0.86.3"
+    },
+    {
+      "label": "Allow the Expo and desktop React toolchains to differ",
+      "dependencies": ["react", "react-dom", "@types/react", "@types/react-dom", "typescript"],
+      "isIgnored": true
+    },
+    {
+      "label": "Ignore versions of private workspace packages",
+      "dependencyTypes": ["local"],
+      "isIgnored": true
+    }
+  ]
+}

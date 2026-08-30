@@ -1,0 +1,49 @@
+# dependencies (bun install)
+node_modules
+
+# output
+out
+dist
+dist-electron
+apps/desktop/dist-core/
+apps/desktop/release/
+*.tgz
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# caches
+.eslintcache
+.cache
+.turbo
+*.tsbuildinfo
+
+# local tool state
+/.codegraph/
+/.impeccable/
+
+# Expo local state and generated exports
+.expo/
+apps/mobile/dist-map/
+
+# IntelliJ based IDEs
+.idea
+
+# Finder (MacOS) folder config
+.DS_Store
+
+# Monad Design local project binding
+.monaddesign/

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+  "root": true,
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": ["**", "!**/.codegraph", "!**/.cursor", "!**/.impeccable", "!apps/mobile/dist-map"]
+  },
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "lineWidth": 120,
+    "attributePosition": "multiline",
+    "formatWithErrors": true
+  },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "react": "recommended",
+      "reactNative": "recommended",
+      "project": "recommended",
+      "test": "recommended",
+      "turborepo": "recommended",
+      "tailwind": "recommended",
+      "types": "recommended"
+    },
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noUnusedTemplateLiteral": "warn",
+        "useConst": "error",
+        "useImportType": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
+      },
+      "nursery": {
+        "preset": "recommended",
+        "useSortedClasses": "on"
+      },
+      "suspicious": {
+        "noConsole": "error",
+        "noDeprecatedImports": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "semicolons": "always",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "none",
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "expand": "auto"
+    }
+  },
+  "css": {
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "preset": "recommended",
+        "useSortedAttributes": "on",
+        "useSortedProperties": "on",
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              {
+                "type": true
+              },
+              ":BLANK_LINE:",
+              [":URL:"],
+              ":BLANK_LINE:",
+              [":NODE:", ":BUN:"],
+              [":PACKAGE:", ":PACKAGE_WITH_PROTOCOL:"],
+              ":BLANK_LINE:",
+              [":ALIAS:", ":PATH:"],
+              ":BLANK_LINE:",
+              ["@monaddesign/*"]
+            ]
+          }
+        }
+      }
+    }
+  }
+}
