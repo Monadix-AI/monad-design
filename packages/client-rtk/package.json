@@ -1,0 +1,33 @@
+{
+  "name": "@monaddesign/client-rtk",
+  "version": "0.0.0",
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
+    "@monaddesign/client-contract": "workspace:*",
+    "@reduxjs/toolkit": "^2.12.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "react-redux": "^9.3.0",
+    "typescript": "^7.0.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-redux": "^9.3.0"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit --pretty false",
+    "check": "tsc --noEmit --pretty false",
+    "lint": "biome lint .",
+    "test": "bun test test",
+    "test:unit": "bun test test/unit",
+    "typecheck": "tsc --noEmit --pretty false"
+  },
+  "type": "module"
+}

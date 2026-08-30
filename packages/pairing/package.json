@@ -1,0 +1,21 @@
+{
+  "name": "@monaddesign/pairing",
+  "version": "0.0.0",
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit --pretty false",
+    "check": "tsc --noEmit --pretty false",
+    "lint": "biome lint .",
+    "test": "bun test test",
+    "test:unit": "bun test test/unit",
+    "typecheck": "tsc --noEmit --pretty false"
+  },
+  "type": "module"
+}
