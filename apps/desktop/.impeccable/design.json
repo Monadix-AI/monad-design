@@ -1,0 +1,550 @@
+{
+	"schemaVersion": 2,
+	"generatedAt": "2026-08-27T15:48:53Z",
+	"title": "Design System: Monad Design Desktop",
+	"extensions": {
+		"colorMeta": {
+			"canvas": {
+				"role": "neutral",
+				"displayName": "Canvas Charcoal",
+				"canonical": "#0b0c0e",
+				"tonalRamp": [
+					"color-mix(in oklch, #0b0c0e 30%, black)",
+					"color-mix(in oklch, #0b0c0e 55%, black)",
+					"#0b0c0e",
+					"color-mix(in oklch, #0b0c0e 85%, white)",
+					"color-mix(in oklch, #0b0c0e 70%, white)",
+					"color-mix(in oklch, #0b0c0e 50%, white)",
+					"color-mix(in oklch, #0b0c0e 28%, white)",
+					"color-mix(in oklch, #0b0c0e 10%, white)"
+				]
+			},
+			"background": {
+				"role": "neutral",
+				"displayName": "Deep Background",
+				"canonical": "#090a0c",
+				"tonalRamp": [
+					"color-mix(in oklch, #090a0c 30%, black)",
+					"color-mix(in oklch, #090a0c 55%, black)",
+					"#090a0c",
+					"color-mix(in oklch, #090a0c 85%, white)",
+					"color-mix(in oklch, #090a0c 70%, white)",
+					"color-mix(in oklch, #090a0c 50%, white)",
+					"color-mix(in oklch, #090a0c 28%, white)",
+					"color-mix(in oklch, #090a0c 10%, white)"
+				]
+			},
+			"shell": {
+				"role": "neutral",
+				"displayName": "Shell Charcoal",
+				"canonical": "#0d0e11",
+				"tonalRamp": [
+					"color-mix(in oklch, #0d0e11 30%, black)",
+					"color-mix(in oklch, #0d0e11 55%, black)",
+					"#0d0e11",
+					"color-mix(in oklch, #0d0e11 85%, white)",
+					"color-mix(in oklch, #0d0e11 70%, white)",
+					"color-mix(in oklch, #0d0e11 50%, white)",
+					"color-mix(in oklch, #0d0e11 28%, white)",
+					"color-mix(in oklch, #0d0e11 10%, white)"
+				]
+			},
+			"panel": {
+				"role": "neutral",
+				"displayName": "Panel Charcoal",
+				"canonical": "#111216",
+				"tonalRamp": [
+					"color-mix(in oklch, #111216 30%, black)",
+					"color-mix(in oklch, #111216 55%, black)",
+					"#111216",
+					"color-mix(in oklch, #111216 85%, white)",
+					"color-mix(in oklch, #111216 70%, white)",
+					"color-mix(in oklch, #111216 50%, white)",
+					"color-mix(in oklch, #111216 28%, white)",
+					"color-mix(in oklch, #111216 10%, white)"
+				]
+			},
+			"elevated-panel": {
+				"role": "neutral",
+				"displayName": "Elevated Panel Charcoal",
+				"canonical": "#15171b",
+				"tonalRamp": [
+					"color-mix(in oklch, #15171b 30%, black)",
+					"color-mix(in oklch, #15171b 55%, black)",
+					"#15171b",
+					"color-mix(in oklch, #15171b 85%, white)",
+					"color-mix(in oklch, #15171b 70%, white)",
+					"color-mix(in oklch, #15171b 50%, white)",
+					"color-mix(in oklch, #15171b 28%, white)",
+					"color-mix(in oklch, #15171b 10%, white)"
+				]
+			},
+			"control": {
+				"role": "neutral",
+				"displayName": "Control Charcoal",
+				"canonical": "#191b20",
+				"tonalRamp": [
+					"color-mix(in oklch, #191b20 30%, black)",
+					"color-mix(in oklch, #191b20 55%, black)",
+					"#191b20",
+					"color-mix(in oklch, #191b20 85%, white)",
+					"color-mix(in oklch, #191b20 70%, white)",
+					"color-mix(in oklch, #191b20 50%, white)",
+					"color-mix(in oklch, #191b20 28%, white)",
+					"color-mix(in oklch, #191b20 10%, white)"
+				]
+			},
+			"control-hover": {
+				"role": "neutral",
+				"displayName": "Control Hover",
+				"canonical": "#202227",
+				"tonalRamp": [
+					"color-mix(in oklch, #202227 30%, black)",
+					"color-mix(in oklch, #202227 55%, black)",
+					"#202227",
+					"color-mix(in oklch, #202227 85%, white)",
+					"color-mix(in oklch, #202227 70%, white)",
+					"color-mix(in oklch, #202227 50%, white)",
+					"color-mix(in oklch, #202227 28%, white)",
+					"color-mix(in oklch, #202227 10%, white)"
+				]
+			},
+			"field": {
+				"role": "neutral",
+				"displayName": "Field Charcoal",
+				"canonical": "#181a1f",
+				"tonalRamp": [
+					"color-mix(in oklch, #181a1f 30%, black)",
+					"color-mix(in oklch, #181a1f 55%, black)",
+					"#181a1f",
+					"color-mix(in oklch, #181a1f 85%, white)",
+					"color-mix(in oklch, #181a1f 70%, white)",
+					"color-mix(in oklch, #181a1f 50%, white)",
+					"color-mix(in oklch, #181a1f 28%, white)",
+					"color-mix(in oklch, #181a1f 10%, white)"
+				]
+			},
+			"primary-live": {
+				"role": "primary",
+				"displayName": "Acid Live Green",
+				"canonical": "#a8ff78",
+				"tonalRamp": [
+					"color-mix(in oklch, #a8ff78 25%, black)",
+					"color-mix(in oklch, #a8ff78 45%, black)",
+					"color-mix(in oklch, #a8ff78 65%, black)",
+					"#a8ff78",
+					"color-mix(in oklch, #a8ff78 82%, white)",
+					"color-mix(in oklch, #a8ff78 62%, white)",
+					"color-mix(in oklch, #a8ff78 38%, white)",
+					"color-mix(in oklch, #a8ff78 15%, white)"
+				]
+			},
+			"primary-live-hover": {
+				"role": "primary",
+				"displayName": "Acid Live Green Hover",
+				"canonical": "#b9ff94",
+				"tonalRamp": [
+					"color-mix(in oklch, #b9ff94 25%, black)",
+					"color-mix(in oklch, #b9ff94 45%, black)",
+					"color-mix(in oklch, #b9ff94 65%, black)",
+					"#b9ff94",
+					"color-mix(in oklch, #b9ff94 82%, white)",
+					"color-mix(in oklch, #b9ff94 62%, white)",
+					"color-mix(in oklch, #b9ff94 38%, white)",
+					"color-mix(in oklch, #b9ff94 15%, white)"
+				]
+			},
+			"on-primary": {
+				"role": "neutral",
+				"displayName": "Near Black on Green",
+				"canonical": "#10130e",
+				"tonalRamp": [
+					"color-mix(in oklch, #10130e 30%, black)",
+					"color-mix(in oklch, #10130e 55%, black)",
+					"#10130e",
+					"color-mix(in oklch, #10130e 85%, white)",
+					"color-mix(in oklch, #10130e 70%, white)",
+					"color-mix(in oklch, #10130e 50%, white)",
+					"color-mix(in oklch, #10130e 28%, white)",
+					"color-mix(in oklch, #10130e 10%, white)"
+				]
+			},
+			"foreground": {
+				"role": "neutral",
+				"displayName": "Cool White",
+				"canonical": "#eef0f4",
+				"tonalRamp": [
+					"color-mix(in oklch, #eef0f4 25%, black)",
+					"color-mix(in oklch, #eef0f4 45%, black)",
+					"color-mix(in oklch, #eef0f4 65%, black)",
+					"color-mix(in oklch, #eef0f4 82%, black)",
+					"#eef0f4",
+					"color-mix(in oklch, #eef0f4 75%, white)",
+					"color-mix(in oklch, #eef0f4 45%, white)",
+					"color-mix(in oklch, #eef0f4 18%, white)"
+				]
+			},
+			"muted-foreground": {
+				"role": "neutral",
+				"displayName": "Muted Steel",
+				"canonical": "#8d929c",
+				"tonalRamp": [
+					"color-mix(in oklch, #8d929c 25%, black)",
+					"color-mix(in oklch, #8d929c 45%, black)",
+					"color-mix(in oklch, #8d929c 65%, black)",
+					"#8d929c",
+					"color-mix(in oklch, #8d929c 82%, white)",
+					"color-mix(in oklch, #8d929c 62%, white)",
+					"color-mix(in oklch, #8d929c 38%, white)",
+					"color-mix(in oklch, #8d929c 15%, white)"
+				]
+			},
+			"border": {
+				"role": "neutral",
+				"displayName": "Structural Border",
+				"canonical": "#303238",
+				"tonalRamp": [
+					"color-mix(in oklch, #303238 30%, black)",
+					"color-mix(in oklch, #303238 55%, black)",
+					"#303238",
+					"color-mix(in oklch, #303238 85%, white)",
+					"color-mix(in oklch, #303238 70%, white)",
+					"color-mix(in oklch, #303238 50%, white)",
+					"color-mix(in oklch, #303238 28%, white)",
+					"color-mix(in oklch, #303238 10%, white)"
+				]
+			},
+			"error": {
+				"role": "secondary",
+				"displayName": "Visible Error Pink",
+				"canonical": "#ff9ca5",
+				"tonalRamp": [
+					"color-mix(in oklch, #ff9ca5 25%, black)",
+					"color-mix(in oklch, #ff9ca5 45%, black)",
+					"color-mix(in oklch, #ff9ca5 65%, black)",
+					"#ff9ca5",
+					"color-mix(in oklch, #ff9ca5 82%, white)",
+					"color-mix(in oklch, #ff9ca5 62%, white)",
+					"color-mix(in oklch, #ff9ca5 38%, white)",
+					"color-mix(in oklch, #ff9ca5 15%, white)"
+				]
+			},
+			"error-surface": {
+				"role": "neutral",
+				"displayName": "Error Surface",
+				"canonical": "#251619",
+				"tonalRamp": [
+					"color-mix(in oklch, #251619 30%, black)",
+					"color-mix(in oklch, #251619 55%, black)",
+					"#251619",
+					"color-mix(in oklch, #251619 85%, white)",
+					"color-mix(in oklch, #251619 70%, white)",
+					"color-mix(in oklch, #251619 50%, white)",
+					"color-mix(in oklch, #251619 28%, white)",
+					"color-mix(in oklch, #251619 10%, white)"
+				]
+			},
+			"annotation-ink": {
+				"role": "secondary",
+				"displayName": "Annotation Pink-Red",
+				"canonical": "#ff4d67",
+				"tonalRamp": [
+					"color-mix(in oklch, #ff4d67 25%, black)",
+					"color-mix(in oklch, #ff4d67 45%, black)",
+					"color-mix(in oklch, #ff4d67 65%, black)",
+					"#ff4d67",
+					"color-mix(in oklch, #ff4d67 82%, white)",
+					"color-mix(in oklch, #ff4d67 62%, white)",
+					"color-mix(in oklch, #ff4d67 38%, white)",
+					"color-mix(in oklch, #ff4d67 15%, white)"
+				]
+			},
+			"annotation-active": {
+				"role": "secondary",
+				"displayName": "Annotation Active Border",
+				"canonical": "#ff6f84",
+				"tonalRamp": [
+					"color-mix(in oklch, #ff6f84 25%, black)",
+					"color-mix(in oklch, #ff6f84 45%, black)",
+					"color-mix(in oklch, #ff6f84 65%, black)",
+					"#ff6f84",
+					"color-mix(in oklch, #ff6f84 82%, white)",
+					"color-mix(in oklch, #ff6f84 62%, white)",
+					"color-mix(in oklch, #ff6f84 38%, white)",
+					"color-mix(in oklch, #ff6f84 15%, white)"
+				]
+			},
+			"annotation-surface": {
+				"role": "neutral",
+				"displayName": "Annotation Tool Surface",
+				"canonical": "#35191f",
+				"tonalRamp": [
+					"color-mix(in oklch, #35191f 30%, black)",
+					"color-mix(in oklch, #35191f 55%, black)",
+					"#35191f",
+					"color-mix(in oklch, #35191f 85%, white)",
+					"color-mix(in oklch, #35191f 70%, white)",
+					"color-mix(in oklch, #35191f 50%, white)",
+					"color-mix(in oklch, #35191f 28%, white)",
+					"color-mix(in oklch, #35191f 10%, white)"
+				]
+			},
+			"container-evidence": {
+				"role": "tertiary",
+				"displayName": "Container Evidence Cyan",
+				"canonical": "#7dd3fc",
+				"tonalRamp": [
+					"color-mix(in oklch, #7dd3fc 25%, black)",
+					"color-mix(in oklch, #7dd3fc 45%, black)",
+					"color-mix(in oklch, #7dd3fc 65%, black)",
+					"#7dd3fc",
+					"color-mix(in oklch, #7dd3fc 82%, white)",
+					"color-mix(in oklch, #7dd3fc 62%, white)",
+					"color-mix(in oklch, #7dd3fc 38%, white)",
+					"color-mix(in oklch, #7dd3fc 15%, white)"
+				]
+			}
+		},
+		"typographyMeta": {
+			"headline": {
+				"displayName": "Workspace Headline",
+				"purpose": "Names full-canvas comparison and annotation workspaces."
+			},
+			"title": {
+				"displayName": "Inspector Title",
+				"purpose": "Names floating inspectors and evidence panels."
+			},
+			"body": {
+				"displayName": "Technical Body",
+				"purpose": "Carries requests, hints, and concise operating guidance."
+			},
+			"label": {
+				"displayName": "Compact Control Label",
+				"purpose": "Labels tools, actions, sections, and visible boundaries."
+			},
+			"mono": {
+				"displayName": "Runtime Evidence Mono",
+				"purpose": "Shows identifiers, geometry, pairing data, and complete prompts."
+			}
+		},
+		"shadows": [
+			{
+				"name": "device-float",
+				"value": "0 34px 90px rgb(0 0 0 / 62%), 0 4px 14px rgb(0 0 0 / 46%)",
+				"purpose": "Raises the live Simulator as the central artifact."
+			},
+			{
+				"name": "workspace-float",
+				"value": "0 24px 70px rgb(0 0 0 / 48%)",
+				"purpose": "Raises the floating inspector above the free canvas."
+			},
+			{
+				"name": "workspace-float-soft",
+				"value": "0 24px 70px rgb(0 0 0 / 44%)",
+				"purpose": "Raises comparison and annotation workspaces above the free canvas."
+			},
+			{
+				"name": "tool-float",
+				"value": "0 12px 34px rgb(0 0 0 / 38%)",
+				"purpose": "Raises compact zoom and device-control palettes."
+			},
+			{
+				"name": "selected-evidence",
+				"value": "0 0 0 1px rgb(12 14 17 / 62%), 0 0 16px rgb(168 255 120 / 22%)",
+				"purpose": "Keeps selected ordinary runtime geometry legible over app pixels."
+			},
+			{
+				"name": "selected-container-evidence",
+				"value": "inset 0 0 0 1px rgb(8 17 22 / 58%), 0 0 16px rgb(125 211 252 / 20%)",
+				"purpose": "Keeps selected container geometry legible over app pixels."
+			}
+		],
+		"motion": [
+			{
+				"name": "canvas-transform",
+				"value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+				"purpose": "Settles Simulator pan and zoom transforms without making runtime input feel animated."
+			},
+			{
+				"name": "spinner",
+				"value": "0.8s linear infinite",
+				"purpose": "Communicates scanning, capture, connection, and recapture work."
+			},
+			{
+				"name": "capture-pulse",
+				"value": "1.2s ease-in-out infinite",
+				"purpose": "Marks variant capture progress inside waiting evidence frames."
+			}
+		],
+		"breakpoints": [
+			{ "name": "compact-desktop", "value": "900px" },
+			{ "name": "handoff-overlay", "value": "1100px" }
+		]
+	},
+	"components": [
+		{
+			"name": "Local Project Registry Row",
+			"kind": "nav",
+			"description": "A flat local-project entry that keeps identity, path, and the explicit configuration state together without turning the registry into a card grid.",
+			"html": "<button class=\"ds-project-row\"><span class=\"ds-project-folder\" aria-hidden=\"true\">↗</span><span class=\"ds-project-identity\"><strong>My iOS App</strong><code>/Users/developer/Projects/MyApp</code></span><span class=\"ds-project-state\"><i></i>Configured locally</span></button>",
+			"css": ".ds-project-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 14px; align-items: center; width: 100%; padding: 17px 10px; border: 0; border-bottom: 1px solid #202226; color: #eef0f4; text-align: left; background: transparent; font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-project-row:hover { background: #121419; } .ds-project-row:focus-visible { outline: 2px solid #a8ff78; outline-offset: -2px; } .ds-project-row:active { background: #191b20; } .ds-project-folder { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; color: #a8ff78; background: #1b211a; font-size: 16px; } .ds-project-identity { display: flex; min-width: 0; flex-direction: column; gap: 5px; } .ds-project-identity strong { font-size: 13px; font-weight: 650; } .ds-project-identity code { overflow: hidden; color: #969ba4; font: 10px/1.4 SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; } .ds-project-state { display: inline-flex; align-items: center; gap: 7px; color: #8d929c; font-size: 10px; } .ds-project-state i { width: 6px; height: 6px; border-radius: 50%; background: #7fe45b; }"
+		},
+		{
+			"name": "Simulator Inventory Choice",
+			"kind": "custom",
+			"description": "A selectable all-available Simulator row with device identity and an explicit Booted or Shutdown label; the selected state remains tonal and compact.",
+			"html": "<button class=\"ds-simulator-choice\" role=\"radio\" aria-checked=\"true\"><span class=\"ds-simulator-icon\" aria-hidden=\"true\"></span><span class=\"ds-simulator-identity\"><strong>iPhone 17 Pro</strong><small>iOS 26.0</small></span><span class=\"ds-simulator-status ds-booted\"><i></i>Booted</span></button>",
+			"css": ".ds-simulator-choice { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 11px; align-items: center; width: 100%; padding: 12px; border: 1px solid #3e4b38; border-radius: 11px; color: #eef0f4; text-align: left; background: #1b211a; box-shadow: inset 0 0 0 1px rgb(168 255 120 / 5%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-simulator-choice:hover { background: #20271e; } .ds-simulator-choice:focus-visible { outline: 2px solid #a8ff78; outline-offset: 2px; } .ds-simulator-choice:active { background: #171c16; } .ds-simulator-icon { width: 18px; height: 28px; margin-left: 4px; border: 1.5px solid #92979f; border-radius: 5px; box-shadow: inset 0 -3px 0 -2px #92979f; } .ds-simulator-identity { display: flex; min-width: 0; flex-direction: column; gap: 3px; } .ds-simulator-identity strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; } .ds-simulator-identity small { color: #969ba4; font-size: 10px; } .ds-simulator-status { display: inline-flex; align-items: center; gap: 5px; color: #969ba4; font-size: 8px; font-weight: 650; text-transform: uppercase; } .ds-simulator-status i { width: 5px; height: 5px; border-radius: 50%; background: #5f636b; } .ds-simulator-status.ds-booted { color: #a7d693; } .ds-simulator-status.ds-booted i { background: #7fe45b; }"
+		},
+		{
+			"name": "Primary Action",
+			"kind": "button",
+			"refersTo": "button-primary",
+			"description": "Commits a local primary operation such as connect, copy, export, or open selected live.",
+			"html": "<button class=\"ds-primary-action\">Copy complete prompt</button>",
+			"css": ".ds-primary-action { min-height: 34px; padding: 7px 10px; border: 1px solid var(--primary); border-radius: 8px; color: var(--primary-foreground); background: var(--primary); font: 700 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-primary-action:hover { border-color: #b9ff94; background: #b9ff94; } .ds-primary-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-primary-action:active { transform: translateY(1px); }"
+		},
+		{
+			"name": "Compact Tool Button",
+			"kind": "button",
+			"refersTo": "button-tool",
+			"description": "A precise secondary action for device, zoom, history, or workspace tools.",
+			"html": "<button class=\"ds-tool-button\">Recapture</button>",
+			"css": ".ds-tool-button { min-height: 34px; padding: 7px 10px; border: 1px solid #34373d; border-radius: 7px; color: #b9bdc5; background: var(--muted); font: 600 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-tool-button:hover { border-color: #50535a; color: var(--foreground); background: #202227; } .ds-tool-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-tool-button:active { background: #292c31; }"
+		},
+		{
+			"name": "Annotation Tool Active",
+			"kind": "button",
+			"refersTo": "button-annotation-active",
+			"description": "The active rectangle, ellipse, text, or arrow tool; pink-red is confined to screenshot markup.",
+			"html": "<button class=\"ds-annotation-tool\" aria-pressed=\"true\">Rectangle</button>",
+			"css": ".ds-annotation-tool { min-height: 34px; padding: 7px 10px; border: 1px solid #ff6f84; border-radius: 7px; color: #fff0f2; background: #35191f; font: 600 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-annotation-tool:hover { color: #ffffff; background: #422027; } .ds-annotation-tool:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-annotation-tool:active { background: #2c151a; }"
+		},
+		{
+			"name": "Numbered Implementation Callout",
+			"kind": "custom",
+			"description": "A shape or arrow target connected by pink-red geometry to a matching editable implementation note. The same target, connector, number, type, and note are baked into the exported PNG.",
+			"html": "<ol class=\"ds-callouts\"><li><span>1</span><label>Rectangle<textarea>Increase spacing below this reply.</textarea></label></li></ol>",
+			"css": ".ds-callouts { margin: 0; padding: 0; list-style: none; } .ds-callouts li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 8px; border: 1px solid #3a3d44; border-radius: 9px; color: var(--foreground); background: #191b20; } .ds-callouts li > span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; color: #11140f; background: #ff4d67; font: 800 11px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-callouts label { color: #a8abb3; font: 700 8px Inter, ui-sans-serif, system-ui, sans-serif; text-transform: uppercase; } .ds-callouts textarea { width: 100%; border: 0; color: var(--foreground); background: transparent; font: 600 10px/1.35 Inter, ui-sans-serif, system-ui, sans-serif; }"
+		},
+		{
+			"name": "Workspace Mode Switch",
+			"kind": "nav",
+			"description": "A mutually exclusive Interact, Select, or Annotate control; choosing annotation freezes the current Simulator frame.",
+			"html": "<div class=\"ds-mode-switch\" role=\"group\" aria-label=\"Workspace mode\"><button class=\"ds-mode-option ds-mode-option-active\">Interact</button><button class=\"ds-mode-option\">Select</button><button class=\"ds-mode-option\">Annotate</button></div>",
+			"css": ".ds-mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); width: 250px; padding: 3px; border-radius: 9px; background: #0f1013; } .ds-mode-option { min-height: 32px; border: 0; border-radius: 7px; color: #858a93; background: transparent; font: 600 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-mode-option:hover { color: #d8dbe1; } .ds-mode-option:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-mode-option-active { color: var(--primary-foreground); background: var(--primary); box-shadow: 0 3px 10px rgb(0 0 0 / 30%); }"
+		},
+		{
+			"name": "Evidence Request Field",
+			"kind": "input",
+			"refersTo": "evidence-field",
+			"description": "Captures a local adjustment request while keeping source-changing action outside the workspace.",
+			"html": "<label class=\"ds-field-label\">Adjustment request<textarea class=\"ds-evidence-field\" placeholder=\"Describe what should change and what must stay intact…\"></textarea></label>",
+			"css": ".ds-field-label { display: flex; flex-direction: column; gap: 8px; color: #d0d3d9; font: 650 11px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-evidence-field { min-height: 96px; resize: vertical; padding: 10px 11px; border: 1px solid #383b42; border-radius: 9px; outline: none; color: var(--foreground); background: #181a1f; font: 400 12px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; } .ds-evidence-field::placeholder { color: #747982; } .ds-evidence-field:hover { border-color: #50535a; } .ds-evidence-field:focus-visible { border-color: #769f61; box-shadow: 0 0 0 2px rgb(168 255 120 / 10%); }"
+		},
+		{
+			"name": "Floating Inspector",
+			"kind": "card",
+			"refersTo": "floating-panel",
+			"description": "The fixed right-side instrument panel that keeps modes, evidence, prompt preparation, variants, and disconnect visible.",
+			"html": "<aside class=\"ds-inspector\"><header><div><strong>Workspace</strong><span>iOS Simulator</span></div><small>Prepared locally · not sent</small></header><section><b>Prompt</b><p>Select runtime evidence before preparing a request.</p></section></aside>",
+			"css": ".ds-inspector { width: 344px; overflow: hidden; border-radius: 15px; color: var(--foreground); background: #15171b; box-shadow: 0 24px 70px rgb(0 0 0 / 48%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-inspector header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px; box-shadow: inset 0 -1px #292c31; } .ds-inspector header div { display: flex; flex-direction: column; gap: 4px; } .ds-inspector strong { font-size: 17px; font-weight: 650; letter-spacing: -0.025em; } .ds-inspector span, .ds-inspector small { color: #858a93; font-size: 9px; } .ds-inspector section { padding: 15px 18px; } .ds-inspector b { font-size: 11px; } .ds-inspector p { margin: 11px 0 0; color: #8d929c; font-size: 10px; line-height: 1.45; } .ds-inspector:focus-within { box-shadow: 0 24px 70px rgb(0 0 0 / 48%), 0 0 0 1px rgb(168 255 120 / 18%); }"
+		},
+		{
+			"name": "Canvas Zoom Instrument",
+			"kind": "custom",
+			"description": "The lower-left zoom palette exposes 25–200% scaling and fit while direct canvas gestures handle pan and modifier-wheel zoom.",
+			"html": "<div class=\"ds-zoom-instrument\" aria-label=\"Canvas zoom\"><button aria-label=\"Zoom out\">−</button><output>75%</output><button aria-label=\"Zoom in\">+</button><button class=\"ds-fit\" aria-label=\"Fit simulator to view\">Fit</button></div>",
+			"css": ".ds-zoom-instrument { display: flex; height: 38px; align-items: center; padding: 4px; border-radius: 10px; color: #aeb2ba; background: #191b1f; box-shadow: 0 12px 34px rgb(0 0 0 / 38%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-zoom-instrument button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; color: inherit; background: transparent; font-size: 11px; cursor: pointer; } .ds-zoom-instrument button:hover { color: #fff; background: #292c31; } .ds-zoom-instrument button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-zoom-instrument button:active { background: #30333a; } .ds-zoom-instrument output { width: 45px; color: #8d929c; font-size: 9px; font-variant-numeric: tabular-nums; text-align: center; } .ds-zoom-instrument .ds-fit { width: auto; margin-left: 3px; padding: 0 8px; box-shadow: inset 1px 0 #303238; border-radius: 0 7px 7px 0; }"
+		},
+		{
+			"name": "Variant Evidence Tile",
+			"kind": "card",
+			"description": "A captured native variant that remains evidence until explicitly opened live and never implies a source change.",
+			"html": "<button class=\"ds-variant-tile\"><span><strong>Variant 1</strong><small>Captured</small></span><span class=\"ds-variant-frame\">Runtime capture</span></button>",
+			"css": ".ds-variant-tile { display: grid; width: 190px; gap: 10px; padding: 10px; border: 1px solid #2d3035; border-radius: 14px; color: var(--foreground); text-align: left; background: #15171b; cursor: pointer; } .ds-variant-tile > span:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; } .ds-variant-tile strong { font: 650 12px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-variant-tile small { color: #858a93; font: 400 10px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-variant-frame { display: grid; min-height: 180px; place-items: center; border-radius: 10px; color: #62666f; background: var(--background); font: 400 10px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-variant-tile:hover { border-color: #4b4f56; background: #181a1f; } .ds-variant-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-variant-tile:active { border-color: #79b05e; background: #1b211a; box-shadow: 0 10px 35px rgb(0 0 0 / 28%); }"
+		},
+		{
+			"name": "Runtime Selection Evidence",
+			"kind": "custom",
+			"description": "A compact accessibility selection card; ordinary elements are green and containers switch to cyan.",
+			"html": "<div class=\"ds-runtime-selection ds-runtime-container\"><strong>Scroll container</strong><span>AXGroup · container</span><code>390 × 712 at 0, 88</code></div>",
+			"css": ".ds-runtime-selection { display: flex; flex-direction: column; gap: 4px; padding: 11px 12px; border: 1px solid #526547; border-radius: 9px; color: var(--foreground); background: #1b211a; font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-runtime-selection strong { font-size: 12px; font-weight: 650; } .ds-runtime-selection span, .ds-runtime-selection code { color: #969ba4; font-size: 10px; } .ds-runtime-selection code { font-family: SFMono-Regular, Consolas, Liberation Mono, monospace; } .ds-runtime-container { border-color: #417087; background: #162127; } .ds-runtime-selection:hover { border-color: #7dd3fc; } .ds-runtime-selection:focus-within { box-shadow: 0 0 0 2px rgb(125 211 252 / 16%); }"
+		}
+	],
+	"narrative": {
+		"northStar": "The Live Simulator Workbench",
+		"overview": "Monad Design Desktop is a dense, dark Operate workspace that moves from local project context to one visual authority: the real iOS Simulator frame. The home begins as a flat registry of explicitly chosen local projects; entering a project reveals the full available Simulator inventory; once connected, the application becomes an artifact-first free canvas. Across those states, brand expression comes from disciplined state color, compact proportions, and precise spacing rather than ornamental graphics.\n\nBefore connection, rows and status labels behave like a native local inventory rather than a dashboard of cards. Project configuration, Simulator boot state, loading, and iPad pairing remain visible at the point of action. After connection, controls behave like local instruments around the artifact: device controls sit immediately below the Simulator; zoom floats at the canvas edge; the inspector anchors to the right; comparison and annotation replace the canvas content without pretending to change source. Copy such as “Configured locally,” “Configuration written only after you choose a directory,” “Prepared locally · not sent,” and “Preview evidence only” is part of the visual hierarchy because it keeps registration, preparation, preview, export, and source-changing action visibly distinct.",
+		"keyCharacteristics": [
+			"Dark neutral canvas and restrained tonal surfaces",
+			"Flat local project registry with explicit configuration-write boundaries",
+			"Scroll-contained all-available Simulator inventory with visible boot state",
+			"Real Simulator imagery as the dominant artifact",
+			"Compact floating controls with clear active, disabled, loading, and error states",
+			"Acid green reserved for primary, live, selected, and ready states",
+			"Pink-red reserved for screenshot annotation ink and its active tools",
+			"Cyan reserved for container-level accessibility evidence",
+			"Explicit local-preparation and preview-only boundaries"
+		],
+		"rules": [
+			{
+				"name": "The Evidence Color Rule",
+				"body": "Acid green means live, selected, ready, or primary; cyan means container evidence; pink-red means annotation. Do not interchange these roles.",
+				"section": "colors"
+			},
+			{
+				"name": "The Local Boundary Rule",
+				"body": "Preparation and preview surfaces must visibly state whether work stays local, is evidence only, or has not been applied to source.",
+				"section": "colors"
+			},
+			{
+				"name": "The Artifact First Rule",
+				"body": "Type supports operating context and evidence; it never becomes a display spectacle larger than the real Simulator artifact.",
+				"section": "typography"
+			},
+			{
+				"name": "The Artifact Dominance Rule",
+				"body": "Preserve clear area around the Simulator or frozen capture. The fit calculation must reserve the right operations lane and cap at 200% of the device's logical size; floating tools may overlap the canvas ground, never the evidence itself.",
+				"section": "layout"
+			},
+			{
+				"name": "The Registry Before Runtime Rule",
+				"body": "Keep project selection flat and local, then reveal Simulator inventory only inside the chosen project. The registry, device list, and their loading or empty states scroll within their assigned regions instead of pushing boundary copy or the primary action out of view.",
+				"section": "layout"
+			},
+			{
+				"name": "The Floating Instrument Rule",
+				"body": "Apply a large shadow only when a surface is spatially detached from the canvas or artifact. Ordinary sections remain flat and separated tonally.",
+				"section": "elevation"
+			},
+			{
+				"name": "The Compact Geometry Rule",
+				"body": "Small radii belong to tools; large radii belong to devices and floating workspaces. Do not inflate every control into a soft capsule.",
+				"section": "shapes"
+			}
+		],
+		"dos": [
+			"**Do** keep the real Simulator frame, capture, runtime geometry, and device identity visually primary.",
+			"**Do** keep the home registry flat, show project path and “Configured locally” on each row, and keep the configuration-write boundary visible.",
+			"**Do** show all available Simulators with explicit Booted or Shutdown labels and use “Connect” versus “Start & connect” according to the selected device state.",
+			"**Do** use acid green for primary/live/selected states, pink-red for annotation, and cyan for container evidence.",
+			"**Do** keep controls compact, keyboard reachable, clearly labeled, and understandable without color alone.",
+			"**Do** state local preparation, preview-only evidence, download initiation, and errors in visible text.",
+			"**Do** keep annotation, variant comparison, selection, and direct interaction mutually exclusive where the implementation makes them exclusive.",
+			"**Do** preserve original-resolution Simulator pixels, image-relative annotation geometry, and one-to-one numbering between every callout target and exported note.",
+			"**Do** fit from logical Simulator dimensions, reserve the right operations lane, and cap automatic or manual zoom at 200%.",
+			"**Do** keep “Prepared locally · not sent” adjacent to prompt preparation, not buried in secondary help text."
+		],
+		"donts": [
+			"**Don't** present a preview, selection, annotation, copied prompt, or captured frame as a source-code change.",
+			"**Don't** present choosing a project directory as source modification; name the `.monaddesign/project.json` write and state that source is unchanged.",
+			"**Don't** hide the project loading row, collapse the Simulator inventory to booted devices only, or let its scroll push the connection action out of view.",
+			"**Don't** reuse annotation pink-red as a general brand accent or container cyan as a generic highlight.",
+			"**Don't** add bright decorative surfaces that compete with the native app imagery.",
+			"**Don't** turn every section into an elevated card; reserve large shadows for detached canvas instruments.",
+			"**Don't** hide loading, disabled, empty, capture, clipboard, export, or stream failure states.",
+			"**Don't** let floating controls cover the Simulator or frozen capture.",
+			"**Don't** detach device controls from the Simulator cluster or move the zoom instruments out of the lower-left canvas corner."
+		]
+	}
+}
