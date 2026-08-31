@@ -43,8 +43,10 @@ const screenLayer = ({
 }: Pick<SimulatorCanvasProps, 'deviceHeight' | 'deviceWidth' | 'orientation'>) => {
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   return {
-    width: landscape ? height : width,
-    height: landscape ? width : height,
+    stageWidth: landscape ? height : width,
+    stageHeight: landscape ? width : height,
+    width,
+    height,
     transform:
       orientation === 'landscape_left'
         ? 'translate(-50%, -50%) rotate(90deg)'
@@ -83,8 +85,10 @@ export function SimulatorCanvas({
   streamUrl
 }: SimulatorCanvasProps) {
   const isLandscape = orientation === 'landscape_left' || orientation === 'landscape_right';
-  const chromeScale = deviceChrome ? (isLandscape ? deviceHeight : deviceWidth) / deviceChrome.screen.width : 1;
   const layer = screenLayer({ deviceHeight, deviceWidth, orientation });
+  const chromeScale = deviceChrome
+    ? layer.stageWidth / (isLandscape ? deviceChrome.screen.height : deviceChrome.screen.width)
+    : 1;
   const portraitCenter = deviceChrome
     ? { x: deviceChrome.body.x + deviceChrome.body.width / 2, y: deviceChrome.body.y + deviceChrome.body.height / 2 }
     : null;
@@ -154,8 +158,8 @@ export function SimulatorCanvas({
         <div
           className={cn('screen-stage relative z-10 overflow-hidden', isLandscape ? 'landscape' : 'portrait')}
           style={{
-            width: deviceWidth,
-            height: deviceHeight,
+            width: layer.stageWidth,
+            height: layer.stageHeight,
             borderRadius: framebufferMask ? 0 : deviceFrame.screenRadius,
             background: deviceChrome && !framebufferMask ? '#000' : undefined
           }}

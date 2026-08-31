@@ -40,7 +40,6 @@ const targetSourceLabels: Record<ProjectTargetSource, string> = {
 
 export function SimulatorsRoute() {
   const {
-    activeAgentSession,
     activeProject,
     activateProject,
     addProject,
@@ -48,6 +47,7 @@ export function SimulatorsRoute() {
     connect,
     connection,
     configureProject,
+    closeProject,
     detectProjectTargets,
     error,
     isConnecting,
@@ -472,6 +472,7 @@ export function SimulatorsRoute() {
         }
         isConnecting={isConnecting}
         isScanning={isScanning}
+        onBack={closeProject}
         onConnect={() => void connect()}
         onSelectSimulator={setSelectedUdid}
         onSelectTarget={setSelectedTargetBundleIdentifier}
@@ -494,7 +495,6 @@ export function SimulatorsRoute() {
           )
         }
         targets={activeProject.targetApps}
-        task={activeAgentSession?.status === 'selecting_simulator' ? activeAgentSession.task : undefined}
       />
     </main>
   );

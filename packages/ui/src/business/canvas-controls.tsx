@@ -17,6 +17,9 @@ export type CanvasMode = 'annotate' | 'interact' | 'variants';
 export const webDeviceControlsReservedHeight = 64;
 export const liveWorkspaceInspectorReservedWidth = 380;
 
+export const canvasModeShowsSelectionOverlay = (mode: CanvasMode, selectionMode: boolean) =>
+  mode === 'interact' && selectionMode;
+
 export const fitLiveWorkspaceCanvas = (
   viewport: { height: number; width: number },
   device: { height: number; width: number }
@@ -75,15 +78,16 @@ export const liveSimulatorDeviceFrame = ({
 }) => {
   const fallback = deviceFrameMetrics({
     deviceName,
-    screenWidth: deviceWidth,
-    screenHeight: deviceHeight,
+    screenWidth: orientation === 'landscape_left' || orientation === 'landscape_right' ? deviceHeight : deviceWidth,
+    screenHeight: orientation === 'landscape_left' || orientation === 'landscape_right' ? deviceWidth : deviceHeight,
     orientation
   });
   if (!deviceChrome) return fallback;
 
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
+  const orientedScreenWidth = landscape ? deviceHeight : deviceWidth;
   const chromeScreenWidth = landscape ? deviceChrome.screen.height : deviceChrome.screen.width;
-  const chromeScale = deviceWidth / chromeScreenWidth;
+  const chromeScale = orientedScreenWidth / chromeScreenWidth;
   return {
     ...fallback,
     insets: orientedInsets(

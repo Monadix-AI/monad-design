@@ -9,11 +9,29 @@ import { createAdminProjectRoutes } from './admin-project-routes';
 import { createAgentSessionRoutes } from './agent-session-routes';
 import { healthResponseSchema } from './api-contract';
 import { CoreApiError, projectHttpError, requestCorrelationId } from './api-error';
+import { localSessionCookieName } from './auth';
 import { createProjectRoutes } from './project-routes';
 import { createSimulatorRoutes } from './simulator-routes';
 
 type CoreProjectStore = Pick<ProjectStore, 'list' | 'open' | 'add' | 'configureLiveTargets'> &
   Partial<Pick<ProjectStore, 'icons' | 'configure' | 'remove'>>;
+
+const localUiHostnames = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+const localUiResponse = async (
+  request: Request,
+  token: string,
+  ui: ((pathname: string) => Response | Promise<Response>) | undefined
+) => {
+  const response = ui ? await ui('/') : new Response('not found', { status: 404 });
+  if (!localUiHostnames.has(new URL(request.url).hostname)) return response;
+  const headers = new Headers(response.headers);
+  headers.append(
+    'set-cookie',
+    `${localSessionCookieName}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/`
+  );
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+};
 
 export const createCoreApp = (
   projectStore: CoreProjectStore,
@@ -46,7 +64,7 @@ export const createCoreApp = (
       return status(mapped.status, mapped.body);
     })
     .options('/*', ({ status }) => status(204))
-    .get('/', () => (ui ? ui('/') : new Response('not found', { status: 404 })))
+    .get('/', ({ request }) => localUiResponse(request, adminAccessToken, ui))
     .get('/assets/*', ({ request }) =>
       ui ? ui(new URL(request.url).pathname) : new Response('not found', { status: 404 })
     )

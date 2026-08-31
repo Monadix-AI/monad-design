@@ -15,11 +15,11 @@ selection_confirmed --complete_change---------> awaiting_request
 any non-closed state --user ends Live---------> closed
 ```
 
-Every transition increments `revision`. Start, configure, and get return full bootstrap data. Wait and mutation results return the current state with IDs, status, revision, timestamps, current request, and result when relevant.
+Every transition increments `revision`. Start returns full bootstrap data plus the clean localhost `uiUrl` that the agent opens and presents to the user. Direct localhost access establishes an HttpOnly browser session and loads the current active live session without a token or key in the URL. Configure and get return full bootstrap data. Wait and mutation results return the current state with IDs, status, revision, timestamps, current request, and result when relevant.
 
 ## Tools
 
-- `start_live_session` — `{ workspacePath, task? }`
+- `start_live_session` — `{ workspacePath, task? }` → `{ session, uiUrl }`
 - `configure_live_project` — `{ sessionId, targets: [{ bundleIdentifier, live }] }`
 - `get_live_session` — `{ sessionId? }`
 - `wait_for_change` — `{ sessionId, afterRevision, waitMs? }`, where `waitMs` is bounded to 120 seconds

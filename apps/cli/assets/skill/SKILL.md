@@ -1,11 +1,11 @@
 ---
 name: monad-design
-description: Start and maintain a Monad Design visual editing session for the current local project, using the installed desktop app when available and the Core browser UI otherwise. Use for iterative Simulator-backed change requests; not for generic one-shot builds or screenshot-only review.
+description: Start and maintain a Monad Design visual editing session for the current local project, opening the Core browser UI and keeping its local link available in the agent conversation. Use for iterative Simulator-backed change requests; not for generic one-shot builds or screenshot-only review.
 ---
 
 # Monad Design
 
-Use Monad Design as the user-facing runtime workbench while this agent remains the source-code authority. Monad Design owns project binding, Simulator choice, runtime evidence, and user requests. The agent owns framework detection, adapter configuration, source edits, build/install, validation, and completion receipts.
+Use Monad Design as the user-facing runtime workbench while this agent remains the source-code authority. Monad Design owns project binding, Simulator choice, variant launch and capture, runtime evidence, and user requests. The agent owns framework detection, adapter configuration, source edits, build/install, focused source/build validation, and completion receipts.
 
 `/monad-design` and `/monad-design start` both start the same MCP-driven listening mode. After every implementation, variant publication, selection, completed change, or unchanged wait, keep the turn open and wait for the next Monad Design event. Stop listening only after Monad Design explicitly ends Live and the session reaches `closed`, after an unrecoverable semantic error, or after 10 continuous minutes without a new session revision or user instruction. An idle stop ends the agent turn but does not close the live session.
 
@@ -13,11 +13,13 @@ Use Monad Design as the user-facing runtime workbench while this agent remains t
 
 Treat a missing subcommand as `start`. Connect through the configured `monad-design` MCP server and call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known. Do not require the user to launch a UI first.
 
-Core chooses the UI surface after connection. It first tries to open the installed Monad Design desktop app; if that is unavailable, it opens the Core browser UI. Do not probe for, install, launch, or wait on Desktop yourself. Either UI path is valid, and a UI launch failure must not interrupt the MCP session or listening loop. Judge readiness from MCP session state only.
+On a successful start, retain the returned `uiUrl`, immediately open it in a browser using the agent's available browser-opening capability, and emit the same URL as a clickable Markdown link in the agent response. Open and present the exact clean localhost URL returned by Core; do not add a token, key, or other query parameter. If browser opening fails, still emit the link and continue the MCP session.
+
+Core may also open the installed Monad Design desktop app or its browser UI. Do not probe for, install, launch, or wait on Desktop yourself. UI launch success is not the readiness signal and must not interrupt the MCP session or listening loop; judge readiness from MCP session state only.
 
 Start resolves the canonical Git root, detects explicit Expo/Xcode iOS Bundle IDs, creates schema-v1 `.monaddesign/project.json` when needed, registers the project, and creates the live session. If no explicit iOS target can be detected, report the binding error rather than guessing a Bundle ID or choosing another project.
 
-Retain the start response's session ID, revision, project root, target apps, and each target's `live` adapter for the loop. If status is `configuring_project`:
+Retain the start response's UI URL, session ID, revision, project root, target apps, and each target's `live` adapter for the loop. If status is `configuring_project`:
 
 1. Inspect actual manifests, Xcode containers, app entry points, router, and build configuration for every listed target.
 2. Read [references/framework-adapters.md](references/framework-adapters.md), select the matching recipe, and derive concrete repository-relative paths and build facts.
@@ -30,7 +32,7 @@ Do not edit `.monaddesign/project.json` directly. Do not proceed until configura
 
 Start a 10-minute inactivity window when entering the listening loop. Reset the window whenever the session revision advances or a user instruction arrives. A successful wait that returns the same revision is not activity.
 
-Call `wait_for_change` with the latest revision and `waitMs: 120000`. The long server wait is an optimization, not a liveness guarantee: coding agents and MCP clients may impose shorter hard timeouts.
+Call `wait_for_change` with the latest revision and `waitMs: 10000`. This is one listening window, not the lifetime of the live session; an unchanged response immediately starts the next wait.
 
 If `wait_for_change` is cut off by a tool timeout, connection reset, transport send error, or similar retryable transport failure, do not declare Monad Design unavailable and do not create a replacement session. Immediately call `get_live_session` with the same session ID. When it succeeds, reconcile the returned revision and state, then resume `wait_for_change`. When it also fails for a retryable transport reason, retry reconciliation with bounded backoff of at most 5 seconds until the inactivity deadline. Semantic errors such as an unknown or conflicting session are not retryable transport failures.
 
@@ -53,11 +55,11 @@ Use the persisted adapter's framework, source roots, bootstrap paths, bridge, bu
 
 ## Build, verify, and complete
 
-Build and install the exact Debug target on the configured Simulator UDID; never substitute `booted` when several devices may exist. Verify the original and every requested variant reach the same stable state, plus Back behavior, explicit original, invalid fallback, and Accessibility. Preserve unrelated working-tree changes and distinguish source/build checks from observed Simulator behavior.
+Build and install the exact Debug target on the configured Simulator UDID so Monad Design can render the updated code; never substitute `booted` when several devices may exist. Run focused source/build checks, preserve unrelated working-tree changes, and report only the checks actually performed.
 
-Call `publish_variants` with the exact session ID, request ID, and concise verification summary. Resume `wait_for_change` while the user reviews variants.
+As soon as the variants are implemented, installed, and those focused checks pass, call `publish_variants` with the exact session ID, request ID, and a concise source/build summary. Do not independently launch `original` or any variant, navigate the Simulator, inspect Accessibility, wait for visual stability, or take screenshots before publishing. The `variants_ready` transition tells Monad Design to launch and capture the variants itself. Resume `wait_for_change` while the user reviews them.
 
-When state becomes `selection_confirmed`, permanently apply the selected variant, or preserve the original when discarded. In either case, remove all temporary variant code, rebuild, install, and verify the final Debug app before calling `complete_change`. Then immediately resume `wait_for_change` with the returned revision.
+When state becomes `selection_confirmed`, permanently apply the selected variant, or preserve the original when discarded. In either case, remove all temporary variant code, rebuild and install the final Debug app, run focused source/build checks, then call `complete_change` without independently relaunching or screenshotting the app. Core relaunches the connected app as part of completion; Monad Design owns subsequent runtime observation. Then immediately resume `wait_for_change` with the returned revision.
 
 Do not call `close_live_session` because one request completed, a variant was discarded, one polling request timed out, or the 10-minute inactivity window expired. Only the user's explicit End Live action closes the normal loop.
 
@@ -65,7 +67,7 @@ Do not call `close_live_session` because one request completed, a variant was di
 
 - Keep at most one request in flight; never overwrite or skip an active request.
 - Every non-`closed` state leads to the appropriate transition or another wait until the 10-minute inactivity window expires.
-- Do not present a preview or source diff as applied before post-selection cleanup, build/install, and completion relaunch succeed.
+- Do not present a preview or source diff as applied before post-selection cleanup, build/install, and the `complete_change` completion relaunch succeed.
 - Use only the configured `monad-design` MCP server. Do not add helper transports or call private Desktop routes.
 - Confirm a Core restart through reconciliation rather than inferring it from one failed wait. If the prior session no longer exists after Core recovers, call start again; project adapters persist.
 

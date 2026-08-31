@@ -35,6 +35,7 @@ export function useCanvasViewport({
   const offsetRef = useRef(offset);
   const viewChanged = useRef(false);
   const temporaryView = useRef<CanvasViewportSnapshot | null>(null);
+  const previousMode = useRef(mode);
   const drag = useRef<{
     offsetX: number;
     offsetY: number;
@@ -53,21 +54,28 @@ export function useCanvasViewport({
     (nextOffset: { x: number; y: number }, nextScale: number) => {
       const viewport = canvas.current;
       if (!viewport) return nextOffset;
-      return clampCanvasOffset(
-        nextOffset,
-        { width: viewport.clientWidth, height: viewport.clientHeight },
-        {
-          width: deviceFrame.frameWidth * nextScale,
-          height: deviceFrame.frameHeight * nextScale + webDeviceControlsReservedHeight
-        }
-      );
+      const content =
+        mode === 'variants'
+          ? { width: viewport.clientWidth * nextScale, height: viewport.clientHeight * nextScale }
+          : {
+              width: deviceFrame.frameWidth * nextScale,
+              height: deviceFrame.frameHeight * nextScale + webDeviceControlsReservedHeight
+            };
+      return clampCanvasOffset(nextOffset, { width: viewport.clientWidth, height: viewport.clientHeight }, content);
     },
-    [deviceFrame.frameHeight, deviceFrame.frameWidth]
+    [deviceFrame.frameHeight, deviceFrame.frameWidth, mode]
   );
 
   const fitCanvas = useCallback(() => {
     const viewport = canvas.current;
     if (!viewport) return;
+    if (mode === 'variants') {
+      scaleRef.current = 1;
+      offsetRef.current = { x: 0, y: 0 };
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
+      return;
+    }
     const nextView = fitLiveWorkspaceCanvas(
       { width: viewport.clientWidth, height: viewport.clientHeight },
       { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
@@ -76,7 +84,7 @@ export function useCanvasViewport({
     offsetRef.current = nextView.offset;
     setScale(nextView.scale);
     setOffset(nextView.offset);
-  }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
+  }, [deviceFrame.frameHeight, deviceFrame.frameWidth, mode]);
   fitRef.current = fitCanvas;
   constrainOffsetRef.current = constrainOffset;
 
@@ -98,6 +106,18 @@ export function useCanvasViewport({
       observer.disconnect();
     };
   }, [resetKey]);
+
+  useEffect(() => {
+    const lastMode = previousMode.current;
+    previousMode.current = mode;
+    if (lastMode === mode || (lastMode !== 'variants' && mode !== 'variants')) return;
+    drag.current = null;
+    setIsDragging(false);
+    viewChanged.current = false;
+    temporaryView.current = null;
+    const frame = window.requestAnimationFrame(() => fitRef.current());
+    return () => window.cancelAnimationFrame(frame);
+  }, [mode]);
 
   useEffect(() => {
     if (!resetKey) return;

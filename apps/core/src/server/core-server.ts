@@ -85,7 +85,7 @@ export class CoreServer {
         : String(randomInt(100_000, 1_000_000)));
     this.#localAccessToken = options.localAccessToken ?? randomBytes(32).toString('base64url');
     const agentSessions = options.agentSessions ?? new AgentSessionStore(projectStore);
-    this.#mcp = createMonadDesignMcpHandler(projectStore, agentSessions);
+    this.#mcp = createMonadDesignMcpHandler(projectStore, agentSessions, () => `${this.localClient.origin}/`);
     this.#app = createCoreApp(
       projectStore,
       [this.#pairingCode, this.#localAccessToken],
@@ -117,8 +117,10 @@ export class CoreServer {
     this.#app.listen(
       {
         hostname: this.#host,
-        port: this.#configuredPort
-      },
+        port: this.#configuredPort,
+        // The compiled executable resolves srvx's Bun adapter, which forwards runtime options through this nested key.
+        bun: { idleTimeout: 0 }
+      } as Parameters<CoreApp['listen']>[0],
       (server) => {
         const handle = server as unknown as NodeServerHandle;
         this.#server = handle;

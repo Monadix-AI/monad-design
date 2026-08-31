@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 
+import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
 import { RadioGroup } from 'radix-ui';
 
 import { Button } from '../../primitives/button';
+import { ActionIcon } from '../action-icon';
 import { SimulatorDeviceGlyph } from './simulator-device-glyph';
 
 export interface SimulatorPickerTarget {
@@ -25,6 +27,7 @@ export function LiveSessionSimulatorPicker({
   error,
   isConnecting,
   isScanning,
+  onBack,
   onConnect,
   onSelectSimulator,
   onSelectTarget,
@@ -32,7 +35,6 @@ export function LiveSessionSimulatorPicker({
   selectedSimulatorUdid,
   selectedTargetBundleIdentifier,
   simulators,
-  task,
   targetIcon,
   targets
 }: {
@@ -40,6 +42,7 @@ export function LiveSessionSimulatorPicker({
   error?: ReactNode;
   isConnecting: boolean;
   isScanning: boolean;
+  onBack?: () => void;
   onConnect: () => void;
   onSelectSimulator: (udid: string) => void;
   onSelectTarget: (bundleIdentifier: string) => void;
@@ -47,7 +50,6 @@ export function LiveSessionSimulatorPicker({
   selectedSimulatorUdid: string;
   selectedTargetBundleIdentifier: string;
   simulators: SimulatorPickerDevice[];
-  task?: string;
   targetIcon?: (target: SimulatorPickerTarget) => ReactNode;
   targets: SimulatorPickerTarget[];
 }) {
@@ -56,23 +58,22 @@ export function LiveSessionSimulatorPicker({
   return (
     <div className="simulator-list-page">
       <section className="simulator-list-panel live-split">
+        {onBack ? (
+          <button
+            className="page-back"
+            onClick={onBack}
+            type="button"
+          >
+            <ActionIcon icon={ArrowLeft01Icon} />
+            All projects
+          </button>
+        ) : null}
         <div className="active-project-heading">
           <strong>{project.name}</strong>
           {project.path ? <code title={project.path}>{project.path}</code> : null}
           <code>
             {targets.length} {targets.length === 1 ? 'target app' : 'target apps'}
           </code>
-        </div>
-        <div
-          aria-live="polite"
-          className="agent-session-boundary"
-          role="status"
-        >
-          <span className="agent-session-live">
-            <span /> Agent waiting
-          </span>
-          <strong>Choose where to open this task</strong>
-          {task ? <p>{task}</p> : null}
         </div>
         <section
           aria-labelledby="target-app-heading-v2"

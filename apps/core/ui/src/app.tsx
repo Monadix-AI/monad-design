@@ -12,12 +12,14 @@ import {
   orientCanvasPoint,
   rotatedSimulatorOrientation,
   type SimulatorOrientation,
+  type SimulatorVariantId,
   simulatorKeyUsage,
   simulatorVariantIdsForCount,
   simulatorVariantLabels
 } from '@monaddesign/simulator';
 import {
   CanvasZoomControls,
+  canvasModeShowsSelectionOverlay,
   LiveAnnotationSurface,
   LiveSessionSimulatorPicker,
   LiveWorkspaceFrame,
@@ -28,7 +30,9 @@ import {
   SimulatorCanvas,
   SimulatorDeviceControls,
   useCanvasViewport,
-  useClientTheme
+  useClientTheme,
+  VariantComparison,
+  type VariantComparisonCapture
 } from '@monaddesign/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -37,19 +41,42 @@ type SimulatorsResponse = { simulators: IOSSimulator[] };
 type ScreenshotResponse = { image: string };
 type AXSnapshot = AccessibilitySnapshot;
 
-const accessTokenKey = 'monad-design-core-access-token';
+const wait = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+const loadCaptureImage = (source: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not inspect the captured frame.'));
+    image.src = source;
+  });
+
+const capturesAreVisuallyStable = async (left: string, right: string) => {
+  const [leftImage, rightImage] = await Promise.all([loadCaptureImage(left), loadCaptureImage(right)]);
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 96;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Could not compare the captured frames.');
+
+  context.drawImage(leftImage, 0, 0, canvas.width, canvas.height);
+  const leftPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(rightImage, 0, 0, canvas.width, canvas.height);
+  const rightPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+
+  let difference = 0;
+  for (let index = 0; index < leftPixels.length; index += 4) {
+    difference += Math.abs((leftPixels[index] ?? 0) - (rightPixels[index] ?? 0));
+    difference += Math.abs((leftPixels[index + 1] ?? 0) - (rightPixels[index + 1] ?? 0));
+    difference += Math.abs((leftPixels[index + 2] ?? 0) - (rightPixels[index + 2] ?? 0));
+  }
+
+  return difference / (canvas.width * canvas.height * 3) < 1.5;
+};
 
 export function App() {
   useClientTheme();
-  const accessToken = useMemo(() => {
-    const query = new URLSearchParams(window.location.search);
-    const queryAccessToken = query.get('accessToken');
-    if (queryAccessToken) {
-      window.sessionStorage.setItem(accessTokenKey, queryAccessToken);
-      window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
-    }
-    return queryAccessToken ?? window.sessionStorage.getItem(accessTokenKey);
-  }, []);
   const [session, setSession] = useState<AgentSessionSnapshot | null>(null);
   const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
   const [isScanning, setIsScanning] = useState(true);
@@ -62,6 +89,10 @@ export function App() {
   const [variantCount, setVariantCount] = useState(1);
   const [isSendingAgentRequest, setIsSendingAgentRequest] = useState(false);
   const [variantTransition, setVariantTransition] = useState<'confirming' | 'discarding' | null>(null);
+  const [variantCaptures, setVariantCaptures] = useState<VariantComparisonCapture[]>([]);
+  const [capturingVariant, setCapturingVariant] = useState<SimulatorVariantId | null>(null);
+  const [variantError, setVariantError] = useState('');
+  const [isRestoringConnection, setIsRestoringConnection] = useState(false);
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [axSnapshot, setAXSnapshot] = useState<AXSnapshot | null>(null);
@@ -70,11 +101,12 @@ export function App() {
   const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
   const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
   const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(
-    accessToken ? '' : 'Open this page from an active Design MCP session.'
-  );
+  const [errorMessage, setErrorMessage] = useState('');
   const socket = useRef<WebSocket | null>(null);
   const screenImage = useRef<HTMLImageElement | null>(null);
+  const orientationRef = useRef<SimulatorOrientation>('portrait');
+  const restoredConnection = useRef<string | null>(null);
+  const capturedRequest = useRef<string | null>(null);
   const selectedSimulator = useMemo(
     () => simulators.find((simulator) => simulator.udid === selectedUdid),
     [selectedUdid, simulators]
@@ -93,6 +125,10 @@ export function App() {
     orientation
   });
   const connectionUdid = session?.connection?.udid;
+  const isReviewingVariants = session?.status === 'variants_ready' || session?.status === 'selection_confirmed';
+  const reviewVariantIds = session?.changeRequest
+    ? simulatorVariantIdsForCount(session.changeRequest.variantCount)
+    : [];
   const canvasMode = isAnnotationMode
     ? 'annotate'
     : session?.status === 'variants_ready' || session?.status === 'selection_confirmed'
@@ -115,19 +151,15 @@ export function App() {
     viewChanged: canvasViewChanged
   } = canvasViewport;
 
-  const request = useCallback(
-    async <T,>(path: string, options: RequestInit = {}) => {
-      if (!accessToken) throw new Error('The local Core access token is missing.');
-      const response = await fetch(path, {
-        ...options,
-        headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json', ...options.headers }
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.error ?? `Core request failed (${response.status}).`);
-      return body as T;
-    },
-    [accessToken]
-  );
+  const request = useCallback(async <T,>(path: string, options: RequestInit = {}) => {
+    const response = await fetch(path, {
+      ...options,
+      headers: { 'content-type': 'application/json', ...options.headers }
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error ?? `Core request failed (${response.status}).`);
+    return body as T;
+  }, []);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -144,11 +176,10 @@ export function App() {
   }, [request]);
 
   useEffect(() => {
-    if (!accessToken) return;
     void refreshSession();
     const interval = window.setInterval(() => void refreshSession(), 800);
     return () => window.clearInterval(interval);
-  }, [accessToken, refreshSession]);
+  }, [refreshSession]);
 
   useEffect(() => {
     if (!connectionUdid) return;
@@ -165,9 +196,49 @@ export function App() {
   useEffect(() => {
     if (!simulators.length) return;
     setSelectedUdid(
-      (current) => current || simulators.find(({ state }) => state === 'Booted')?.udid || simulators[0]?.udid || ''
+      (current) =>
+        current ||
+        connectionUdid ||
+        simulators.find(({ state }) => state === 'Booted')?.udid ||
+        simulators[0]?.udid ||
+        ''
     );
-  }, [simulators]);
+  }, [connectionUdid, simulators]);
+
+  useEffect(() => {
+    orientationRef.current = orientation;
+  }, [orientation]);
+
+  useEffect(() => {
+    if (
+      !session?.connection ||
+      isChoosingSimulator ||
+      simulators.some(({ connected, udid }) => connected && udid === session.connection?.udid)
+    ) {
+      return;
+    }
+    const key = `${session.id}:${session.connection.udid}:${session.connection.bundleIdentifier}`;
+    if (restoredConnection.current === key) return;
+    restoredConnection.current = key;
+    setIsRestoringConnection(true);
+    setSelectedUdid(session.connection.udid);
+    setSelectedBundleIdentifier(session.connection.bundleIdentifier);
+    void request('/v1/simulators/connect', {
+      method: 'POST',
+      body: JSON.stringify({
+        projectId: session.project.id,
+        udid: session.connection.udid,
+        bundleIdentifier: session.connection.bundleIdentifier
+      })
+    })
+      .then(() => {
+        setIsStreamReady(false);
+        setErrorMessage('');
+        return refreshSession();
+      })
+      .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
+      .finally(() => setIsRestoringConnection(false));
+  }, [isChoosingSimulator, refreshSession, request, session, simulators]);
 
   useEffect(
     () => () => {
@@ -177,11 +248,8 @@ export function App() {
   );
 
   const connectInput = useCallback(() => {
-    if (!accessToken) return;
     socket.current?.close();
-    const nextSocket = new WebSocket(
-      `${window.location.origin.replace(/^http/, 'ws')}/v1/simulator/input?accessToken=${encodeURIComponent(accessToken)}`
-    );
+    const nextSocket = new WebSocket(`${window.location.origin.replace(/^http/, 'ws')}/v1/simulator/input`);
     nextSocket.binaryType = 'arraybuffer';
     nextSocket.addEventListener('message', (event) => {
       if (!(event.data instanceof ArrayBuffer) || new Uint8Array(event.data)[0] !== 130) return;
@@ -193,7 +261,7 @@ export function App() {
       }
     });
     socket.current = nextSocket;
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     if (connectionUdid) connectInput();
@@ -284,17 +352,78 @@ export function App() {
     }
   };
 
-  const selectVariant = async (variant: string) => {
-    try {
-      await request('/v1/simulator/variant', {
-        method: 'POST',
-        body: JSON.stringify({ variant })
-      });
-      setSelectedVariant(variant);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+  const captureStableSimulatorImage = useCallback(async () => {
+    await wait(700);
+    let previous = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await wait(450);
+      const current = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
+      if (await capturesAreVisuallyStable(previous, current)) return current;
+      previous = current;
     }
-  };
+    throw new Error('The Simulator did not reach a stable frame for variant comparison.');
+  }, [request]);
+
+  useEffect(() => {
+    const requestId = session?.changeRequest?.id;
+    if (
+      session?.status !== 'variants_ready' ||
+      !requestId ||
+      isRestoringConnection ||
+      !simulators.some(({ connected, udid }) => connected && udid === session.connection?.udid) ||
+      capturedRequest.current === requestId
+    ) {
+      return;
+    }
+    capturedRequest.current = requestId;
+    setVariantCaptures([]);
+    setSelectedVariant('');
+    setVariantError('');
+
+    void (async () => {
+      const captures: VariantComparisonCapture[] = [];
+      let previewLaunchStarted = false;
+      try {
+        for (const variant of simulatorVariantIdsForCount(session.changeRequest?.variantCount ?? 0)) {
+          setCapturingVariant(variant);
+          await request('/v1/simulator/variant', {
+            method: 'POST',
+            body: JSON.stringify({ variant })
+          });
+          previewLaunchStarted = true;
+          captures.push({
+            id: variant,
+            image: await captureStableSimulatorImage(),
+            orientation: orientationRef.current
+          });
+          setVariantCaptures([...captures]);
+        }
+      } catch (error) {
+        setVariantError(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (previewLaunchStarted) {
+          try {
+            await request('/v1/simulator/app', { method: 'POST' });
+          } catch (error) {
+            setVariantError((current) => {
+              const message = `Could not restart the app normally: ${error instanceof Error ? error.message : String(error)}`;
+              return current ? `${current} ${message}` : message;
+            });
+          }
+        }
+        setCapturingVariant(null);
+      }
+    })();
+  }, [captureStableSimulatorImage, isRestoringConnection, request, session, simulators]);
+
+  useEffect(() => {
+    if (session?.status !== 'awaiting_request') return;
+    capturedRequest.current = null;
+    setVariantCaptures([]);
+    setSelectedVariant('');
+    setCapturingVariant(null);
+    setVariantError('');
+  }, [session?.status]);
 
   const openAnnotation = () => {
     if (isAnnotationMode) return;
@@ -429,6 +558,7 @@ export function App() {
     </p>
   ) : null;
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
+  const isSelectionOverlayVisible = canvasModeShowsSelectionOverlay(canvasMode, isSelectionMode);
   const isSimulatorInputDisabled = isAnnotationMode || isSelectionMode;
 
   return (
@@ -456,115 +586,131 @@ export function App() {
             selectedTargetBundleIdentifier={selectedBundleIdentifier}
             simulators={simulators}
             targets={session.project.targetApps}
-            task={session.task}
           />
         ) : (
           <LiveWorkspaceFrame
             canvas={
-              <LiveAnnotationSurface
-                active={isAnnotationMode}
-                captureImage={captureSimulatorImage}
-                imageSize={screen}
-                onCancel={closeAnnotation}
-                onFinish={sendAnnotation}
-                orientation={orientation}
-              >
-                {(annotationOverlay) => (
-                  <section
-                    aria-label="Live Simulator canvas"
-                    className={`device-cluster canvas-mode-${canvasMode}`}
-                    data-canvas-ui
-                    style={{
-                      left: `calc(${canvasPlacement.left} + ${canvasOffset.x}px)`,
-                      top: `calc(50% + ${canvasOffset.y}px)`,
-                      transform: `translate(-50%, -50%) scale(${canvasScale * canvasPlacement.scale})`
-                    }}
-                  >
-                    <SimulatorCanvas
-                      ariaLabel="Interact with the connected Simulator"
-                      controls={
-                        <SimulatorDeviceControls
-                          appearance={appearance}
-                          isAppearanceChanging={isAppearanceChanging}
-                          onChangeAppearance={() => void changeAppearance()}
-                          onHome={() => sendInputFrame(0x04, { button: 'home' })}
-                          onRotateLeft={() => rotate('left')}
-                          onRotateRight={() => rotate('right')}
-                          scale={canvasScale}
-                        />
-                      }
-                      deviceChrome={selectedSimulator?.deviceChrome}
-                      deviceFrame={deviceFrame}
-                      deviceHeight={screen.height}
-                      deviceWidth={screen.width}
-                      framebufferMask={selectedSimulator?.framebufferMask}
-                      onKeyDown={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'down')}
-                      onKeyUp={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'up')}
-                      onPaste={isSimulatorInputDisabled ? undefined : (event) => void handlePaste(event)}
-                      onPointerCancel={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
-                      onPointerDown={
-                        isAnnotationMode
-                          ? undefined
-                          : isSelectionMode
-                            ? (event) => {
-                                event.stopPropagation();
-                                event.currentTarget.focus();
-                                const path = selectionPathFromEvent(event);
-                                setHoveredAXPath(path);
-                                setSelectedAXPath(path);
-                              }
-                            : (event) => {
-                                event.currentTarget.setPointerCapture(event.pointerId);
-                                sendTouch('begin', event);
-                              }
-                      }
-                      onPointerLeave={isSelectionMode ? () => setHoveredAXPath(null) : undefined}
-                      onPointerMove={
-                        isAnnotationMode
-                          ? undefined
-                          : isSelectionMode
-                            ? (event) => setHoveredAXPath(selectionPathFromEvent(event))
-                            : (event) => {
-                                if (event.currentTarget.hasPointerCapture(event.pointerId)) sendTouch('move', event);
-                              }
-                      }
-                      onPointerUp={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
-                      onStreamError={() => {
-                        setIsStreamReady(false);
-                        setErrorMessage('The Simulator video stream stopped.');
+              isReviewingVariants ? (
+                <VariantComparison
+                  captures={variantCaptures}
+                  deviceChrome={selectedSimulator?.deviceChrome}
+                  deviceFrame={deviceFrame}
+                  deviceHeight={screen.height}
+                  deviceWidth={screen.width}
+                  framebufferMask={selectedSimulator?.framebufferMask}
+                  labels={simulatorVariantLabels}
+                  offset={canvasOffset}
+                  onSelect={setSelectedVariant}
+                  scale={canvasScale}
+                  selectedVariant={selectedVariant}
+                  variants={reviewVariantIds}
+                />
+              ) : (
+                <LiveAnnotationSurface
+                  active={isAnnotationMode}
+                  captureImage={captureSimulatorImage}
+                  imageSize={screen}
+                  onCancel={closeAnnotation}
+                  onFinish={sendAnnotation}
+                  orientation={orientation}
+                >
+                  {(annotationOverlay) => (
+                    <section
+                      aria-label="Live Simulator canvas"
+                      className={`device-cluster canvas-mode-${canvasMode}`}
+                      data-canvas-ui
+                      style={{
+                        left: `calc(${canvasPlacement.left} + ${canvasOffset.x}px)`,
+                        top: `calc(50% + ${canvasOffset.y}px)`,
+                        transform: `translate(-50%, -50%) scale(${canvasScale * canvasPlacement.scale})`
                       }}
-                      onStreamLoad={() => setIsStreamReady(true)}
-                      orientation={orientation}
-                      overlay={
-                        isAnnotationMode ? (
-                          annotationOverlay
-                        ) : isSelectionMode && axSnapshot ? (
-                          <span
-                            aria-hidden="true"
-                            className="ax-overlay"
-                          >
-                            {axSnapshot.elements.map((element) => (
-                              <span
-                                className={`ax-element-box ${element.isContainer ? 'container' : ''} ${element.path === hoveredAXPath ? 'hovered' : ''} ${element.path === selectedAXPath ? 'selected' : ''}`}
-                                key={`${element.path}-${element.id}`}
-                                style={{
-                                  left: `${(element.frame.x / axSnapshot.screen.width) * 100}%`,
-                                  top: `${(element.frame.y / axSnapshot.screen.height) * 100}%`,
-                                  width: `${(element.frame.width / axSnapshot.screen.width) * 100}%`,
-                                  height: `${(element.frame.height / axSnapshot.screen.height) * 100}%`
-                                }}
-                              />
-                            ))}
-                          </span>
-                        ) : null
-                      }
-                      screenClassName={`phone-frame interactive canvas-phone device-${deviceFrame.kind} ${selectedSimulator?.deviceChrome ? 'native-device-chrome' : ''}`}
-                      screenImageRef={screenImage}
-                      streamUrl={`/v1/simulator/stream?accessToken=${encodeURIComponent(accessToken ?? '')}`}
-                    />
-                  </section>
-                )}
-              </LiveAnnotationSurface>
+                    >
+                      <SimulatorCanvas
+                        ariaLabel="Interact with the connected Simulator"
+                        controls={
+                          <SimulatorDeviceControls
+                            appearance={appearance}
+                            isAppearanceChanging={isAppearanceChanging}
+                            onChangeAppearance={() => void changeAppearance()}
+                            onHome={() => sendInputFrame(0x04, { button: 'home' })}
+                            onRotateLeft={() => rotate('left')}
+                            onRotateRight={() => rotate('right')}
+                            scale={canvasScale}
+                          />
+                        }
+                        deviceChrome={selectedSimulator?.deviceChrome}
+                        deviceFrame={deviceFrame}
+                        deviceHeight={screen.height}
+                        deviceWidth={screen.width}
+                        framebufferMask={selectedSimulator?.framebufferMask}
+                        onKeyDown={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'down')}
+                        onKeyUp={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'up')}
+                        onPaste={isSimulatorInputDisabled ? undefined : (event) => void handlePaste(event)}
+                        onPointerCancel={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
+                        onPointerDown={
+                          isAnnotationMode
+                            ? undefined
+                            : isSelectionMode
+                              ? (event) => {
+                                  event.stopPropagation();
+                                  event.currentTarget.focus();
+                                  const path = selectionPathFromEvent(event);
+                                  setHoveredAXPath(path);
+                                  setSelectedAXPath(path);
+                                }
+                              : (event) => {
+                                  event.currentTarget.setPointerCapture(event.pointerId);
+                                  sendTouch('begin', event);
+                                }
+                        }
+                        onPointerLeave={isSelectionMode ? () => setHoveredAXPath(null) : undefined}
+                        onPointerMove={
+                          isAnnotationMode
+                            ? undefined
+                            : isSelectionMode
+                              ? (event) => setHoveredAXPath(selectionPathFromEvent(event))
+                              : (event) => {
+                                  if (event.currentTarget.hasPointerCapture(event.pointerId)) sendTouch('move', event);
+                                }
+                        }
+                        onPointerUp={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
+                        onStreamError={() => {
+                          setIsStreamReady(false);
+                          setErrorMessage('The Simulator video stream stopped.');
+                        }}
+                        onStreamLoad={() => setIsStreamReady(true)}
+                        orientation={orientation}
+                        overlay={
+                          isAnnotationMode ? (
+                            annotationOverlay
+                          ) : isSelectionOverlayVisible && axSnapshot ? (
+                            <span
+                              aria-hidden="true"
+                              className="ax-overlay"
+                            >
+                              {axSnapshot.elements.map((element) => (
+                                <span
+                                  className={`ax-element-box ${element.isContainer ? 'container' : ''} ${element.path === hoveredAXPath ? 'hovered' : ''} ${element.path === selectedAXPath ? 'selected' : ''}`}
+                                  key={`${element.path}-${element.id}`}
+                                  style={{
+                                    left: `${(element.frame.x / axSnapshot.screen.width) * 100}%`,
+                                    top: `${(element.frame.y / axSnapshot.screen.height) * 100}%`,
+                                    width: `${(element.frame.width / axSnapshot.screen.width) * 100}%`,
+                                    height: `${(element.frame.height / axSnapshot.screen.height) * 100}%`
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          ) : null
+                        }
+                        screenClassName={`phone-frame interactive canvas-phone device-${deviceFrame.kind} ${selectedSimulator?.deviceChrome ? 'native-device-chrome' : ''}`}
+                        screenImageRef={screenImage}
+                        streamUrl="/v1/simulator/stream"
+                      />
+                    </section>
+                  )}
+                </LiveAnnotationSurface>
+              )
             }
             canvasProps={{
               className: isCanvasDragging ? 'dragging' : undefined,
@@ -582,6 +728,7 @@ export function App() {
                 isLive={isStreamReady}
                 name={selectedSimulator?.name ?? 'iOS Simulator'}
                 onBack={() => void disconnectSimulator()}
+                previewLabel={capturingVariant ? `Capturing ${simulatorVariantLabels[capturingVariant]}` : undefined}
               />
             }
             inspector={
@@ -614,7 +761,7 @@ export function App() {
                     }
                   }}
                   onRequestChange={setAgentRequest}
-                  onSelectVariant={(variant) => void selectVariant(variant)}
+                  onSelectVariant={setSelectedVariant}
                   onSendRequest={() => void submitChangeRequest()}
                   onVariantCountChange={setVariantCount}
                   request={agentRequest}
@@ -633,10 +780,21 @@ export function App() {
                   })()}
                   selectedVariant={selectedVariant}
                   variantCount={session.changeRequest?.variantCount ?? variantCount}
-                  variants={(session.changeRequest
-                    ? simulatorVariantIdsForCount(session.changeRequest.variantCount)
-                    : []
-                  ).map((id) => ({ id, label: simulatorVariantLabels[id], ready: true }))}
+                  variantError={
+                    variantError ? (
+                      <p
+                        className="variant-error"
+                        role="alert"
+                      >
+                        {variantError}
+                      </p>
+                    ) : undefined
+                  }
+                  variants={reviewVariantIds.map((id) => ({
+                    id,
+                    label: simulatorVariantLabels[id],
+                    ready: variantCaptures.some((capture) => capture.id === id)
+                  }))}
                   variantTransition={variantTransition}
                 />
                 <CanvasZoomControls

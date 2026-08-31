@@ -201,6 +201,23 @@ describe('Core server', () => {
     expect(streamStyleResponse.status).toBe(200);
   });
 
+  test('establishes a private browser session on direct localhost access', async () => {
+    const { origin } = await startServer();
+    const root = await fetch(`${origin}/`);
+    const cookie = root.headers.get('set-cookie')?.split(';')[0];
+
+    expect(new URL(root.url).search).toBe('');
+    expect(cookie).toBe('monad_design_local_session=local-test-token');
+    const active = await fetch(`${origin}/v1/agent-session/active`, {
+      headers: { cookie: cookie ?? '' }
+    });
+    expect(active.status).toBe(200);
+    expect(await active.json()).toEqual({ session: null });
+
+    const remoteHostRoot = await fetch(`${origin}/`, { headers: { host: '192.168.1.20' } });
+    expect(remoteHostRoot.headers.get('set-cookie')).toBeNull();
+  });
+
   test('keeps local project paths behind the Core admin token', async () => {
     const { origin } = await startServer();
 
@@ -252,6 +269,7 @@ describe('Core server', () => {
         arguments: { workspacePath: '/tmp/example/features/profile', task: 'Adjust the title' }
       });
       expect(started.structuredContent).toMatchObject({
+        uiUrl: `${origin}/`,
         session: {
           project: { id: 'project-1', path: '/tmp/example' },
           task: 'Adjust the title',
@@ -261,7 +279,11 @@ describe('Core server', () => {
       });
       const startedSession = (started.structuredContent as { session: { id: string } }).session;
 
-      const activeResponse = await fetch(`${origin}/v1/agent-session/active`, { headers: authorizedHeaders });
+      const root = await fetch(`${origin}/`);
+      const cookie = root.headers.get('set-cookie')?.split(';')[0];
+      const activeResponse = await fetch(`${origin}/v1/agent-session/active`, {
+        headers: { cookie: cookie ?? '' }
+      });
       expect(activeResponse.status).toBe(200);
       const active = (await activeResponse.json()) as { session: { id: string; project: Record<string, unknown> } };
       expect(active.session).toMatchObject({
@@ -304,6 +326,29 @@ describe('Core server', () => {
     }
   });
 
+  test("keeps MCP change waits alive beyond Bun's default HTTP idle timeout", async () => {
+    const { origin } = await startServer();
+    const client = new Client({ name: 'monad-design-wait-test', version: '1.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
+    try {
+      const started = await client.callTool({
+        name: 'start_live_session',
+        arguments: { workspacePath: '/tmp/example' }
+      });
+      const session = (started.structuredContent as { session: { id: string; revision: number } }).session;
+      const waited = await client.callTool({
+        name: 'wait_for_change',
+        arguments: { sessionId: session.id, afterRevision: session.revision, waitMs: 10_100 }
+      });
+
+      expect(waited.structuredContent).toMatchObject({
+        state: { id: session.id, revision: session.revision, status: 'selecting_simulator' }
+      });
+    } finally {
+      await client.close();
+    }
+  }, 15_000);
+
   test('configures an unadapted project through MCP before Simulator selection', async () => {
     const baseProject = projects[0];
     if (!baseProject) throw new Error('Project fixture is missing.');
@@ -332,6 +377,9 @@ describe('Core server', () => {
       });
       const session = (started.structuredContent as { session: { id: string } }).session;
       expect(started.structuredContent).toMatchObject({ session: { status: 'configuring_project' } });
+      expect(started.structuredContent).toMatchObject({
+        uiUrl: `http://127.0.0.1:${server.status.port}/`
+      });
 
       const configured = await client.callTool({
         name: 'configure_live_project',

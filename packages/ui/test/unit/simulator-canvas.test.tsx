@@ -25,6 +25,26 @@ const renderCanvas = (pointer?: { x: number; y: number; pressed: boolean }) =>
     />
   );
 
+const renderLandscapeCanvas = () => {
+  const landscapeFrame = liveSimulatorDeviceFrame({
+    deviceHeight: 844,
+    deviceName: 'iPhone',
+    deviceWidth: 390,
+    orientation: 'landscape_left'
+  });
+  return renderToStaticMarkup(
+    <SimulatorCanvas
+      ariaLabel="Simulator"
+      deviceFrame={landscapeFrame}
+      deviceHeight={844}
+      deviceWidth={390}
+      orientation="landscape_left"
+      screenClassName="phone-frame interactive"
+      streamUrl="/stream"
+    />
+  );
+};
+
 describe('shared Simulator canvas pointer', () => {
   test('keeps the system cursor visible when no simulated pointer is rendered', () => {
     expect(renderCanvas()).not.toContain('simulator-pointer-visible');
@@ -35,5 +55,13 @@ describe('shared Simulator canvas pointer', () => {
 
     expect(markup).toContain('simulator-pointer-visible');
     expect(markup).toContain('simulator-pointer');
+  });
+
+  test('swaps the visible stage while keeping the portrait stream layer for landscape rotation', () => {
+    const markup = renderLandscapeCanvas();
+
+    expect(markup).toContain('width:844px;height:390px');
+    expect(markup).toContain('width:390px;height:844px');
+    expect(markup).toContain('rotate(90deg)');
   });
 });

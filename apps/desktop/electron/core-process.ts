@@ -208,9 +208,7 @@ export class CoreProcess {
 
   openFallbackUi() {
     if (!app.isPackaged || !this.#bootstrap || !this.#activeSession || this.#activeSession.status === 'closed') return;
-    const url = `${this.#bootstrap.localClient.origin}/?accessToken=${encodeURIComponent(
-      this.#bootstrap.localClient.accessToken
-    )}`;
+    const url = `${this.#bootstrap.localClient.origin}/`;
     void shell.openExternal(url);
   }
 }

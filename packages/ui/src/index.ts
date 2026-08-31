@@ -4,6 +4,7 @@ export * from './business/annotation/model';
 export {
   type CanvasMode,
   CanvasZoomControls,
+  canvasModeShowsSelectionOverlay,
   fitLiveWorkspaceCanvas,
   type LiveSimulatorDeviceChrome,
   liveSimulatorDeviceFrame,
@@ -30,6 +31,10 @@ export {
   type LiveWorkspaceMode
 } from './business/live-session/workspace-inspector';
 export { SimulatorCanvas, type SimulatorCanvasProps } from './business/simulator-canvas';
+export {
+  VariantComparison,
+  type VariantComparisonCapture
+} from './business/variant-comparison';
 export { Button, buttonVariants } from './primitives/button';
 export { Input } from './primitives/input';
 export { Label } from './primitives/label';

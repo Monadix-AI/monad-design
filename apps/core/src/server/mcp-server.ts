@@ -31,7 +31,8 @@ const structuredResult = (value: Record<string, unknown>) => ({
   structuredContent: value
 });
 
-const sessionResult = (session: AgentSessionSnapshot) => structuredResult({ session });
+const sessionResult = (session: AgentSessionSnapshot, presentation?: { uiUrl: string }) =>
+  structuredResult({ session, ...(presentation ?? {}) });
 const stateResult = (session: AgentSessionSnapshot) =>
   structuredResult({
     state: {
@@ -122,7 +123,7 @@ const ensureProjectBinding = async (projects: ProjectResolver, workspacePath: st
   );
 };
 
-const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore) => {
+const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, uiUrl: () => string) => {
   const server = new McpServer(
     { name: 'monad-design', version: '1.0.0' },
     {
@@ -146,7 +147,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore) 
     },
     async ({ task, workspacePath }) => {
       await ensureProjectBinding(projects, workspacePath);
-      return sessionResult(await sessions.create(workspacePath, task));
+      return sessionResult(await sessions.create(workspacePath, task), { uiUrl: uiUrl() });
     }
   );
 
@@ -335,8 +336,12 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore) 
   return server;
 };
 
-export const createMonadDesignMcpHandler = (projects: ProjectResolver, sessions: AgentSessionStore) => {
-  const handler = createMcpHandler(() => buildMcpServer(projects, sessions));
+export const createMonadDesignMcpHandler = (
+  projects: ProjectResolver,
+  sessions: AgentSessionStore,
+  uiUrl: () => string
+) => {
+  const handler = createMcpHandler(() => buildMcpServer(projects, sessions, uiUrl));
   return {
     close: () => handler.close(),
     fetch: (request: Request, parsedBody?: unknown) => {

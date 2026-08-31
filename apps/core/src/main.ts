@@ -97,7 +97,7 @@ try {
     onSessionChanged: (session) => {
       if (session.status !== 'selecting_simulator' || openedSessions.has(session.id) || !uiOrigin) return;
       openedSessions.add(session.id);
-      const url = `${uiOrigin}/?accessToken=${encodeURIComponent(credentials.localAccessToken)}`;
+      const url = `${uiOrigin}/`;
       void launchPreferredUi(url, {
         reportError: (message, error) => {
           openedSessions.delete(session.id);
