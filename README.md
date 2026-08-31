@@ -7,6 +7,8 @@ mockup.
 
 > **Project status:** early-stage and under active development. APIs, local
 > configuration, and workflows may change before the first stable release.
+>
+> **Desktop and Mobile apps are coming soon.**
 
 ## What works today
 
