@@ -1,5 +1,8 @@
 import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
-import { LiveWorkspaceFrame } from '@monaddesign/ui';
+import FitToScreenIcon from '@hugeicons/core-free-icons/FitToScreenIcon';
+import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
+import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
+import { CanvasZoomControls, LiveWorkspaceFrame } from '@monaddesign/ui';
 import { Navigate } from '@tanstack/react-router';
 
 import { ActionIcon } from '@/components/action-icon';
@@ -14,9 +17,14 @@ export function WorkspaceRoute() {
     activePreviewVariant,
     canvas,
     canvasDrag,
+    canvasScale,
+    canvasScaleStep,
+    canvasViewChanged,
+    changeCanvasScale,
     connected,
     connection,
     disconnect,
+    fitCanvas,
     error,
     finishCanvasDrag,
     handleCanvasPointerDown,
@@ -25,6 +33,8 @@ export function WorkspaceRoute() {
     isAnnotationMode,
     isStreamReady,
     isVariantPreviewOpen,
+    maximumCanvasScale,
+    minimumCanvasScale,
     variantLabels
   } = useDesktopApp();
 
@@ -78,6 +88,21 @@ export function WorkspaceRoute() {
         <>
           {isVariantPreviewOpen && <VariantPreview />}
           <WorkspaceInspector />
+          <CanvasZoomControls
+            fitIcon={<ActionIcon icon={FitToScreenIcon} />}
+            maximumScale={maximumCanvasScale}
+            minimumScale={minimumCanvasScale}
+            mode={isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact'}
+            onFit={() => {
+              canvasViewChanged.current = false;
+              fitCanvas();
+            }}
+            onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+            onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+            scale={canvasScale}
+            zoomInIcon={<ActionIcon icon={ZoomInIcon} />}
+            zoomOutIcon={<ActionIcon icon={ZoomOutIcon} />}
+          />
         </>
       }
       mode={isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact'}

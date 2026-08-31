@@ -8,7 +8,6 @@ import {
   canvasScaleStep,
   clampCanvasOffset,
   encodeSimulatorFrame,
-  fitCanvasScale,
   maximumCanvasScale,
   minimumCanvasScale,
   normalizedCanvasPoint,
@@ -22,14 +21,13 @@ import {
 import {
   AnnotationEditor,
   AppHeaderFrame,
-  Button,
   CanvasZoomControls,
-  Label,
+  fitLiveWorkspaceCanvas,
   LiveSessionSimulatorPicker,
   LiveWorkspaceFrame,
+  LiveWorkspaceInspector,
   SimulatorCanvas,
   SimulatorDeviceControls,
-  Textarea,
   webDeviceControlsReservedHeight
 } from '@monaddesign/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -69,6 +67,10 @@ export function App() {
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
   const [selectedVariant, setSelectedVariant] = useState('');
+  const [agentRequest, setAgentRequest] = useState('');
+  const [variantCount, setVariantCount] = useState(1);
+  const [isSendingAgentRequest, setIsSendingAgentRequest] = useState(false);
+  const [variantTransition, setVariantTransition] = useState<'confirming' | 'discarding' | null>(null);
   const [annotationImage, setAnnotationImage] = useState<string | null>(null);
   const [isCapturingAnnotation, setIsCapturingAnnotation] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -77,7 +79,6 @@ export function App() {
   const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
   const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
   const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
-  const [isStreamReady, setIsStreamReady] = useState(false);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [errorMessage, setErrorMessage] = useState(
@@ -112,7 +113,11 @@ export function App() {
     screenHeight: screen.height,
     orientation
   });
-  const canvasMode = annotationImage ? 'annotate' : session?.status === 'variants_ready' ? 'variants' : 'interact';
+  const canvasMode = annotationImage
+    ? 'annotate'
+    : session?.status === 'variants_ready' || session?.status === 'selection_confirmed'
+      ? 'variants'
+      : 'interact';
   const connectionUdid = session?.connection?.udid;
 
   const request = useCallback(
@@ -148,14 +153,13 @@ export function App() {
   const fitCanvas = useCallback(() => {
     const viewport = canvas.current;
     if (!viewport) return;
-    const nextScale = fitCanvasScale(
+    const nextView = fitLiveWorkspaceCanvas(
       { width: viewport.clientWidth, height: viewport.clientHeight },
-      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight + webDeviceControlsReservedHeight },
-      { horizontalReserve: 440, maximumScale: maximumCanvasScale, verticalReserve: 180 }
+      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
     );
-    canvasScaleRef.current = nextScale;
-    setCanvasScale(nextScale);
-    setCanvasOffset({ x: -150, y: -webDeviceControlsReservedHeight / 2 });
+    canvasScaleRef.current = nextView.scale;
+    setCanvasScale(nextView.scale);
+    setCanvasOffset(nextView.offset);
   }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
 
   const changeCanvasScale = (nextScale: number) => {
@@ -339,19 +343,18 @@ export function App() {
     }
   };
 
-  const submitChangeRequest = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session?.connection) return;
-    const form = new FormData(event.currentTarget);
+  const submitChangeRequest = async () => {
+    if (!session?.connection || !agentRequest.trim() || isSendingAgentRequest) return;
     const selectedElement = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
+    setIsSendingAgentRequest(true);
     try {
       const nextSession = await request<AgentSessionSnapshot>(
         `/v1/agent-session/${encodeURIComponent(session.id)}/request`,
         {
           method: 'POST',
           body: JSON.stringify({
-            request: String(form.get('request') ?? '').trim(),
-            variantCount: Number(form.get('variantCount') ?? 1),
+            request: agentRequest.trim(),
+            variantCount,
             context: buildAgentTurnContext({
               bundleIdentifier: session.connection.bundleIdentifier,
               element: selectedElement,
@@ -362,19 +365,37 @@ export function App() {
         }
       );
       setSession(nextSession);
+      setAgentRequest('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSendingAgentRequest(false);
     }
   };
 
-  const confirmVariant = async () => {
-    if (!(session?.changeRequest && selectedVariant)) return;
+  const confirmVariant = async (variant: string, transition: 'confirming' | 'discarding') => {
+    if (!session?.changeRequest || variantTransition) return;
+    setVariantTransition(transition);
     try {
       const nextSession = await request<AgentSessionSnapshot>(
         `/v1/agent-session/${encodeURIComponent(session.id)}/confirm-selection`,
-        { method: 'POST', body: JSON.stringify({ requestId: session.changeRequest.id, variant: selectedVariant }) }
+        { method: 'POST', body: JSON.stringify({ requestId: session.changeRequest.id, variant }) }
       );
       setSession(nextSession);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setVariantTransition(null);
+    }
+  };
+
+  const selectVariant = async (variant: string) => {
+    try {
+      await request('/v1/simulator/variant', {
+        method: 'POST',
+        body: JSON.stringify({ variant })
+      });
+      setSelectedVariant(variant);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     }
@@ -418,8 +439,7 @@ export function App() {
     setAnnotationImage(null);
   };
 
-  const toggleSelectionMode = async () => {
-    const next = !isSelectionMode;
+  const changeSelectionMode = async (next: boolean) => {
     setIsSelectionMode(next);
     if (!next) return;
     try {
@@ -611,10 +631,8 @@ export function App() {
                     }
                     onPointerUp={isSelectionMode ? undefined : (event) => sendTouch('end', event)}
                     onStreamError={() => {
-                      setIsStreamReady(false);
                       setErrorMessage('The Simulator video stream stopped.');
                     }}
-                    onStreamLoad={() => setIsStreamReady(true)}
                     orientation={orientation}
                     overlay={
                       isSelectionMode && axSnapshot ? (
@@ -659,122 +677,70 @@ export function App() {
               ref: canvas
             }}
             inspector={
-              <>
-                <aside className="core-inspector">
-                  <section>
-                    <h2>{session.project.name}</h2>
-                    <p className="secondary">{session.connection.bundleIdentifier}</p>
-                    <p>{isStreamReady ? 'Live Simulator' : sessionLabel(session.status)}</p>
-                  </section>
-                  <Button
-                    disabled={isCapturingAnnotation}
-                    onClick={() => void captureAnnotation()}
-                    type="button"
-                    variant="secondary"
-                  >
-                    Annotate screen
-                  </Button>
-                  <Button
-                    aria-pressed={isSelectionMode}
-                    onClick={() => void toggleSelectionMode()}
-                    type="button"
-                    variant="secondary"
-                  >
-                    {isSelectionMode ? 'Stop selecting' : 'Select element'}
-                  </Button>
-                  {selectedAXPath ? (
-                    <p className="secondary">
-                      Selected:{' '}
-                      {axSnapshot?.elements.find(({ path }) => path === selectedAXPath)?.label || selectedAXPath}
-                    </p>
-                  ) : null}
-                  {session.status === 'awaiting_request' ? (
-                    <section>
-                      <h2>Request a change</h2>
-                      <form onSubmit={(event) => void submitChangeRequest(event)}>
-                        <Label htmlFor="change-request">Describe the result</Label>
-                        <Textarea
-                          id="change-request"
-                          name="request"
-                          placeholder="Increase the title contrast…"
-                          required
-                        />
-                        <Label htmlFor="variant-count">Variants</Label>
-                        <select
-                          defaultValue="1"
-                          id="variant-count"
-                          name="variantCount"
-                        >
-                          <option>1</option>
-                          <option>2</option>
-                          <option>3</option>
-                          <option>4</option>
-                          <option>5</option>
-                        </select>
-                        <Button type="submit">Send to agent</Button>
-                      </form>
-                    </section>
-                  ) : null}
-                  {session.status === 'variants_ready' && session.changeRequest ? (
-                    <section>
-                      <h2>Review variants</h2>
-                      <p className="secondary">
-                        Launch a variant in the live Simulator, then confirm the one the agent should apply.
-                      </p>
-                      <div className="core-variant-grid">
-                        {simulatorVariantIdsForCount(session.changeRequest.variantCount).map((variant) => (
-                          <Button
-                            aria-pressed={variant === selectedVariant}
-                            key={variant}
-                            onClick={async () => {
-                              try {
-                                await request('/v1/simulator/variant', {
-                                  method: 'POST',
-                                  body: JSON.stringify({ variant })
-                                });
-                                setSelectedVariant(variant);
-                              } catch (error) {
-                                setErrorMessage(error instanceof Error ? error.message : String(error));
-                              }
-                            }}
-                            type="button"
-                            variant="outline"
-                          >
-                            {simulatorVariantLabels[variant]}
-                          </Button>
-                        ))}
-                      </div>
-                      <Button
-                        disabled={!selectedVariant}
-                        onClick={() => void confirmVariant()}
-                      >
-                        Confirm selection
-                      </Button>
-                    </section>
-                  ) : null}
-                  {session.status === 'working' || session.status === 'change_requested' ? (
-                    <p
-                      aria-live="polite"
-                      className="secondary"
-                    >
-                      The coding agent is working. This page can remain open while other clients disconnect.
-                    </p>
-                  ) : null}
-                  {error}
-                </aside>
-                <CanvasZoomControls
-                  maximumScale={maximumCanvasScale}
-                  minimumScale={minimumCanvasScale}
-                  mode={canvasMode}
-                  onFit={() => {
-                    canvasViewChanged.current = false;
-                    fitCanvas();
-                  }}
-                  onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
-                  onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
-                  scale={canvasScale}
-                />
-              </>
+              annotationImage ? null : (
+                <>
+                  <LiveWorkspaceInspector
+                    agentError={error}
+                    agentStatus={session.status}
+                    confirmedVariant={session.confirmedSelection?.variant}
+                    isBusy={isCapturingAnnotation}
+                    isSendingRequest={isSendingAgentRequest}
+                    mode={canvasMode === 'variants' ? 'variants' : isSelectionMode ? 'select' : 'interact'}
+                    onAcceptVariant={() => {
+                      if (selectedVariant) void confirmVariant(selectedVariant, 'confirming');
+                    }}
+                    onBeginSelection={() => void changeSelectionMode(true)}
+                    onClearSelection={() => setSelectedAXPath(null)}
+                    onDiscardVariant={() => void confirmVariant('original', 'discarding')}
+                    onModeChange={(mode) => {
+                      if (mode === 'annotate') {
+                        setIsSelectionMode(false);
+                        setSelectedAXPath(null);
+                        void captureAnnotation();
+                      } else {
+                        void changeSelectionMode(mode === 'select');
+                      }
+                    }}
+                    onRequestChange={setAgentRequest}
+                    onSelectVariant={(variant) => void selectVariant(variant)}
+                    onSendRequest={() => void submitChangeRequest()}
+                    onVariantCountChange={setVariantCount}
+                    request={agentRequest}
+                    requestInFlight={session.changeRequest?.request}
+                    selectedElement={(() => {
+                      const element = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
+                      return element
+                        ? {
+                            frame: element.frame,
+                            isContainer: element.isContainer,
+                            name: element.label || element.value || element.role || element.type || 'Element',
+                            role: element.role,
+                            type: element.type
+                          }
+                        : null;
+                    })()}
+                    selectedVariant={selectedVariant}
+                    variantCount={session.changeRequest?.variantCount ?? variantCount}
+                    variants={(session.changeRequest
+                      ? simulatorVariantIdsForCount(session.changeRequest.variantCount)
+                      : []
+                    ).map((id) => ({ id, label: simulatorVariantLabels[id], ready: true }))}
+                    variantTransition={variantTransition}
+                  />
+                  <CanvasZoomControls
+                    maximumScale={maximumCanvasScale}
+                    minimumScale={minimumCanvasScale}
+                    mode={canvasMode}
+                    onFit={() => {
+                      canvasViewChanged.current = false;
+                      fitCanvas();
+                    }}
+                    onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+                    onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+                    scale={canvasScale}
+                  />
+                </>
+              )
             }
             mode={canvasMode}
           />

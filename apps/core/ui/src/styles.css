@@ -15,55 +15,10 @@
   font-size: 11px;
   color: var(--muted-foreground);
 }
-.core-device-cluster {
-  position: absolute;
-  top: 50%;
-  left: 42%;
-  transform: translate(-50%, -50%) scale(0.84);
-  transform-origin: center;
-}
 .core-annotation-surface {
   position: absolute;
   inset: 0;
   z-index: 8;
-}
-.core-inspector {
-  position: absolute;
-  top: 68px;
-  right: 20px;
-  z-index: 7;
-  display: grid;
-  gap: 12px;
-  width: min(340px, calc(100vw - 40px));
-  max-height: calc(100vh - 88px);
-  padding: 16px;
-  overflow: auto;
-  background: var(--elevated-fill);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 18px 50px rgb(0 0 0 / 24%);
-  backdrop-filter: blur(18px);
-}
-.core-inspector section,
-.core-inspector form {
-  display: grid;
-  gap: 10px;
-}
-.core-inspector h2,
-.core-inspector p {
-  margin: 0;
-}
-.core-inspector select {
-  min-height: 36px;
-  color: var(--foreground);
-  background: var(--field-fill);
-  border: 1px solid var(--input);
-  border-radius: var(--radius);
-}
-.core-variant-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
 }
 .core-ax-overlay {
   position: absolute;
