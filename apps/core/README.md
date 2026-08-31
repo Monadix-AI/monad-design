@@ -6,24 +6,29 @@ containing only Simulator selection and the live canvas. It is compiled as one
 Bun executable and embeds that UI, the `serve-sim` middleware, and its native
 addon.
 
-Core owns its runtime and server implementation under `src/`; its minimal Web
-UI lives under `ui/`. The Core workspace depends only on shared protocol
-packages and runtime libraries. It does not import Desktop code or invoke a
-Desktop build. Electron declares the reverse workspace dependency on
+Core owns its runtime and server implementation under `src/`; its browser-side
+session adapter lives under `ui/`. Simulator picker, workspace frames, device
+presentation, annotation primitives, and visual styles are shared with Desktop
+through `@monaddesign/ui`; Core does not reuse Desktop controllers or project
+management logic. It does not import Desktop code or invoke a Desktop build.
+Electron declares the reverse workspace dependency on
 `@monaddesign/core` for discovery paths and packages the already-built Core
 executable as an installation source.
 
 Any coding agent can connect through Design MCP. When a session reaches
-Simulator selection, Core opens the session-bound browser surface. Project
-management and pairing UI are deliberately absent. Electron is a richer client
-of the same process and retains those product features.
+Simulator selection, Core first opens the installed Desktop client and falls
+back to the session-bound browser surface when Desktop is unavailable. That
+fallback only exposes Simulator selection, the live canvas, annotation, element
+selection, and variant selection. Project management and pairing UI are
+deliberately absent. Electron is a richer client of the same process and retains
+those product features.
 
 ## Commands
 
 - `bun run --cwd apps/core dev` starts the source entrypoint.
 - `bun run --cwd apps/core build` creates `dist/monad-design`.
 - `bun run --cwd apps/cli build` packages that executable with the npm CLI and
-  the `monad-design-live` Skill.
+  the `monad-design` Skill.
 - `bun run --cwd apps/desktop package` embeds that executable under
   `Contents/Resources/core/` as an installation source for the Electron
   application.

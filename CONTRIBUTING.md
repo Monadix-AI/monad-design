@@ -14,17 +14,75 @@ duplicated work.
 
 ## Development setup
 
-The complete desktop and Simulator workflow requires macOS with Xcode and an
-iOS Simulator runtime. Repository checks and most unit tests only require the
-toolchain pinned by the repository.
+The complete desktop and Simulator workflow requires:
+
+- macOS with Xcode and an installed iOS Simulator runtime
+- [mise](https://mise.jdx.dev/) for the pinned developer toolchain
+- Bun 1.4.0, pinned by `package.json#packageManager`
 
 ```bash
+git clone <your-fork-or-checkout-url>
+cd monadesign
 mise install
 bun install --frozen-lockfile
-bun run ci
 ```
 
-Useful development commands are documented in the root [README](README.md).
+Repository checks and most unit tests do not require a running Simulator.
+
+## Architecture
+
+| Workspace | Responsibility |
+| --- | --- |
+| `apps/core` | Standalone local runtime for projects, Simulator control, pairing, MCP, and the minimal web client |
+| `apps/desktop` | Electron client and full desktop workspace; discovers and packages Core |
+| `apps/mobile` | Expo iPad companion that connects to Core over the local network |
+| `packages/*` | Shared contracts, state, UI, pairing, device geometry, history, and tooling |
+
+Core is the runtime boundary. Clients may discover and connect to Core, but Core
+must not import or build Desktop or Mobile source.
+
+More detail is available in the [Core README](apps/core/README.md), [iPad
+README](apps/mobile/README.md), and [live agent bridge](apps/desktop/AGENT_LIVE.md).
+
+## Development commands
+
+Start all workspace development tasks:
+
+```bash
+bun run dev
+```
+
+Or start a specific surface:
+
+```bash
+bun run --cwd apps/core dev
+bun run --cwd apps/desktop dev
+bun run --cwd apps/mobile dev
+```
+
+See the workspace READMEs for surface-specific setup and pairing instructions.
+
+## Quality checks
+
+```bash
+bun run check            # formatting, dependency consistency, and TypeScript
+bun run check:boundaries # workspace dependency and import architecture
+bun test apps packages   # unit and end-to-end tests
+bun run build            # build all workspaces
+bun run ci               # the complete pull-request gate
+```
+
+Additional commands:
+
+```bash
+bun run test:unit
+bun run test:e2e
+bun run check:fix
+bun run format
+```
+
+The same primary entry points are available through mise, such as
+`mise run check` and `mise run build`.
 
 ## Making a change
 

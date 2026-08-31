@@ -1,4 +1,4 @@
-# Monad Design Live agent bridge
+# Monad Design agent bridge
 
 ## Outcome
 
@@ -34,7 +34,7 @@ Every transition increments a revision. The `wait_for_change` MCP tool waits by 
 
 `complete_change` validates the active request and Simulator connection, relaunches the exact connected UDID and Bundle ID, records the agent's summary, and only then returns to `awaiting_request`. The agent must build and install the updated Debug app before calling it. Build/container/scheme or framework-specific build facts come from the persisted adapter.
 
-Start, configure, and explicit get calls return project bootstrap data. Wait, claim, complete, and close return lightweight state. A change request contains only the current request and turn-local Simulator/Accessibility context; stable variant, navigation, safety, and verification instructions live in the reusable `monad-design-live` skill.
+Start, configure, and explicit get calls return project bootstrap data. Wait, claim, complete, and close return lightweight state. A change request contains only the current request and turn-local Simulator/Accessibility context; stable variant, navigation, safety, and verification instructions live in the reusable `monad-design` skill.
 
 ## First-version limits
 

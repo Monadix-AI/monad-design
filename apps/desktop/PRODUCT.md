@@ -1,7 +1,5 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 macOS desktop and iPadOS companion
