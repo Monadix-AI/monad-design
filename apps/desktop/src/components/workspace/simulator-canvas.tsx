@@ -21,12 +21,14 @@ import {
   annotationInk,
   annotationIsVisible,
   buildCalloutLayout,
+  CanvasZoomControls,
   calloutAnchor,
   calloutConnectorPath,
   type DrawnAnnotation,
   isDrawnAnnotation,
   type Point,
-  SimulatorCanvas as SharedSimulatorCanvas
+  SimulatorCanvas as SharedSimulatorCanvas,
+  SimulatorDeviceControls
 } from '@monaddesign/ui';
 import { type PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
@@ -518,41 +520,19 @@ export function SimulatorCanvas() {
     </>
   );
   const controls = (
-    <fieldset
-      className="device-controls"
-      style={{ transform: `translateX(-50%) scale(${1 / app.canvasScale})` }}
-    >
-      <legend className="sr-only">Simulator controls</legend>
-      <Button
-        onClick={() => app.rotate('left')}
-        type="button"
-      >
-        <ActionIcon icon={RotateCcwIcon} />
-        <span>Rotate</span>
-      </Button>
-      <Button
-        onClick={() => app.sendFrame(0x04, { button: 'home' })}
-        type="button"
-      >
-        <ActionIcon icon={Home01Icon} />
-        <span>Home</span>
-      </Button>
-      <Button
-        disabled={app.isAppearanceChanging}
-        onClick={() => void app.changeAppearance(app.appearance === 'dark' ? 'light' : 'dark')}
-        type="button"
-      >
-        <ActionIcon icon={app.appearance === 'dark' ? Moon02Icon : Sun03Icon} />
-        <span>{app.appearance === 'dark' ? 'Dark' : 'Light'}</span>
-      </Button>
-      <Button
-        onClick={() => app.rotate('right')}
-        type="button"
-      >
-        <ActionIcon icon={RotateCwIcon} />
-        <span>Rotate</span>
-      </Button>
-    </fieldset>
+    <SimulatorDeviceControls
+      appearance={app.appearance ?? 'light'}
+      appearanceIcon={<ActionIcon icon={app.appearance === 'dark' ? Moon02Icon : Sun03Icon} />}
+      homeIcon={<ActionIcon icon={Home01Icon} />}
+      isAppearanceChanging={app.isAppearanceChanging}
+      onChangeAppearance={() => void app.changeAppearance(app.appearance === 'dark' ? 'light' : 'dark')}
+      onHome={() => app.sendFrame(0x04, { button: 'home' })}
+      onRotateLeft={() => app.rotate('left')}
+      onRotateRight={() => app.rotate('right')}
+      rotateLeftIcon={<ActionIcon icon={RotateCcwIcon} />}
+      rotateRightIcon={<ActionIcon icon={RotateCwIcon} />}
+      scale={app.canvasScale}
+    />
   );
   const annotationToolbar = app.isAnnotationMode && (
     <div
@@ -728,39 +708,21 @@ export function SimulatorCanvas() {
         </aside>
       )}
       {annotationToolbar}
-      <div
-        className={`zoom-controls canvas-mode-${canvasMode}`}
-        data-canvas-ui
-      >
-        <Button
-          disabled={app.canvasScale <= app.minimumCanvasScale}
-          onClick={() => app.changeCanvasScale(app.canvasScale - app.canvasScaleStep)}
-          type="button"
-        >
-          <ActionIcon icon={ZoomOutIcon} />
-          <span className="sr-only">Zoom out</span>
-        </Button>
-        <output aria-live="polite">{Math.round(app.canvasScale * 100)}%</output>
-        <Button
-          disabled={app.canvasScale >= app.maximumCanvasScale}
-          onClick={() => app.changeCanvasScale(app.canvasScale + app.canvasScaleStep)}
-          type="button"
-        >
-          <ActionIcon icon={ZoomInIcon} />
-          <span className="sr-only">Zoom in</span>
-        </Button>
-        <Button
-          className="fit-control"
-          onClick={() => {
-            app.canvasViewChanged.current = false;
-            app.fitCanvas();
-          }}
-          type="button"
-        >
-          <ActionIcon icon={FitToScreenIcon} />
-          <span className="sr-only">Fit simulator to view</span>
-        </Button>
-      </div>
+      <CanvasZoomControls
+        fitIcon={<ActionIcon icon={FitToScreenIcon} />}
+        maximumScale={app.maximumCanvasScale}
+        minimumScale={app.minimumCanvasScale}
+        mode={canvasMode}
+        onFit={() => {
+          app.canvasViewChanged.current = false;
+          app.fitCanvas();
+        }}
+        onZoomIn={() => app.changeCanvasScale(app.canvasScale + app.canvasScaleStep)}
+        onZoomOut={() => app.changeCanvasScale(app.canvasScale - app.canvasScaleStep)}
+        scale={app.canvasScale}
+        zoomInIcon={<ActionIcon icon={ZoomInIcon} />}
+        zoomOutIcon={<ActionIcon icon={ZoomOutIcon} />}
+      />
     </>
   );
 }

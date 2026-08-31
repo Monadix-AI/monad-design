@@ -1,4 +1,5 @@
 import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
+import { LiveWorkspaceFrame } from '@monaddesign/ui';
 import { Navigate } from '@tanstack/react-router';
 
 import { ActionIcon } from '@/components/action-icon';
@@ -36,59 +37,50 @@ export function WorkspaceRoute() {
     );
 
   return (
-    <main className="app-shell connected-shell">
-      <AppHeader />
-
-      <div
-        className={`free-canvas ${canvasDrag.current ? 'dragging' : ''} ${isAnnotationMode ? 'annotation-mode' : isVariantPreviewOpen ? 'variant-mode' : 'interact-mode'}`}
-        onPointerCancel={finishCanvasDrag}
-        onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handleCanvasPointerMove}
-        onPointerUp={finishCanvasDrag}
-        onWheel={handleCanvasWheel}
-        ref={canvas}
-      >
-        {!isAnnotationMode && !isVariantPreviewOpen && (
-          <div
-            className="canvas-page-heading"
-            data-canvas-ui
+    <LiveWorkspaceFrame
+      canvas={<SimulatorCanvas />}
+      canvasProps={{
+        className: canvasDrag.current ? 'dragging' : undefined,
+        onPointerCancel: finishCanvasDrag,
+        onPointerDown: handleCanvasPointerDown,
+        onPointerMove: handleCanvasPointerMove,
+        onPointerUp: finishCanvasDrag,
+        onWheel: handleCanvasWheel,
+        ref: canvas
+      }}
+      error={error}
+      header={<AppHeader />}
+      heading={
+        <div
+          className="canvas-page-heading"
+          data-canvas-ui
+        >
+          <button
+            className="page-back"
+            onClick={disconnect}
+            type="button"
           >
-            <button
-              className="page-back"
-              onClick={disconnect}
-              type="button"
-            >
-              <ActionIcon icon={ArrowLeft01Icon} />
-              Simulators
-            </button>
-            <h1>{connected?.name ?? 'iOS Simulator'}</h1>
-            <div
-              className="live-device-status"
-              role="status"
-            >
-              <span className={`connection-light ${isStreamReady ? 'online' : ''}`} />
-              <span>{isStreamReady ? 'Live' : 'Starting stream…'}</span>
-              {activePreviewVariant && <em>{variantLabels[activePreviewVariant]} · preview only</em>}
-            </div>
-          </div>
-        )}
-
-        <SimulatorCanvas />
-
-        {isVariantPreviewOpen && <VariantPreview />}
-
-        <WorkspaceInspector />
-
-        {error && (
+            <ActionIcon icon={ArrowLeft01Icon} />
+            Simulators
+          </button>
+          <h1>{connected?.name ?? 'iOS Simulator'}</h1>
           <div
-            className="canvas-error"
-            data-canvas-ui
-            role="alert"
+            className="live-device-status"
+            role="status"
           >
-            {error}
+            <span className={`connection-light ${isStreamReady ? 'online' : ''}`} />
+            <span>{isStreamReady ? 'Live' : 'Starting stream…'}</span>
+            {activePreviewVariant && <em>{variantLabels[activePreviewVariant]} · preview only</em>}
           </div>
-        )}
-      </div>
-    </main>
+        </div>
+      }
+      inspector={
+        <>
+          {isVariantPreviewOpen && <VariantPreview />}
+          <WorkspaceInspector />
+        </>
+      }
+      mode={isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact'}
+    />
   );
 }

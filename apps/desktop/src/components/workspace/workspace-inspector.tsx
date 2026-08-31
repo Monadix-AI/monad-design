@@ -119,7 +119,7 @@ export function WorkspaceInspector() {
             <ActionIcon icon={AiProgrammingIcon} />
             <div>
               <strong>Start Live in your coding agent</strong>
-              <span>Open this project in your agent, then start Monad Design Live to enable editing and sending.</span>
+              <span>Open this project in your agent, then run /monad-design to enable editing and sending.</span>
             </div>
           </div>
         )}

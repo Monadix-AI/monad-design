@@ -9,12 +9,27 @@ import type {
 import { ClientApi } from '@monaddesign/client-rtk';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 import {
+  accessibilityElementAtPoint,
+  accessibilityElementName as axElementName,
+  buildAgentTurnContext,
+  canvasOffsetForZoom,
+  clampCanvasOffset,
+  encodeSimulatorFrame,
+  fitCanvasScale,
+  normalizedCanvasPoint,
+  orientCanvasPoint,
+  rotatedSimulatorOrientation,
+  serializeAgentTurn,
+  simulatorKeyUsage
+} from '@monaddesign/simulator';
+import {
   parseSimulatorHistory,
   recordUsedSimulator,
   simulatorHistoryKey,
   sortSimulatorsForProject
 } from '@monaddesign/simulator-history';
 import { workspaceStore } from '@monaddesign/state';
+import { webDeviceControlsReservedHeight } from '@monaddesign/ui';
 import { useNavigate } from '@tanstack/react-router';
 import {
   type ClipboardEvent,
@@ -28,7 +43,6 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 
-import { buildAgentTurnContext, serializeAgentTurn } from './agent-turn-context';
 import {
   type ActiveConnection,
   canvasScaleStep,
@@ -42,11 +56,8 @@ import {
   variantIdsForCount,
   variantLabels
 } from './desktop-model';
-import { axElementAtPoint, axElementName, keyUsage } from './lib/accessibility';
-import { canvasOffsetForZoom, clampCanvasOffset } from './lib/canvas-position';
 import { captureStableSimulatorScreen } from './lib/variant-capture';
 
-const deviceControlsReservedHeight = 64;
 const orientedInsets = (
   portrait: { top: number; right: number; bottom: number; left: number },
   orientation: SimulatorOrientation
@@ -595,7 +606,7 @@ export function useDesktopController() {
         { width: bounds.clientWidth, height: bounds.clientHeight },
         {
           width: deviceFrame.frameWidth * scale,
-          height: deviceFrame.frameHeight * scale + deviceControlsReservedHeight
+          height: deviceFrame.frameHeight * scale + webDeviceControlsReservedHeight
         }
       );
     },
@@ -604,16 +615,14 @@ export function useDesktopController() {
   const fitCanvas = useCallback(() => {
     const bounds = canvas.current;
     if (!bounds) return;
-    const availableWidth = Math.max(260, bounds.clientWidth - 440);
-    const availableHeight = Math.max(300, bounds.clientHeight - 180);
-    const nextScale = Math.min(
-      maximumCanvasScale,
-      availableWidth / deviceFrame.frameWidth,
-      availableHeight / (deviceFrame.frameHeight + deviceControlsReservedHeight)
+    const nextScale = fitCanvasScale(
+      { width: bounds.clientWidth, height: bounds.clientHeight },
+      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight + webDeviceControlsReservedHeight },
+      { horizontalReserve: 440, maximumScale: maximumCanvasScale, verticalReserve: 180 }
     );
     canvasScaleRef.current = nextScale;
     setCanvasScale(nextScale);
-    setCanvasOffset({ x: -150, y: -deviceControlsReservedHeight / 2 });
+    setCanvasOffset({ x: -150, y: -webDeviceControlsReservedHeight / 2 });
   }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
   fitCanvasRef.current = fitCanvas;
   constrainCanvasOffsetRef.current = constrainCanvasOffset;
@@ -717,42 +726,25 @@ export function useDesktopController() {
       setError('The simulator input channel is not ready yet.');
       return false;
     }
-    const body = new TextEncoder().encode(JSON.stringify(payload));
-    const frame = new Uint8Array(body.length + 1);
-    frame[0] = tag;
-    frame.set(body, 1);
-    ws.send(frame);
+    ws.send(encodeSimulatorFrame(tag, payload));
     return true;
   };
   const pointFromEvent = (event: PointerEvent<HTMLButtonElement>) => {
     const bounds = screenImage.current?.getBoundingClientRect();
     if (!bounds) return null;
-    const x = (event.clientX - bounds.left) / bounds.width;
-    const y = (event.clientY - bounds.top) / bounds.height;
-    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
-    return {
-      x,
-      y
-    };
+    return normalizedCanvasPoint({ x: event.clientX, y: event.clientY }, bounds);
   };
   const sendTouch = (type: 'begin' | 'move' | 'end', event: PointerEvent<HTMLButtonElement>) => {
     const point = pointFromEvent(event);
     if (!point) return false;
-    const simulatorPoint =
-      orientation === 'landscape_left'
-        ? { x: point.y, y: 1 - point.x }
-        : orientation === 'landscape_right'
-          ? { x: 1 - point.y, y: point.x }
-          : orientation === 'portrait_upside_down'
-            ? { x: 1 - point.x, y: 1 - point.y }
-            : point;
+    const simulatorPoint = orientCanvasPoint(point, orientation);
     return sendFrame(0x03, { type, ...simulatorPoint });
   };
   const updatePointer = (event: PointerEvent<HTMLButtonElement>) => {
     const point = pointFromEvent(event);
     setPointerPosition(point);
     if (isAXTreeOpen && axSnapshot && point) {
-      setHoveredAXPath(axElementAtPoint(axSnapshot, point)?.path ?? null);
+      setHoveredAXPath(accessibilityElementAtPoint(axSnapshot, point)?.path ?? null);
     } else {
       setHoveredAXPath(null);
     }
@@ -763,7 +755,7 @@ export function useDesktopController() {
     event.currentTarget.focus();
     const point = updatePointer(event);
     if (isAXTreeOpen) {
-      setSelectedAXPath(point && axSnapshot ? (axElementAtPoint(axSnapshot, point)?.path ?? null) : null);
+      setSelectedAXPath(point && axSnapshot ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null) : null);
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -787,7 +779,7 @@ export function useDesktopController() {
   const sendKey = (usage: number, type: 'down' | 'up') => sendFrame(0x06, { type, usage });
   const handleKey = (event: KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
     if (!connected || (event.metaKey && event.code === 'KeyV')) return;
-    const usage = keyUsage(event.code);
+    const usage = simulatorKeyUsage(event.code);
     if (usage === undefined) return;
     event.preventDefault();
     sendKey(usage, type);
@@ -833,10 +825,7 @@ export function useDesktopController() {
     if (runtimeClient) void runtimeClient.disconnect().catch(() => undefined);
   };
   const rotate = (direction: 'left' | 'right') => {
-    const step = direction === 'left' ? -1 : 1;
-    const nextOrientation =
-      orientations[(orientations.indexOf(orientation) + step + orientations.length) % orientations.length] ??
-      'portrait';
+    const nextOrientation = rotatedSimulatorOrientation(orientation, direction);
     if (sendFrame(0x07, { orientation: nextOrientation })) {
       setOrientation(nextOrientation);
     }

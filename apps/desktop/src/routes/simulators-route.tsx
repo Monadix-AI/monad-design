@@ -6,20 +6,18 @@ import type {
 } from '@/electron';
 
 import AppStoreIcon from '@hugeicons/core-free-icons/AppStoreIcon';
-import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
-import ConnectIcon from '@hugeicons/core-free-icons/ConnectIcon';
 import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
 import FolderOpenIcon from '@hugeicons/core-free-icons/FolderOpenIcon';
 import PlusSignIcon from '@hugeicons/core-free-icons/PlusSignIcon';
 import RefreshCwIcon from '@hugeicons/core-free-icons/RefreshCwIcon';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { LiveSessionSimulatorPicker } from '@monaddesign/ui';
 import { Navigate } from '@tanstack/react-router';
-import { Dialog, RadioGroup } from 'radix-ui';
+import { Dialog } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 
 import { ActionIcon } from '@/components/action-icon';
 import { AppHeader } from '@/components/app-header';
-import { SimulatorDeviceGlyph } from '@/components/simulator-device-glyph';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +45,6 @@ export function SimulatorsRoute() {
     activateProject,
     addProject,
     chooseProject,
-    closeProject,
     connect,
     connection,
     configureProject,
@@ -129,10 +126,6 @@ export function SimulatorsRoute() {
       setSetupError(reason instanceof Error ? reason.message : 'Could not save target apps.');
     }
   };
-  const selectedSimulator = simulators.find(({ udid }) => udid === selectedUdid);
-  const selectedTargetApp = activeProject?.targetApps.find(
-    ({ bundleIdentifier }) => bundleIdentifier === selectedTargetBundleIdentifier
-  );
   const detectedCandidates = detection.status === 'complete' ? detection.result.candidates : [];
   const manualTargetEntry =
     detection.status === 'error' || (detection.status === 'complete' && detectedCandidates.length === 0);
@@ -466,176 +459,43 @@ export function SimulatorsRoute() {
   return (
     <main className="app-shell">
       <AppHeader />
-      <div className="simulator-list-page">
-        <section className="simulator-list-panel live-split">
-          <button
-            className="page-back"
-            onClick={closeProject}
-            type="button"
-          >
-            <ActionIcon icon={ArrowLeft01Icon} />
-            All projects
-          </button>
-          <div className="active-project-heading">
-            <strong>{activeProject.name}</strong>
-            <code title={activeProject.path}>{activeProject.path}</code>
-            <code>
-              {activeProject.targetApps.length} {activeProject.targetApps.length === 1 ? 'target app' : 'target apps'}
-            </code>
-          </div>
-          {activeAgentSession?.status === 'selecting_simulator' && (
-            <div
-              aria-live="polite"
-              className="agent-session-boundary"
-              role="status"
-            >
-              <span className="agent-session-live">
-                <span /> Agent waiting
-              </span>
-              <strong>Choose where to open this task</strong>
-              {activeAgentSession.task && <p>{activeAgentSession.task}</p>}
-            </div>
-          )}
-          <section
-            aria-labelledby="target-app-heading-v2"
-            className="picker-section target-app-section"
-          >
-            <div className="picker-section-heading">
-              <div>
-                <h2 id="target-app-heading-v2">Target app</h2>
-                <p>Configured locally for this project.</p>
-              </div>
-              <span className="picker-count">
-                {activeProject.targetApps.length} {activeProject.targetApps.length === 1 ? 'app' : 'apps'}
-              </span>
-            </div>
-            <RadioGroup.Root
-              aria-label="Target app to launch"
-              className="project-target-candidates target-app-list"
-              onValueChange={setSelectedTargetBundleIdentifier}
-              value={selectedTargetBundleIdentifier}
-            >
-              {activeProject.targetApps.map((app) => (
-                <RadioGroup.Item
-                  className="project-target-candidate target-app-card"
-                  disabled={isConnecting}
-                  key={app.bundleIdentifier}
-                  value={app.bundleIdentifier}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="target-app-icon"
-                  >
-                    {targetAppIcons[app.bundleIdentifier] ? (
-                      <img
-                        alt=""
-                        src={targetAppIcons[app.bundleIdentifier]}
-                      />
-                    ) : (
-                      <HugeiconsIcon
-                        icon={AppStoreIcon}
-                        size={21}
-                        strokeWidth={1.6}
-                      />
-                    )}
-                  </span>
-                  <span className="project-target-candidate-copy">
-                    <strong>{app.name}</strong>
-                    <code>{app.bundleIdentifier}</code>
-                  </span>
-                  <span className="project-target-radio" />
-                </RadioGroup.Item>
-              ))}
-            </RadioGroup.Root>
-          </section>
-          <section
-            aria-labelledby="simulator-heading-v2"
-            className="picker-section simulator-section"
-          >
-            <div className="picker-section-heading">
-              <div>
-                <h2 id="simulator-heading-v2">Simulator</h2>
-                <p>Booted devices connect immediately; shut down devices start first.</p>
-              </div>
-              <span className="picker-count">
-                {simulators.length} {simulators.length === 1 ? 'device' : 'devices'}
-              </span>
-            </div>
-            <RadioGroup.Root
-              aria-label="Available simulators"
-              aria-live="polite"
-              className="device-list"
-              onValueChange={setSelectedUdid}
-              value={selectedUdid}
-            >
-              {simulators.map((simulator) => (
-                <RadioGroup.Item
-                  className="device-card"
-                  disabled={isConnecting}
-                  key={simulator.udid}
-                  value={simulator.udid}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="device-selection-indicator"
-                  />
-                  <SimulatorDeviceGlyph simulator={simulator} />
-                  <span className="device-details">
-                    <strong>{simulator.name}</strong>
-                    <small>{simulator.runtime}</small>
-                  </span>
-                  <span
-                    className={`device-status ${simulator.connected ? 'connected' : simulator.state === 'Booted' ? 'booted' : 'shutdown'}`}
-                  >
-                    <span className="status-dot" />
-                    {simulator.connected ? 'Connected' : simulator.state}
-                  </span>
-                </RadioGroup.Item>
-              ))}
-              {!isScanning && simulators.length === 0 && (
-                <div className="empty-list">
-                  <div className="empty-device" />
-                  <strong>No available simulators</strong>
-                  <span>Install an iOS Simulator runtime in Xcode.</span>
-                </div>
-              )}
-            </RadioGroup.Root>
-          </section>
-          {error && (
+      <LiveSessionSimulatorPicker
+        error={
+          error ? (
             <p
               className="error-message"
               role="alert"
             >
               {error}
             </p>
-          )}
-          <footer className="simulator-action-bar">
-            <p aria-live="polite">
-              {selectedTargetApp && selectedSimulator
-                ? `${selectedTargetApp.name} · ${selectedSimulator.name}`
-                : 'Choose a target app and Simulator to continue.'}
-            </p>
-            <Button
-              className="connect-button"
-              disabled={!selectedUdid || !selectedTargetBundleIdentifier || isConnecting}
-              onClick={() => void connect()}
-              type="button"
-            >
-              <ActionIcon
-                icon={ConnectIcon}
-                spinning={isConnecting}
-              />
-              {isConnecting
-                ? selectedSimulator?.state === 'Shutdown'
-                  ? 'Starting Simulator…'
-                  : 'Connecting…'
-                : selectedSimulator?.state === 'Shutdown'
-                  ? 'Start & connect'
-                  : 'Connect'}
-            </Button>
-          </footer>
-        </section>
-      </div>
+          ) : null
+        }
+        isConnecting={isConnecting}
+        isScanning={isScanning}
+        onConnect={() => void connect()}
+        onSelectSimulator={setSelectedUdid}
+        onSelectTarget={setSelectedTargetBundleIdentifier}
+        project={{ name: activeProject.name, path: activeProject.path }}
+        selectedSimulatorUdid={selectedUdid}
+        selectedTargetBundleIdentifier={selectedTargetBundleIdentifier}
+        simulators={simulators}
+        targetIcon={(target) =>
+          targetAppIcons[target.bundleIdentifier] ? (
+            <img
+              alt=""
+              src={targetAppIcons[target.bundleIdentifier]}
+            />
+          ) : (
+            <HugeiconsIcon
+              icon={AppStoreIcon}
+              size={21}
+              strokeWidth={1.6}
+            />
+          )
+        }
+        targets={activeProject.targetApps}
+        task={activeAgentSession?.status === 'selecting_simulator' ? activeAgentSession.task : undefined}
+      />
     </main>
   );
 }

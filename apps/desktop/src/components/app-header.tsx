@@ -3,6 +3,7 @@ import QrCodeIcon from '@hugeicons/core-free-icons/QrCodeIcon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import { createPairingPayload } from '@monaddesign/pairing';
+import { AppHeaderFrame } from '@monaddesign/ui';
 import { QRCodeSVG } from 'qrcode.react';
 import { Popover } from 'radix-ui';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -69,157 +70,155 @@ export function AppHeader({ center }: { center?: ReactNode }) {
   };
 
   return (
-    <header className="app-header">
-      <div className="app-header-center">{center}</div>
-
-      <nav
-        aria-label="Application controls"
-        className="app-header-actions"
-      >
-        <Popover.Root>
-          <Popover.Trigger asChild>
-            <button
-              className="header-action"
-              disabled={!remoteClient}
-              type="button"
-            >
-              <ActionIcon icon={QrCodeIcon} />
-              Pair
-            </button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              className="header-popover pairing-popover"
-              sideOffset={8}
-            >
-              <div className="header-popover-heading">
-                <div>
-                  <strong>Pair mobile</strong>
-                  <span>Same local network</span>
+    <AppHeaderFrame
+      actions={
+        <>
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                className="header-action"
+                disabled={!remoteClient}
+                type="button"
+              >
+                <ActionIcon icon={QrCodeIcon} />
+                Pair
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                className="header-popover pairing-popover"
+                sideOffset={8}
+              >
+                <div className="header-popover-heading">
+                  <div>
+                    <strong>Pair mobile</strong>
+                    <span>Same local network</span>
+                  </div>
+                  <span className="pairing-ready">
+                    <span /> Ready
+                  </span>
                 </div>
-                <span className="pairing-ready">
-                  <span /> Ready
+                {pairingPayload && (
+                  <div
+                    aria-label="Pairing QR code"
+                    className="pairing-qr"
+                    role="img"
+                  >
+                    <QRCodeSVG
+                      bgColor="#ffffff"
+                      fgColor="#0d0d0d"
+                      level="M"
+                      marginSize={2}
+                      size={156}
+                      value={pairingPayload}
+                    />
+                  </div>
+                )}
+                <div className="pairing-code-block">
+                  <div>
+                    <span>PAIRING CODE</span>
+                    <strong>{remoteClient?.pairingCode}</strong>
+                  </div>
+                  <button
+                    aria-label={copiedPairingValue === 'code' ? 'Pairing code copied' : 'Copy pairing code'}
+                    className="pairing-copy-button"
+                    disabled={!remoteClient?.pairingCode}
+                    onClick={() => void copyPairingValue('code', remoteClient?.pairingCode)}
+                    title={copiedPairingValue === 'code' ? 'Copied' : 'Copy pairing code'}
+                    type="button"
+                  >
+                    <ActionIcon icon={copiedPairingValue === 'code' ? Tick02Icon : ClipboardCopyIcon} />
+                  </button>
+                </div>
+                <div className="pairing-origin-row">
+                  <code title={remoteClientOrigin ?? undefined}>
+                    {remoteClientOrigin ?? 'Connect this Mac to a local network'}
+                  </code>
+                  <button
+                    aria-label={copiedPairingValue === 'origin' ? 'Client address copied' : 'Copy client address'}
+                    className="pairing-copy-button"
+                    disabled={!remoteClientOrigin}
+                    onClick={() => void copyPairingValue('origin', remoteClientOrigin)}
+                    title={copiedPairingValue === 'origin' ? 'Copied' : 'Copy client address'}
+                    type="button"
+                  >
+                    <ActionIcon icon={copiedPairingValue === 'origin' ? Tick02Icon : ClipboardCopyIcon} />
+                  </button>
+                </div>
+                <span
+                  aria-live="polite"
+                  className="sr-only"
+                >
+                  {copiedPairingValue === 'code'
+                    ? 'Pairing code copied.'
+                    : copiedPairingValue === 'origin'
+                      ? 'Client address copied.'
+                      : ''}
                 </span>
-              </div>
-              {pairingPayload && (
-                <div
-                  aria-label="Pairing QR code"
-                  className="pairing-qr"
-                  role="img"
-                >
-                  <QRCodeSVG
-                    bgColor="#ffffff"
-                    fgColor="#0d0d0d"
-                    level="M"
-                    marginSize={2}
-                    size={156}
-                    value={pairingPayload}
-                  />
-                </div>
-              )}
-              <div className="pairing-code-block">
-                <div>
-                  <span>PAIRING CODE</span>
-                  <strong>{remoteClient?.pairingCode}</strong>
-                </div>
-                <button
-                  aria-label={copiedPairingValue === 'code' ? 'Pairing code copied' : 'Copy pairing code'}
-                  className="pairing-copy-button"
-                  disabled={!remoteClient?.pairingCode}
-                  onClick={() => void copyPairingValue('code', remoteClient?.pairingCode)}
-                  title={copiedPairingValue === 'code' ? 'Copied' : 'Copy pairing code'}
-                  type="button"
-                >
-                  <ActionIcon icon={copiedPairingValue === 'code' ? Tick02Icon : ClipboardCopyIcon} />
-                </button>
-              </div>
-              <div className="pairing-origin-row">
-                <code title={remoteClientOrigin ?? undefined}>
-                  {remoteClientOrigin ?? 'Connect this Mac to a local network'}
-                </code>
-                <button
-                  aria-label={copiedPairingValue === 'origin' ? 'Client address copied' : 'Copy client address'}
-                  className="pairing-copy-button"
-                  disabled={!remoteClientOrigin}
-                  onClick={() => void copyPairingValue('origin', remoteClientOrigin)}
-                  title={copiedPairingValue === 'origin' ? 'Copied' : 'Copy client address'}
-                  type="button"
-                >
-                  <ActionIcon icon={copiedPairingValue === 'origin' ? Tick02Icon : ClipboardCopyIcon} />
-                </button>
-              </div>
-              <span
-                aria-live="polite"
-                className="sr-only"
-              >
-                {copiedPairingValue === 'code'
-                  ? 'Pairing code copied.'
-                  : copiedPairingValue === 'origin'
-                    ? 'Client address copied.'
-                    : ''}
-              </span>
-              <small>Scan once to browse projects available on this Mac.</small>
-              <Popover.Arrow className="header-popover-arrow" />
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
+                <small>Scan once to browse projects available on this Mac.</small>
+                <Popover.Arrow className="header-popover-arrow" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
 
-        <Popover.Root>
-          <Popover.Trigger asChild>
-            <button
-              aria-label="Settings"
-              className="header-icon-button"
-              title="Settings"
-              type="button"
-            >
-              <ActionIcon icon={Settings02Icon} />
-            </button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              className="header-popover settings-popover"
-              sideOffset={8}
-            >
-              <div className="header-popover-heading">
-                <div>
-                  <strong>Settings</strong>
-                  <span>Desktop appearance</span>
-                </div>
-              </div>
-              <fieldset
-                aria-label="Theme"
-                className="theme-options"
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                aria-label="Settings"
+                className="header-icon-button"
+                title="Settings"
+                type="button"
               >
-                <button
-                  aria-pressed={theme === 'system'}
-                  onClick={() => setTheme('system')}
-                  type="button"
+                <ActionIcon icon={Settings02Icon} />
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                className="header-popover settings-popover"
+                sideOffset={8}
+              >
+                <div className="header-popover-heading">
+                  <div>
+                    <strong>Settings</strong>
+                    <span>Desktop appearance</span>
+                  </div>
+                </div>
+                <fieldset
+                  aria-label="Theme"
+                  className="theme-options"
                 >
-                  Auto
-                </button>
-                <button
-                  aria-pressed={theme === 'light'}
-                  onClick={() => setTheme('light')}
-                  type="button"
-                >
-                  Light
-                </button>
-                <button
-                  aria-pressed={theme === 'dark'}
-                  onClick={() => setTheme('dark')}
-                  type="button"
-                >
-                  Dark
-                </button>
-              </fieldset>
-              <p>Auto follows macOS. Simulator appearance stays independent.</p>
-              <Popover.Arrow className="header-popover-arrow" />
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-      </nav>
-    </header>
+                  <button
+                    aria-pressed={theme === 'system'}
+                    onClick={() => setTheme('system')}
+                    type="button"
+                  >
+                    Auto
+                  </button>
+                  <button
+                    aria-pressed={theme === 'light'}
+                    onClick={() => setTheme('light')}
+                    type="button"
+                  >
+                    Light
+                  </button>
+                  <button
+                    aria-pressed={theme === 'dark'}
+                    onClick={() => setTheme('dark')}
+                    type="button"
+                  >
+                    Dark
+                  </button>
+                </fieldset>
+                <p>Auto follows macOS. Simulator appearance stays independent.</p>
+                <Popover.Arrow className="header-popover-arrow" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+        </>
+      }
+      center={center}
+    />
   );
 }
