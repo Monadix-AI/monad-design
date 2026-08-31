@@ -18,6 +18,19 @@ import {
   useSetSimulatorPasteboardMutation
 } from '@monaddesign/client-rtk';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
+import {
+  accessibilityElementAtPoint as axElementAtPoint,
+  buildAgentTurnContext,
+  canvasOffsetForZoom,
+  canvasScaleStep,
+  clampCanvasOffset,
+  encodeSimulatorFrame as encodeFrame,
+  maximumCanvasScale,
+  minimumCanvasScale,
+  rotatedSimulatorOrientation as rotatedOrientation,
+  orientCanvasPoint as simulatorPoint,
+  simulatorVariantIdsForCount
+} from '@monaddesign/simulator';
 import { workspaceStore } from '@monaddesign/state';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,19 +41,11 @@ import { WebView } from 'react-native-webview';
 import { useStore } from 'zustand';
 
 import { ClientApi } from '../api';
-import {
-  canvasOffsetForZoom,
-  canvasScaleStep,
-  clampCanvasOffset,
-  maximumCanvasScale,
-  minimumCanvasScale
-} from '../canvas-position';
 import { AgentRequestPanel } from '../components/AgentRequestPanel';
 import { AnnotationModal } from '../components/AnnotationModal';
 import { GlassControl } from '../components/GlassControl';
 import { VariantModal } from '../components/VariantModal';
 import { CanvasControl, ModeButton } from '../components/WorkspaceControls';
-import { axElementAtPoint, buildAgentTurnContext, encodeFrame, rotatedOrientation, simulatorPoint } from '../protocol';
 import { styles } from '../styles';
 import { colors, errorMessage } from '../theme';
 import { simulatorChromeLayout, simulatorFrameSize, simulatorMaskGeometry } from '../workspace-layout';
@@ -463,15 +468,7 @@ export function Workspace({
       setIsSendingAgentRequest(false);
     }
   };
-  const agentVariants: SimulatorVariantId[] = agentSession?.changeRequest
-    ? [
-        'original',
-        ...Array.from(
-          { length: agentSession.changeRequest.variantCount },
-          (_, index) => `v${index + 1}` as SimulatorVariantId
-        )
-      ]
-    : ['original', 'v1', 'v2', 'v3'];
+  const agentVariants = simulatorVariantIdsForCount(agentSession?.changeRequest?.variantCount ?? 3);
   const confirmAgentVariant = async (variant: SimulatorVariantId) => {
     const requestId = agentSession?.changeRequest?.id;
     if (agentSession?.status !== 'variants_ready' || !requestId) return;

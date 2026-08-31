@@ -1,12 +1,43 @@
 import type { AgentSessionSnapshot, IOSSimulator } from '@monaddesign/client-contract';
 
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
-import { AnnotationEditor, Button, Label, SimulatorCanvas, type SimulatorOrientation, Textarea } from '@monaddesign/ui';
+import {
+  type AccessibilitySnapshot,
+  buildAgentTurnContext,
+  canvasOffsetForZoom,
+  canvasScaleStep,
+  clampCanvasOffset,
+  encodeSimulatorFrame,
+  fitCanvasScale,
+  maximumCanvasScale,
+  minimumCanvasScale,
+  normalizedCanvasPoint,
+  orientCanvasPoint,
+  rotatedSimulatorOrientation,
+  type SimulatorOrientation,
+  simulatorKeyUsage,
+  simulatorVariantIdsForCount,
+  simulatorVariantLabels
+} from '@monaddesign/simulator';
+import {
+  AnnotationEditor,
+  AppHeaderFrame,
+  Button,
+  CanvasZoomControls,
+  Label,
+  LiveSessionSimulatorPicker,
+  LiveWorkspaceFrame,
+  SimulatorCanvas,
+  SimulatorDeviceControls,
+  Textarea,
+  webDeviceControlsReservedHeight
+} from '@monaddesign/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type ActiveSessionResponse = { session: AgentSessionSnapshot | null };
 type SimulatorsResponse = { simulators: IOSSimulator[] };
 type ScreenshotResponse = { image: string };
+type AXSnapshot = AccessibilitySnapshot;
 
 const accessTokenKey = 'monad-design-core-access-token';
 
@@ -22,14 +53,6 @@ const sessionLabel = (status: AgentSessionSnapshot['status']) =>
     closed: 'Session closed'
   })[status] ?? 'Core online';
 
-const frame = (tag: number, payload: object) => {
-  const body = new TextEncoder().encode(JSON.stringify(payload));
-  const value = new Uint8Array(body.length + 1);
-  value[0] = tag;
-  value.set(body, 1);
-  return value;
-};
-
 export function App() {
   const accessToken = useMemo(() => {
     const query = new URLSearchParams(window.location.search);
@@ -42,16 +65,37 @@ export function App() {
   }, []);
   const [session, setSession] = useState<AgentSessionSnapshot | null>(null);
   const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
+  const [isScanning, setIsScanning] = useState(true);
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
   const [selectedVariant, setSelectedVariant] = useState('');
   const [annotationImage, setAnnotationImage] = useState<string | null>(null);
   const [isCapturingAnnotation, setIsCapturingAnnotation] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [axSnapshot, setAXSnapshot] = useState<AXSnapshot | null>(null);
+  const [selectedAXPath, setSelectedAXPath] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
+  const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
+  const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
+  const [isStreamReady, setIsStreamReady] = useState(false);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [errorMessage, setErrorMessage] = useState(
     accessToken ? '' : 'Open this page from an active Design MCP session.'
   );
   const socket = useRef<WebSocket | null>(null);
+  const canvas = useRef<HTMLDivElement | null>(null);
+  const screenImage = useRef<HTMLImageElement | null>(null);
+  const canvasScaleRef = useRef(canvasScale);
+  const canvasViewChanged = useRef(false);
+  const canvasDrag = useRef<{
+    offsetX: number;
+    offsetY: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  canvasScaleRef.current = canvasScale;
   const selectedSimulator = useMemo(
     () => simulators.find((simulator) => simulator.udid === selectedUdid),
     [selectedUdid, simulators]
@@ -68,6 +112,8 @@ export function App() {
     screenHeight: screen.height,
     orientation
   });
+  const canvasMode = annotationImage ? 'annotate' : session?.status === 'variants_ready' ? 'variants' : 'interact';
+  const connectionUdid = session?.connection?.udid;
 
   const request = useCallback(
     async <T,>(path: string, options: RequestInit = {}) => {
@@ -83,6 +129,106 @@ export function App() {
     [accessToken]
   );
 
+  const constrainCanvasOffset = useCallback(
+    (offset: { x: number; y: number }, scale: number) => {
+      const viewport = canvas.current;
+      if (!viewport) return offset;
+      return clampCanvasOffset(
+        offset,
+        { width: viewport.clientWidth, height: viewport.clientHeight },
+        {
+          width: deviceFrame.frameWidth * scale,
+          height: deviceFrame.frameHeight * scale + webDeviceControlsReservedHeight
+        }
+      );
+    },
+    [deviceFrame.frameHeight, deviceFrame.frameWidth]
+  );
+
+  const fitCanvas = useCallback(() => {
+    const viewport = canvas.current;
+    if (!viewport) return;
+    const nextScale = fitCanvasScale(
+      { width: viewport.clientWidth, height: viewport.clientHeight },
+      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight + webDeviceControlsReservedHeight },
+      { horizontalReserve: 440, maximumScale: maximumCanvasScale, verticalReserve: 180 }
+    );
+    canvasScaleRef.current = nextScale;
+    setCanvasScale(nextScale);
+    setCanvasOffset({ x: -150, y: -webDeviceControlsReservedHeight / 2 });
+  }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
+
+  const changeCanvasScale = (nextScale: number) => {
+    canvasViewChanged.current = true;
+    const boundedScale = Math.min(maximumCanvasScale, Math.max(minimumCanvasScale, nextScale));
+    canvasScaleRef.current = boundedScale;
+    setCanvasScale(boundedScale);
+    setCanvasOffset((current) => constrainCanvasOffset(current, boundedScale));
+  };
+
+  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (canvasMode !== 'interact') return;
+    event.preventDefault();
+    canvasViewChanged.current = true;
+    const bounds = canvas.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const deltaPixels =
+      event.deltaY *
+      (event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? bounds.height
+          : 1);
+    const currentScale = canvasScaleRef.current;
+    const nextScale = Math.min(
+      maximumCanvasScale,
+      Math.max(minimumCanvasScale, currentScale * Math.exp(-deltaPixels * 0.0025))
+    );
+    if (nextScale === currentScale) return;
+    canvasScaleRef.current = nextScale;
+    setCanvasScale(nextScale);
+    setCanvasOffset((current) =>
+      constrainCanvasOffset(
+        canvasOffsetForZoom(
+          current,
+          { width: bounds.width, height: bounds.height },
+          { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
+          currentScale,
+          nextScale
+        ),
+        nextScale
+      )
+    );
+  };
+
+  const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (canvasMode !== 'interact' || (event.target as HTMLElement).closest('[data-canvas-ui]')) return;
+    canvasViewChanged.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasDrag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: canvasOffset.x,
+      offsetY: canvasOffset.y
+    };
+  };
+
+  const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = canvasDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setCanvasOffset(
+      constrainCanvasOffset(
+        { x: drag.offsetX + event.clientX - drag.startX, y: drag.offsetY + event.clientY - drag.startY },
+        canvasScaleRef.current
+      )
+    );
+  };
+
+  const finishCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (canvasDrag.current?.pointerId === event.pointerId) canvasDrag.current = null;
+  };
+
   const refreshSession = useCallback(async () => {
     try {
       const response = await request<ActiveSessionResponse>('/v1/agent-session/active');
@@ -90,6 +236,7 @@ export function App() {
       if (response.session) {
         const simulatorResponse = await request<SimulatorsResponse>('/v1/simulators');
         setSimulators(simulatorResponse.simulators);
+        setIsScanning(false);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -102,6 +249,28 @@ export function App() {
     const interval = window.setInterval(() => void refreshSession(), 800);
     return () => window.clearInterval(interval);
   }, [accessToken, refreshSession]);
+
+  useEffect(() => {
+    if (!connectionUdid) return;
+    canvasViewChanged.current = false;
+    const frameId = window.requestAnimationFrame(fitCanvas);
+    const observer = new ResizeObserver(() => {
+      if (!canvasViewChanged.current) fitCanvas();
+      else setCanvasOffset((current) => constrainCanvasOffset(current, canvasScaleRef.current));
+    });
+    if (canvas.current) observer.observe(canvas.current);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
+  }, [connectionUdid, constrainCanvasOffset, fitCanvas]);
+
+  useEffect(() => {
+    if (!connectionUdid) return;
+    void request<{ appearance: 'light' | 'dark' }>('/v1/simulator/appearance')
+      .then(({ appearance: nextAppearance }) => setAppearance(nextAppearance))
+      .catch(() => undefined);
+  }, [connectionUdid, request]);
 
   useEffect(() => {
     if (!session?.project.targetApps.length) return;
@@ -142,8 +311,8 @@ export function App() {
   }, [accessToken]);
 
   useEffect(() => {
-    if (session?.connection) connectInput();
-  }, [connectInput, session?.connection]);
+    if (connectionUdid) connectInput();
+  }, [connectInput, connectionUdid]);
 
   const connectSimulator = async () => {
     if (!session) return;
@@ -174,6 +343,7 @@ export function App() {
     event.preventDefault();
     if (!session?.connection) return;
     const form = new FormData(event.currentTarget);
+    const selectedElement = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
     try {
       const nextSession = await request<AgentSessionSnapshot>(
         `/v1/agent-session/${encodeURIComponent(session.id)}/request`,
@@ -182,7 +352,12 @@ export function App() {
           body: JSON.stringify({
             request: String(form.get('request') ?? '').trim(),
             variantCount: Number(form.get('variantCount') ?? 1),
-            context: { simulator: session.connection }
+            context: buildAgentTurnContext({
+              bundleIdentifier: session.connection.bundleIdentifier,
+              element: selectedElement,
+              snapshot: axSnapshot ?? undefined,
+              simulator: selectedSimulator ?? { udid: session.connection.udid }
+            })
           })
         }
       );
@@ -208,6 +383,8 @@ export function App() {
   const captureAnnotation = async () => {
     try {
       setIsCapturingAnnotation(true);
+      setIsSelectionMode(false);
+      setSelectedAXPath(null);
       const response = await request<ScreenshotResponse>('/v1/simulator/screenshot');
       setAnnotationImage(response.image);
     } catch (error) {
@@ -217,19 +394,104 @@ export function App() {
     }
   };
 
+  const sendAnnotation = async (annotationScreenshot: string) => {
+    if (!session?.connection) throw new Error('The active Simulator session is unavailable.');
+    const snapshot = axSnapshot ?? (await request<AXSnapshot>('/v1/simulator/accessibility'));
+    const nextSession = await request<AgentSessionSnapshot>(
+      `/v1/agent-session/${encodeURIComponent(session.id)}/request`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          request: 'Implement the changes shown in the attached annotated screenshot.',
+          variantCount: 1,
+          context: buildAgentTurnContext({
+            bundleIdentifier: session.connection.bundleIdentifier,
+            snapshot,
+            simulator: selectedSimulator ?? { udid: session.connection.udid }
+          }),
+          annotationScreenshot
+        })
+      }
+    );
+    setAXSnapshot(snapshot);
+    setSession(nextSession);
+    setAnnotationImage(null);
+  };
+
+  const toggleSelectionMode = async () => {
+    const next = !isSelectionMode;
+    setIsSelectionMode(next);
+    if (!next) return;
+    try {
+      setErrorMessage('');
+      setAXSnapshot(await request<AXSnapshot>('/v1/simulator/accessibility'));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setIsSelectionMode(false);
+    }
+  };
+
+  const sendInputFrame = (tag: number, payload: object) => {
+    if (socket.current?.readyState !== WebSocket.OPEN) {
+      setErrorMessage('The Simulator input channel is still starting.');
+      return false;
+    }
+    socket.current.send(encodeSimulatorFrame(tag, payload));
+    return true;
+  };
+
   const sendTouch = (type: 'begin' | 'move' | 'end', event: React.PointerEvent<HTMLButtonElement>) => {
-    if (socket.current?.readyState !== WebSocket.OPEN) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const point = { x: (event.clientX - bounds.left) / bounds.width, y: (event.clientY - bounds.top) / bounds.height };
-    const normalized =
-      orientation === 'landscape_left'
-        ? { x: point.y, y: 1 - point.x }
-        : orientation === 'landscape_right'
-          ? { x: 1 - point.y, y: point.x }
-          : orientation === 'portrait_upside_down'
-            ? { x: 1 - point.x, y: 1 - point.y }
-            : point;
-    socket.current.send(frame(0x03, { type, ...normalized }));
+    const bounds = screenImage.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const point = normalizedCanvasPoint({ x: event.clientX, y: event.clientY }, bounds);
+    if (!point) return;
+    sendInputFrame(0x03, { type, ...orientCanvasPoint(point, orientation) });
+  };
+
+  const rotate = (direction: 'left' | 'right') => {
+    const next = rotatedSimulatorOrientation(orientation, direction);
+    if (sendInputFrame(0x07, { orientation: next })) setOrientation(next);
+  };
+
+  const changeAppearance = async () => {
+    if (isAppearanceChanging) return;
+    const nextAppearance = appearance === 'dark' ? 'light' : 'dark';
+    setIsAppearanceChanging(true);
+    try {
+      await request('/v1/simulator/appearance', {
+        method: 'PUT',
+        body: JSON.stringify({ appearance: nextAppearance })
+      });
+      setAppearance(nextAppearance);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsAppearanceChanging(false);
+    }
+  };
+
+  const handleKey = (event: React.KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
+    if (event.metaKey && event.code === 'KeyV') return;
+    const usage = simulatorKeyUsage(event.code);
+    if (usage === undefined) return;
+    event.preventDefault();
+    sendInputFrame(0x06, { type, usage });
+  };
+
+  const handlePaste = async (event: React.ClipboardEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const text = event.clipboardData.getData('text');
+    if (!text) return;
+    try {
+      await request('/v1/simulator/pasteboard', { method: 'POST', body: JSON.stringify({ text }) });
+      sendInputFrame(0x06, { type: 'down', usage: 227 });
+      sendInputFrame(0x06, { type: 'down', usage: 25 });
+      sendInputFrame(0x06, { type: 'up', usage: 25 });
+      sendInputFrame(0x06, { type: 'up', usage: 227 });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const error = errorMessage ? (
@@ -243,27 +505,25 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div
-          aria-hidden="true"
-          className="brand-mark"
-        >
-          M
-        </div>
-        <div className="min-w-0">
-          <strong>Monad Design Core</strong>
-          <span>{session?.project.name ?? 'Waiting for a coding agent'}</span>
-        </div>
-        <output
-          aria-live="polite"
-          className="status"
-        >
-          {session ? sessionLabel(session.status) : 'Core online'}
-        </output>
-      </header>
+      <AppHeaderFrame
+        actions={
+          <output
+            aria-live="polite"
+            className="status"
+          >
+            {session ? sessionLabel(session.status) : 'Core online'}
+          </output>
+        }
+        center={
+          <div className="core-session-heading">
+            <strong>Monad Design Core</strong>
+            <span>{session?.project.name ?? 'Waiting for a coding agent'}</span>
+          </div>
+        }
+      />
       <main>
         {!session || session.status === 'configuring_project' ? (
-          <section className="centered">
+          <section className="core-waiting">
             <h1>Waiting for a coding agent</h1>
             <p className="lead">
               Connect any coding agent to the Design MCP. Core will bind the current workspace and open Simulator
@@ -272,196 +532,252 @@ export function App() {
             {error}
           </section>
         ) : session.status === 'selecting_simulator' || !session.connection ? (
-          <section className="centered">
-            <h1>Choose the Simulator for {session.project.name}</h1>
-            <p className="lead">
-              This selection belongs to the active Design MCP session. Core will keep the canvas available even when the
-              desktop client is closed.
-            </p>
-            <div className="picker-layout">
+          <LiveSessionSimulatorPicker
+            error={error}
+            isConnecting={false}
+            isScanning={isScanning}
+            onConnect={() => void connectSimulator()}
+            onSelectSimulator={setSelectedUdid}
+            onSelectTarget={setSelectedBundleIdentifier}
+            project={{ name: session.project.name }}
+            selectedSimulatorUdid={selectedUdid}
+            selectedTargetBundleIdentifier={selectedBundleIdentifier}
+            simulators={simulators}
+            targets={session.project.targetApps}
+            task={session.task}
+          />
+        ) : (
+          <LiveWorkspaceFrame
+            canvas={
               <section
-                aria-label="Available iOS Simulators"
-                className="simulator-list"
+                aria-label="Live Simulator canvas"
+                className={annotationImage ? 'core-annotation-surface' : `device-cluster canvas-mode-${canvasMode}`}
+                data-canvas-ui={!annotationImage ? true : undefined}
+                style={
+                  annotationImage
+                    ? undefined
+                    : {
+                        left: `calc(50% + ${canvasOffset.x}px)`,
+                        top: `calc(50% + ${canvasOffset.y}px)`,
+                        transform: `translate(-50%, -50%) scale(${canvasScale})`
+                      }
+                }
               >
-                {simulators.length ? (
-                  simulators.map((simulator) => (
-                    <Button
-                      aria-pressed={simulator.udid === selectedUdid}
-                      className="simulator-option"
-                      key={simulator.udid}
-                      onClick={() => setSelectedUdid(simulator.udid)}
-                      type="button"
-                      variant="outline"
-                    >
-                      <span className={`state-dot ${simulator.state === 'Booted' ? 'booted' : ''}`} />
-                      <span>
-                        <strong>{simulator.name}</strong>
-                        <small>{simulator.runtime}</small>
-                      </span>
-                      <small>{simulator.state}</small>
-                    </Button>
-                  ))
+                {annotationImage ? (
+                  <AnnotationEditor
+                    image={annotationImage}
+                    isRecapturing={isCapturingAnnotation}
+                    onClose={() => setAnnotationImage(null)}
+                    onFinish={sendAnnotation}
+                    onRecapture={() => void captureAnnotation()}
+                  />
                 ) : (
-                  <p className="secondary">
-                    No iOS Simulators were found. Start one in Xcode, then keep this page open.
-                  </p>
+                  <SimulatorCanvas
+                    ariaLabel="Interact with the connected Simulator"
+                    controls={
+                      <SimulatorDeviceControls
+                        appearance={appearance}
+                        isAppearanceChanging={isAppearanceChanging}
+                        onChangeAppearance={() => void changeAppearance()}
+                        onHome={() => sendInputFrame(0x04, { button: 'home' })}
+                        onRotateLeft={() => rotate('left')}
+                        onRotateRight={() => rotate('right')}
+                        scale={canvasScale}
+                      />
+                    }
+                    deviceChrome={selectedSimulator?.deviceChrome}
+                    deviceFrame={deviceFrame}
+                    deviceHeight={screen.height}
+                    deviceWidth={screen.width}
+                    framebufferMask={selectedSimulator?.framebufferMask}
+                    onKeyDown={isSelectionMode ? undefined : (event) => handleKey(event, 'down')}
+                    onKeyUp={isSelectionMode ? undefined : (event) => handleKey(event, 'up')}
+                    onPaste={isSelectionMode ? undefined : (event) => void handlePaste(event)}
+                    onPointerCancel={isSelectionMode ? undefined : (event) => sendTouch('end', event)}
+                    onPointerDown={
+                      isSelectionMode
+                        ? undefined
+                        : (event) => {
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            sendTouch('begin', event);
+                          }
+                    }
+                    onPointerMove={
+                      isSelectionMode
+                        ? undefined
+                        : (event) => {
+                            if (event.currentTarget.hasPointerCapture(event.pointerId)) sendTouch('move', event);
+                          }
+                    }
+                    onPointerUp={isSelectionMode ? undefined : (event) => sendTouch('end', event)}
+                    onStreamError={() => {
+                      setIsStreamReady(false);
+                      setErrorMessage('The Simulator video stream stopped.');
+                    }}
+                    onStreamLoad={() => setIsStreamReady(true)}
+                    orientation={orientation}
+                    overlay={
+                      isSelectionMode && axSnapshot ? (
+                        <div
+                          className="core-ax-overlay"
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          {axSnapshot.elements.map((element) => (
+                            <button
+                              aria-label={`Select ${element.label || element.role || 'element'}`}
+                              className="core-ax-element"
+                              key={element.path}
+                              onClick={() => setSelectedAXPath(element.path)}
+                              style={{
+                                left: `${(element.frame.x / axSnapshot.screen.width) * 100}%`,
+                                top: `${(element.frame.y / axSnapshot.screen.height) * 100}%`,
+                                width: `${(element.frame.width / axSnapshot.screen.width) * 100}%`,
+                                height: `${(element.frame.height / axSnapshot.screen.height) * 100}%`,
+                                pointerEvents: 'auto',
+                                ...(selectedAXPath === element.path ? { borderWidth: 2 } : {})
+                              }}
+                              type="button"
+                            />
+                          ))}
+                        </div>
+                      ) : null
+                    }
+                    screenClassName={`phone-frame interactive canvas-phone device-${deviceFrame.kind} ${selectedSimulator?.deviceChrome ? 'native-device-chrome' : ''}`}
+                    screenImageRef={screenImage}
+                    streamUrl={`/v1/simulator/stream?accessToken=${encodeURIComponent(accessToken ?? '')}`}
+                  />
                 )}
               </section>
-              <div className="picker-actions">
-                <Label htmlFor="target-app">Target app</Label>
-                <select
-                  id="target-app"
-                  onChange={(event) => setSelectedBundleIdentifier(event.target.value)}
-                  value={selectedBundleIdentifier}
-                >
-                  {session.project.targetApps.map((target) => (
-                    <option
-                      key={target.bundleIdentifier}
-                      value={target.bundleIdentifier}
-                    >
-                      {target.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  disabled={!selectedUdid || !selectedBundleIdentifier}
-                  onClick={() => void connectSimulator()}
-                >
-                  Open canvas
-                </Button>
-                {error}
-              </div>
-            </div>
-          </section>
-        ) : (
-          <div className="workspace">
-            <section
-              aria-label="Live Simulator canvas"
-              className="canvas"
-            >
-              {annotationImage ? (
-                <AnnotationEditor
-                  image={annotationImage}
-                  isRecapturing={isCapturingAnnotation}
-                  onClose={() => setAnnotationImage(null)}
-                  onRecapture={() => void captureAnnotation()}
-                />
-              ) : (
-                <SimulatorCanvas
-                  ariaLabel="Interact with the connected Simulator"
-                  className="device"
-                  deviceChrome={selectedSimulator?.deviceChrome}
-                  deviceFrame={deviceFrame}
-                  deviceHeight={screen.height}
-                  deviceWidth={screen.width}
-                  framebufferMask={selectedSimulator?.framebufferMask}
-                  onPointerCancel={(event) => sendTouch('end', event)}
-                  onPointerDown={(event) => {
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    sendTouch('begin', event);
-                  }}
-                  onPointerMove={(event) => {
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) sendTouch('move', event);
-                  }}
-                  onPointerUp={(event) => sendTouch('end', event)}
-                  orientation={orientation}
-                  screenClassName="screen"
-                  streamUrl={`/v1/simulator/stream?accessToken=${encodeURIComponent(accessToken ?? '')}`}
-                />
-              )}
-            </section>
-            <aside className="inspector">
-              <section>
-                <h2>{session.project.name}</h2>
-                <p className="secondary">{session.connection.bundleIdentifier}</p>
-                <p>{sessionLabel(session.status)}</p>
-              </section>
-              <Button
-                disabled={isCapturingAnnotation}
-                onClick={() => void captureAnnotation()}
-                type="button"
-                variant="secondary"
-              >
-                Annotate screen
-              </Button>
-              {session.status === 'awaiting_request' ? (
-                <section>
-                  <h2>Request a change</h2>
-                  <form onSubmit={(event) => void submitChangeRequest(event)}>
-                    <Label htmlFor="change-request">Describe the result</Label>
-                    <Textarea
-                      id="change-request"
-                      name="request"
-                      placeholder="Increase the title contrast…"
-                      required
-                    />
-                    <Label htmlFor="variant-count">Variants</Label>
-                    <select
-                      defaultValue="1"
-                      id="variant-count"
-                      name="variantCount"
-                    >
-                      <option>1</option>
-                      <option>2</option>
-                      <option>3</option>
-                      <option>4</option>
-                      <option>5</option>
-                    </select>
-                    <Button type="submit">Send to agent</Button>
-                  </form>
-                </section>
-              ) : null}
-              {session.status === 'variants_ready' && session.changeRequest ? (
-                <section>
-                  <h2>Review variants</h2>
-                  <p className="secondary">
-                    Launch a variant in the live Simulator, then confirm the one the agent should apply.
-                  </p>
-                  <div className="variant-grid">
-                    {[
-                      'original',
-                      ...Array.from({ length: session.changeRequest.variantCount }, (_, index) => `v${index + 1}`)
-                    ].map((variant) => (
-                      <Button
-                        aria-pressed={variant === selectedVariant}
-                        key={variant}
-                        onClick={async () => {
-                          try {
-                            await request('/v1/simulator/variant', {
-                              method: 'POST',
-                              body: JSON.stringify({ variant })
-                            });
-                            setSelectedVariant(variant);
-                          } catch (error) {
-                            setErrorMessage(error instanceof Error ? error.message : String(error));
-                          }
-                        }}
-                        type="button"
-                        variant="outline"
-                      >
-                        {variant === 'original' ? 'Original' : `Variant ${variant.slice(1)}`}
-                      </Button>
-                    ))}
-                  </div>
+            }
+            canvasProps={{
+              className: canvasDrag.current ? 'dragging' : undefined,
+              onPointerCancel: finishCanvasDrag,
+              onPointerDown: handleCanvasPointerDown,
+              onPointerMove: handleCanvasPointerMove,
+              onPointerUp: finishCanvasDrag,
+              onWheel: handleCanvasWheel,
+              ref: canvas
+            }}
+            inspector={
+              <>
+                <aside className="core-inspector">
+                  <section>
+                    <h2>{session.project.name}</h2>
+                    <p className="secondary">{session.connection.bundleIdentifier}</p>
+                    <p>{isStreamReady ? 'Live Simulator' : sessionLabel(session.status)}</p>
+                  </section>
                   <Button
-                    disabled={!selectedVariant}
-                    onClick={() => void confirmVariant()}
+                    disabled={isCapturingAnnotation}
+                    onClick={() => void captureAnnotation()}
+                    type="button"
+                    variant="secondary"
                   >
-                    Confirm selection
+                    Annotate screen
                   </Button>
-                </section>
-              ) : null}
-              {session.status === 'working' || session.status === 'change_requested' ? (
-                <p
-                  aria-live="polite"
-                  className="secondary"
-                >
-                  The coding agent is working. This page can remain open while other clients disconnect.
-                </p>
-              ) : null}
-              {error}
-            </aside>
-          </div>
+                  <Button
+                    aria-pressed={isSelectionMode}
+                    onClick={() => void toggleSelectionMode()}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {isSelectionMode ? 'Stop selecting' : 'Select element'}
+                  </Button>
+                  {selectedAXPath ? (
+                    <p className="secondary">
+                      Selected:{' '}
+                      {axSnapshot?.elements.find(({ path }) => path === selectedAXPath)?.label || selectedAXPath}
+                    </p>
+                  ) : null}
+                  {session.status === 'awaiting_request' ? (
+                    <section>
+                      <h2>Request a change</h2>
+                      <form onSubmit={(event) => void submitChangeRequest(event)}>
+                        <Label htmlFor="change-request">Describe the result</Label>
+                        <Textarea
+                          id="change-request"
+                          name="request"
+                          placeholder="Increase the title contrast…"
+                          required
+                        />
+                        <Label htmlFor="variant-count">Variants</Label>
+                        <select
+                          defaultValue="1"
+                          id="variant-count"
+                          name="variantCount"
+                        >
+                          <option>1</option>
+                          <option>2</option>
+                          <option>3</option>
+                          <option>4</option>
+                          <option>5</option>
+                        </select>
+                        <Button type="submit">Send to agent</Button>
+                      </form>
+                    </section>
+                  ) : null}
+                  {session.status === 'variants_ready' && session.changeRequest ? (
+                    <section>
+                      <h2>Review variants</h2>
+                      <p className="secondary">
+                        Launch a variant in the live Simulator, then confirm the one the agent should apply.
+                      </p>
+                      <div className="core-variant-grid">
+                        {simulatorVariantIdsForCount(session.changeRequest.variantCount).map((variant) => (
+                          <Button
+                            aria-pressed={variant === selectedVariant}
+                            key={variant}
+                            onClick={async () => {
+                              try {
+                                await request('/v1/simulator/variant', {
+                                  method: 'POST',
+                                  body: JSON.stringify({ variant })
+                                });
+                                setSelectedVariant(variant);
+                              } catch (error) {
+                                setErrorMessage(error instanceof Error ? error.message : String(error));
+                              }
+                            }}
+                            type="button"
+                            variant="outline"
+                          >
+                            {simulatorVariantLabels[variant]}
+                          </Button>
+                        ))}
+                      </div>
+                      <Button
+                        disabled={!selectedVariant}
+                        onClick={() => void confirmVariant()}
+                      >
+                        Confirm selection
+                      </Button>
+                    </section>
+                  ) : null}
+                  {session.status === 'working' || session.status === 'change_requested' ? (
+                    <p
+                      aria-live="polite"
+                      className="secondary"
+                    >
+                      The coding agent is working. This page can remain open while other clients disconnect.
+                    </p>
+                  ) : null}
+                  {error}
+                </aside>
+                <CanvasZoomControls
+                  maximumScale={maximumCanvasScale}
+                  minimumScale={minimumCanvasScale}
+                  mode={canvasMode}
+                  onFit={() => {
+                    canvasViewChanged.current = false;
+                    fitCanvas();
+                  }}
+                  onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+                  onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+                  scale={canvasScale}
+                />
+              </>
+            }
+            mode={canvasMode}
+          />
         )}
       </main>
     </div>

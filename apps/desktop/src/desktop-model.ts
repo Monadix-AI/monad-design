@@ -1,4 +1,4 @@
-import type { SimulatorVariantId } from './electron';
+import type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
 
 export interface ActiveConnection {
   udid: string;
@@ -10,14 +10,7 @@ export interface ActiveConnection {
 }
 
 export type SimulatorAppearance = 'light' | 'dark';
-export type SimulatorOrientation = 'portrait' | 'landscape_left' | 'portrait_upside_down' | 'landscape_right';
-
-export const orientations: SimulatorOrientation[] = [
-  'portrait',
-  'landscape_left',
-  'portrait_upside_down',
-  'landscape_right'
-];
+export type { SimulatorOrientation } from '@monaddesign/simulator';
 
 export interface VariantCapture {
   id: SimulatorVariantId;
@@ -25,19 +18,12 @@ export interface VariantCapture {
   orientation: SimulatorOrientation;
 }
 
-export const variantIds: SimulatorVariantId[] = ['original', 'v1', 'v2', 'v3', 'v4', 'v5'];
-
-export const variantLabels: Record<SimulatorVariantId, string> = {
-  original: 'Original',
-  v1: 'Variant 1',
-  v2: 'Variant 2',
-  v3: 'Variant 3',
-  v4: 'Variant 4',
-  v5: 'Variant 5'
-};
-
-export const variantIdsForCount = (count: number): SimulatorVariantId[] => variantIds.slice(0, count + 1);
-
-export const minimumCanvasScale = 0.25;
-export const maximumCanvasScale = 2;
-export const canvasScaleStep = 0.1;
+export {
+  canvasScaleStep,
+  maximumCanvasScale,
+  minimumCanvasScale,
+  simulatorOrientations as orientations,
+  simulatorVariantIds as variantIds,
+  simulatorVariantIdsForCount as variantIdsForCount,
+  simulatorVariantLabels as variantLabels
+} from '@monaddesign/simulator';

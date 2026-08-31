@@ -6,6 +6,7 @@
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/device-frame": "workspace:*",
     "@monaddesign/pairing": "workspace:*",
+    "@monaddesign/simulator": "workspace:*",
     "@monaddesign/simulator-history": "workspace:*",
     "@monaddesign/state": "workspace:*",
     "@react-native-async-storage/async-storage": "3.1.1",

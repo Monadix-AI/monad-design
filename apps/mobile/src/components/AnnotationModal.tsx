@@ -9,6 +9,7 @@ import { captureRef } from 'react-native-view-shot';
 import {
   type Annotation,
   type AnnotationTool,
+  annotationId,
   annotationInk,
   annotationIsVisible,
   arrowHead,
@@ -33,8 +34,6 @@ const tools: Array<{ id: AnnotationTool; icon: keyof typeof Ionicons.glyphMap; l
   { id: 'text', icon: 'text', label: 'Text' },
   { id: 'arrow', icon: 'arrow-up-outline', label: 'Arrow' }
 ];
-
-const annotationId = () => `annotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export function AnnotationModal({
   image,

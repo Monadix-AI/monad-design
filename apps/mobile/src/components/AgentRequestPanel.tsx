@@ -2,20 +2,12 @@ import type { AgentSessionSnapshot } from '@monaddesign/client-rtk';
 import type { AXElement, AXSnapshot, SimulatorVariantId } from '../types';
 
 import { Ionicons } from '@expo/vector-icons';
+import { simulatorVariantLabels } from '@monaddesign/simulator';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { agentPanelStatus } from '../agent-panel-model';
 import { colors } from '../theme';
 import { GlassControl } from './GlassControl';
-
-const labels: Record<SimulatorVariantId, string> = {
-  original: 'Original',
-  v1: 'Variant 1',
-  v2: 'Variant 2',
-  v3: 'Variant 3',
-  v4: 'Variant 4',
-  v5: 'Variant 5'
-};
 
 export function AgentRequestPanel({
   session,
@@ -82,7 +74,7 @@ export function AgentRequestPanel({
           <View style={styles.liveCopy}>
             <Text style={styles.liveTitle}>Start Live in your coding agent</Text>
             <Text style={styles.liveText}>
-              Open this project in your agent, then start Monad Design Live to enable editing and sending.
+              Open this project in your agent, then run /monad-design to enable editing and sending.
             </Text>
           </View>
         </View>
@@ -121,7 +113,9 @@ export function AgentRequestPanel({
                   style={[styles.variantOption, active && styles.variantOptionActive]}
                   tone={active ? 'accent' : 'neutral'}
                 >
-                  <Text style={active ? styles.variantLabelActive : styles.variantLabel}>{labels[variant]}</Text>
+                  <Text style={active ? styles.variantLabelActive : styles.variantLabel}>
+                    {simulatorVariantLabels[variant]}
+                  </Text>
                   <Text style={active ? styles.variantStateActive : styles.variantState}>
                     {active ? 'SELECTED' : 'READY'}
                   </Text>
@@ -138,7 +132,7 @@ export function AgentRequestPanel({
               <Text style={styles.finalizingText}>
                 {session.confirmedSelection?.variant === 'original'
                   ? 'Discard sent · agent is restoring the original'
-                  : `${labels[session.confirmedSelection?.variant ?? 'original']} accepted · agent is finalizing`}
+                  : `${simulatorVariantLabels[session.confirmedSelection?.variant ?? 'original']} accepted · agent is finalizing`}
               </Text>
             </View>
           ) : (

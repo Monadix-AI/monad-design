@@ -1,3 +1,5 @@
+import type { SimulatorOrientation } from '@monaddesign/simulator';
+
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm, unlink } from 'node:fs/promises';
@@ -36,7 +38,7 @@ export interface IOSSimulator {
   };
 }
 
-export type SimulatorOrientation = 'portrait' | 'landscape_left' | 'portrait_upside_down' | 'landscape_right';
+export type { SimulatorOrientation } from '@monaddesign/simulator';
 
 export const parseSimulatorOrientation = (value: string): SimulatorOrientation | null => {
   const storedValue = /GraphicsOrientation\s*=\s*([1-4])\s*;/.exec(value)?.[1] ?? value.trim();

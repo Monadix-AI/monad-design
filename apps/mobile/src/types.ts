@@ -2,15 +2,12 @@ import type {
   AccessibilitySnapshotResponse,
   IOSSimulator as ClientIOSSimulator,
   RemoteProject as ClientRemoteProject,
-  LaunchVariantRequest,
   SimulatorConnectionResponse
 } from '@monaddesign/client-rtk';
-
 export type IOSSimulator = ClientIOSSimulator;
 export type AXSnapshot = AccessibilitySnapshotResponse;
 export type AXElement = AXSnapshot['elements'][number];
-export type SimulatorVariantId = LaunchVariantRequest['variant'];
-export type SimulatorOrientation = 'portrait' | 'landscape_left' | 'portrait_upside_down' | 'landscape_right';
+export type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
 
 export interface ClientConnection {
   origin: string;

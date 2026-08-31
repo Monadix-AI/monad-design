@@ -1,9 +1,8 @@
 import type { DeviceFrameMetrics } from '@monaddesign/device-frame';
+import type { SimulatorOrientation } from '@monaddesign/simulator';
 import type { ClipboardEvent, KeyboardEvent, PointerEvent, ReactNode, Ref } from 'react';
 
 import { cn } from '../primitives/utils';
-
-export type SimulatorOrientation = 'portrait' | 'landscape_left' | 'portrait_upside_down' | 'landscape_right';
 
 export interface SimulatorCanvasProps {
   ariaLabel: string;

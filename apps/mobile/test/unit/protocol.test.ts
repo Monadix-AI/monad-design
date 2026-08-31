@@ -1,14 +1,13 @@
 import type { AXSnapshot } from '../../src/types';
 
 import { describe, expect, test } from 'bun:test';
-
 import {
-  axElementAtPoint,
+  accessibilityElementAtPoint as axElementAtPoint,
   buildAgentTurnContext,
-  encodeFrame,
-  rotatedOrientation,
-  simulatorPoint
-} from '../../src/protocol';
+  encodeSimulatorFrame as encodeFrame,
+  rotatedSimulatorOrientation as rotatedOrientation,
+  orientCanvasPoint as simulatorPoint
+} from '@monaddesign/simulator';
 
 describe('Simulator input protocol', () => {
   test('rotates normalized input into Simulator coordinates', () => {

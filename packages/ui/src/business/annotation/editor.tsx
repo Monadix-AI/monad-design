@@ -8,7 +8,9 @@ import {
   annotationId,
   annotationInk,
   annotationIsVisible,
+  buildCalloutLayout,
   calloutAnchor,
+  calloutConnectorPath,
   type DrawnAnnotation,
   type ImageSize,
   isDrawnAnnotation,
@@ -17,12 +19,28 @@ import {
 
 const tools: AnnotationTool[] = ['rectangle', 'ellipse', 'text', 'arrow'];
 
+const wrapCanvasText = (context: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/u)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (!line || context.measureText(candidate).width <= maxWidth) line = candidate;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+};
+
 export function AnnotationEditor({
   activeTool: controlledTool,
   embedded = false,
   image,
   isRecapturing = false,
   onClose,
+  onFinish,
   onRecapture,
   onActiveToolChange
 }: {
@@ -31,6 +49,7 @@ export function AnnotationEditor({
   image: string;
   isRecapturing?: boolean;
   onClose?: () => void;
+  onFinish?: (image: string) => Promise<void> | void;
   onRecapture?: () => void;
   onActiveToolChange?: (tool: AnnotationTool) => void;
 }) {
@@ -40,6 +59,8 @@ export function AnnotationEditor({
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [textPoint, setTextPoint] = useState<Point | null>(null);
   const [textValue, setTextValue] = useState('');
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [finishError, setFinishError] = useState('');
   const overlay = useRef<SVGSVGElement | null>(null);
   const drawingPointerId = useRef<number | null>(null);
   const draftRef = useRef<DrawnAnnotation | null>(null);
@@ -115,6 +136,107 @@ export function AnnotationEditor({
         annotation.id === id && isDrawnAnnotation(annotation) ? { ...annotation, note } : annotation
       )
     );
+  const finish = async () => {
+    if (!onFinish || !imageSize || !overlay.current || isFinishing) return;
+    const missingNote = callouts.find(({ note }) => !note.trim());
+    if (missingNote) {
+      setFinishError('Add a note to every numbered callout before finishing.');
+      return;
+    }
+    setIsFinishing(true);
+    setFinishError('');
+    try {
+      const source = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const value = new Image();
+        value.onload = () => resolve(value);
+        value.onerror = () => reject(new Error('Could not load the annotation screenshot.'));
+        value.src = image;
+      });
+      const scaleX = source.naturalWidth / imageSize.width;
+      const scaleY = source.naturalHeight / imageSize.height;
+      const renderedCallouts = callouts.map((callout) => ({
+        ...callout,
+        start: { x: callout.start.x * scaleX, y: callout.start.y * scaleY },
+        end: { x: callout.end.x * scaleX, y: callout.end.y * scaleY }
+      }));
+      const layout = buildCalloutLayout({ width: source.naturalWidth, height: source.naturalHeight }, renderedCallouts);
+      const canvas = document.createElement('canvas');
+      canvas.width = layout.width;
+      canvas.height = layout.height;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas rendering is unavailable.');
+      context.fillStyle = '#0d0d0d';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(source, 0, 0);
+      const clone = overlay.current?.cloneNode(true) as SVGSVGElement | undefined;
+      if (!clone) throw new Error('The annotation layer is unavailable.');
+      clone.querySelector('[data-annotation-hit-target]')?.remove();
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', String(source.naturalWidth));
+      clone.setAttribute('height', String(source.naturalHeight));
+      const url = URL.createObjectURL(
+        new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' })
+      );
+      try {
+        const annotation = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const value = new Image();
+          value.onload = () => resolve(value);
+          value.onerror = () => reject(new Error('Could not render the annotation layer.'));
+          value.src = url;
+        });
+        context.drawImage(annotation, 0, 0, source.naturalWidth, source.naturalHeight);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      if (renderedCallouts.length) {
+        context.fillStyle = '#15171a';
+        context.fillRect(layout.sidecarLeft, 0, layout.sidecarWidth, canvas.height);
+        const headingSize = Math.max(38, source.naturalWidth * 0.045);
+        const bodySize = Math.max(28, source.naturalWidth * 0.028);
+        context.fillStyle = '#f2f3f5';
+        context.font = `700 ${headingSize}px Inter, system-ui, sans-serif`;
+        context.fillText('Implementation notes', layout.sidecarLeft + layout.padding, layout.padding + headingSize);
+        renderedCallouts.forEach((callout, index) => {
+          const box = layout.boxes[index];
+          if (!box) return;
+          context.strokeStyle = annotationInk;
+          context.lineWidth = Math.max(4, source.naturalWidth * 0.004);
+          context.stroke(new Path2D(calloutConnectorPath(callout, box).d));
+          context.fillStyle = '#202328';
+          context.beginPath();
+          context.roundRect(box.x, box.y, box.width, box.height, 14);
+          context.fill();
+          const badgeRadius = Math.max(25, source.naturalWidth * 0.023);
+          const badgeX = box.x + layout.padding;
+          const badgeY = box.y + layout.padding;
+          context.fillStyle = annotationInk;
+          context.beginPath();
+          context.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+          context.fill();
+          context.fillStyle = '#0d0d0d';
+          context.font = `800 ${badgeRadius}px Inter, system-ui, sans-serif`;
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(String(index + 1), badgeX, badgeY + 1);
+          context.textAlign = 'left';
+          context.textBaseline = 'alphabetic';
+          const textX = badgeX + badgeRadius + layout.padding * 0.65;
+          context.fillStyle = '#f2f3f5';
+          context.font = `500 ${bodySize}px Inter, system-ui, sans-serif`;
+          wrapCanvasText(context, callout.note.trim(), box.x + box.width - textX - layout.padding)
+            .slice(0, 8)
+            .forEach((line, lineIndex) => {
+              context.fillText(line, textX, box.y + layout.padding + bodySize + lineIndex * bodySize * 1.4);
+            });
+        });
+      }
+      await onFinish(canvas.toDataURL('image/png'));
+    } catch (error) {
+      setFinishError(error instanceof Error ? error.message : 'Could not finish the annotation.');
+    } finally {
+      setIsFinishing(false);
+    }
+  };
   const toolbar = !embedded && (
     <div
       aria-label="Annotation tools"
@@ -155,7 +277,7 @@ export function AnnotationEditor({
       </Button>
     </div>
   );
-  const actions = (onClose || onRecapture) && (
+  const actions = (onClose || onRecapture || onFinish) && (
     <footer className="annotation-actions absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg border bg-card/95 p-1 shadow-xl">
       {onClose && (
         <Button
@@ -178,6 +300,17 @@ export function AnnotationEditor({
           Recapture
         </Button>
       )}
+      {onFinish && (
+        <Button
+          disabled={isFinishing}
+          onClick={() => void finish()}
+          size="sm"
+          type="button"
+        >
+          {isFinishing ? 'Finishing…' : 'Finish'}
+        </Button>
+      )}
+      {finishError ? <span role="alert">{finishError}</span> : null}
     </footer>
   );
   return (
@@ -264,6 +397,7 @@ export function AnnotationEditor({
                 );
               })}
               <rect
+                data-annotation-hit-target
                 fill="transparent"
                 height={imageSize.height}
                 onPointerCancel={finishDrawing}

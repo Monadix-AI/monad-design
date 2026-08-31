@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
-import { canvasOffsetForZoom, clampCanvasOffset } from '../../src/canvas-position';
+import { canvasOffsetForZoom, clampCanvasOffset } from '@monaddesign/simulator';
 
 describe('mobile canvas position boundaries', () => {
   test('keeps part of a dragged device visible so it remains recoverable', () => {

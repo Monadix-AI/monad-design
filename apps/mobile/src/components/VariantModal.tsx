@@ -6,20 +6,13 @@ import {
   useLaunchSimulatorVariantMutation,
   useLazyCaptureSimulatorScreenshotQuery
 } from '@monaddesign/client-rtk';
+import { simulatorVariantIdsForCount, simulatorVariantLabels } from '@monaddesign/simulator';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlassControl } from './GlassControl';
 
-const defaultVariants: SimulatorVariantId[] = ['original', 'v1', 'v2', 'v3'];
-const labels: Record<SimulatorVariantId, string> = {
-  original: 'Original',
-  v1: 'Variant 1',
-  v2: 'Variant 2',
-  v3: 'Variant 3',
-  v4: 'Variant 4',
-  v5: 'Variant 5'
-};
+const defaultVariants = simulatorVariantIdsForCount(3);
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error
@@ -180,7 +173,7 @@ export function VariantModal({
             )}
             <Text style={styles.primaryText}>
               {working && variants.includes(working as SimulatorVariantId)
-                ? labels[working as SimulatorVariantId]
+                ? simulatorVariantLabels[working as SimulatorVariantId]
                 : `Capture ${variants.length}`}
             </Text>
           </GlassControl>
@@ -194,7 +187,7 @@ export function VariantModal({
               style={[styles.tile, selected === variant && styles.selected]}
             >
               <View style={styles.tileHeader}>
-                <Text style={styles.tileTitle}>{labels[variant]}</Text>
+                <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
                 <Text style={styles.tileState}>
                   {working === variant
                     ? 'CAPTURING'
