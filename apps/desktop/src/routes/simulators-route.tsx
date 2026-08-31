@@ -61,7 +61,6 @@ export function SimulatorsRoute() {
     projectIcons,
     removeProject,
     removingProjectId,
-    scan,
     selectedTargetBundleIdentifier,
     selectedUdid,
     setSelectedTargetBundleIdentifier,
@@ -468,7 +467,7 @@ export function SimulatorsRoute() {
     <main className="app-shell">
       <AppHeader />
       <div className="simulator-list-page">
-        <section className="simulator-list-panel">
+        <section className="simulator-list-panel live-split">
           <button
             className="page-back"
             onClick={closeProject}
@@ -497,32 +496,13 @@ export function SimulatorsRoute() {
               {activeAgentSession.task && <p>{activeAgentSession.task}</p>}
             </div>
           )}
-          <div className="simulator-picker-heading">
-            <div>
-              <h1>Open in Simulator</h1>
-              <p className="simulator-picker-hint">Choose a target app and the Simulator where you want to open it.</p>
-            </div>
-            <Button
-              className="icon-button"
-              disabled={isScanning}
-              onClick={() => void scan()}
-              type="button"
-            >
-              <ActionIcon
-                icon={RefreshCwIcon}
-                spinning={isScanning}
-              />
-              <span className="sr-only">Refresh simulators</span>
-            </Button>
-          </div>
-
           <section
-            aria-labelledby="target-app-heading"
+            aria-labelledby="target-app-heading-v2"
             className="picker-section target-app-section"
           >
             <div className="picker-section-heading">
               <div>
-                <h2 id="target-app-heading">Target app</h2>
+                <h2 id="target-app-heading-v2">Target app</h2>
                 <p>Configured locally for this project.</p>
               </div>
               <span className="picker-count">
@@ -568,14 +548,13 @@ export function SimulatorsRoute() {
               ))}
             </RadioGroup.Root>
           </section>
-
           <section
-            aria-labelledby="simulator-heading"
+            aria-labelledby="simulator-heading-v2"
             className="picker-section simulator-section"
           >
             <div className="picker-section-heading">
               <div>
-                <h2 id="simulator-heading">Simulator</h2>
+                <h2 id="simulator-heading-v2">Simulator</h2>
                 <p>Booted devices connect immediately; shut down devices start first.</p>
               </div>
               <span className="picker-count">
@@ -622,7 +601,6 @@ export function SimulatorsRoute() {
               )}
             </RadioGroup.Root>
           </section>
-
           {error && (
             <p
               className="error-message"

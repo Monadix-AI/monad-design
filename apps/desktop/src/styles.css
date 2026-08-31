@@ -1464,6 +1464,69 @@ h1 {
   color: var(--muted-foreground);
   white-space: nowrap;
 }
+.simulator-list-panel.live-split {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
+  gap: 0 24px;
+  width: min(900px, calc(100vw - 48px));
+  padding-top: 68px;
+}
+.live-split .page-back,
+.live-split .active-project-heading,
+.live-split .agent-session-boundary,
+.live-split .error-message,
+.live-split .simulator-action-bar {
+  grid-column: 1 / -1;
+}
+.live-split .page-back {
+  margin-bottom: 10px;
+}
+.live-split .active-project-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+.live-split .active-project-heading code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-split .target-app-section {
+  grid-row: 3;
+  grid-column: 1;
+  padding-right: 24px;
+  margin: 0;
+  border-right: 1px solid var(--border);
+}
+.live-split .target-app-card {
+  grid-template-columns: 36px minmax(0, 1fr);
+  padding: 10px;
+}
+.live-split .target-app-icon {
+  width: 36px;
+  height: 36px;
+}
+.live-split .project-target-radio {
+  display: none;
+}
+.live-split .simulator-section {
+  grid-row: 3;
+  grid-column: 2;
+}
+.live-split .device-list {
+  grid-template-columns: 1fr;
+}
+.live-split .device-card {
+  padding: 8px 10px;
+}
+.live-split .simulator-action-bar {
+  grid-row: 5;
+  padding-top: 12px;
+}
 .connect-button:hover:not(:disabled) {
   background: var(--primary-hover);
 }
