@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { resolveInstallDefaults } from '../../src/install';
+import { detectedAgentsForScope, installableAgentsForScope, resolveInstallDefaults } from '../../src/install';
 
 describe('install defaults', () => {
   test('prefers project agents and project scope inside a Git project', () => {
@@ -36,5 +36,35 @@ describe('install defaults', () => {
       agents: ['gemini-cli'],
       scope: 'global'
     });
+  });
+
+  test('offers every supported agent for global installation', () => {
+    expect(installableAgentsForScope('global')).toHaveLength(17);
+  });
+
+  test('only offers agents that can install both MCP and Skill for project scope', () => {
+    const agents = installableAgentsForScope('project');
+    expect(agents).toContain('codex');
+    expect(agents).not.toContain('antigravity');
+    expect(agents).not.toContain('goose');
+  });
+
+  test('checks agents detected in the selected project scope', () => {
+    expect(
+      detectedAgentsForScope(
+        { project: ['codex', 'cursor'], global: ['claude-code', 'codex', 'gemini-cli'] },
+        'project'
+      )
+    ).toEqual(['codex', 'cursor']);
+  });
+
+  test('checks agents detected in the selected global scope', () => {
+    expect(
+      detectedAgentsForScope({ project: ['codex', 'cursor'], global: ['claude-code', 'codex', 'gemini-cli'] }, 'global')
+    ).toEqual(['claude-code', 'codex', 'gemini-cli']);
+  });
+
+  test('keeps the selection empty when the selected scope has no detections', () => {
+    expect(detectedAgentsForScope({ project: [], global: ['codex'] }, 'project')).toEqual([]);
   });
 });

@@ -1,17 +1,19 @@
 ---
-name: monad-design-live
-description: Open the current local project in Monad Design, configure its iOS framework adapter on first connection, let the user choose a Simulator, receive iterative visual change requests, rebuild and relaunch the target app, and wait for the next request. Use for Monad Design live editing loops; not for generic one-shot builds or screenshot-only review.
+name: monad-design
+description: Start and maintain a Monad Design visual editing session for the current local project, using the installed desktop app when available and the Core browser UI otherwise. Use for iterative Simulator-backed change requests; not for generic one-shot builds or screenshot-only review.
 ---
 
-# Monad Design Live
+# Monad Design
 
 Use Monad Design as the user-facing runtime workbench while this agent remains the source-code authority. Monad Design owns project binding, Simulator choice, runtime evidence, and user requests. The agent owns framework detection, adapter configuration, source edits, build/install, validation, and completion receipts.
 
-This is a persistent MCP-driven turn. After every implementation, variant publication, selection, completed change, or unchanged wait, keep the turn open and wait for the next Monad Design event. End only after Monad Design explicitly ends Live and the session reaches `closed`, or after reporting an unrecoverable MCP blocker.
+`/monad-design` and `/monad-design start` both start the same persistent MCP-driven listening mode. After every implementation, variant publication, selection, completed change, or unchanged wait, keep the turn open and wait for the next Monad Design event. End only after Monad Design explicitly ends Live and the session reaches `closed`, or after reporting an unrecoverable MCP blocker.
 
 ## Start and configure
 
-Ensure Monad Design Core is running, then call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known.
+Treat a missing subcommand as `start`. Connect through the configured `monad-design` MCP server and call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known. Do not require the user to launch a UI first.
+
+Core chooses the UI surface after connection. It first tries to open the installed Monad Design desktop app; if that is unavailable, it opens the Core browser UI. Do not probe for, install, launch, or wait on Desktop yourself. Either UI path is valid, and a UI launch failure must not interrupt the MCP session or listening loop. Judge readiness from MCP session state only.
 
 Start resolves the canonical Git root, detects explicit Expo/Xcode iOS Bundle IDs, creates schema-v1 `.monaddesign/project.json` when needed, registers the project, and creates the live session. If no explicit iOS target can be detected, report the binding error rather than guessing a Bundle ID or choosing another project.
 

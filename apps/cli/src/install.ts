@@ -1,7 +1,10 @@
 import type { AgentType, InstallResult } from 'add-mcp';
 
-import { installCoreExecutable } from '@monaddesign/core-installation';
+import { dirname, join } from 'node:path';
+import * as prompts from '@clack/prompts';
+import { installCoreExecutable, stopLegacyCore } from '@monaddesign/core-installation';
 import { detectGlobalAgents, detectProjectAgents, upsertServer } from 'add-mcp';
+import colors from 'picocolors';
 
 import {
   agentDisplayName,
@@ -14,11 +17,10 @@ import {
   supportsProjectInstallation
 } from './agent-targets';
 import { resolveReleaseAssets } from './assets';
-import { ensureCoreRunning } from './core-runtime';
-import { writeError, writeLine } from './output';
+import { restartCore } from './core-runtime';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
-import { installSkillDirectory } from './skill-installer';
+import { installSkillDirectory, removeLegacyMonadDesignSkill } from './skill-installer';
 
 export interface InstallCommandOptions {
   yes?: boolean;
@@ -26,7 +28,7 @@ export interface InstallCommandOptions {
   interactive?: boolean;
 }
 
-interface AgentDetection {
+export interface AgentDetection {
   project: SupportedAgent[];
   global: SupportedAgent[];
 }
@@ -35,6 +37,14 @@ export interface InstallDefaults {
   agents: SupportedAgent[];
   scope: InstallScope;
 }
+
+export const installableAgentsForScope = (scope: InstallScope) =>
+  scope === 'project' ? supportedAgents.filter(supportsProjectInstallation) : supportedAgents;
+
+export const detectedAgentsForScope = (detection: AgentDetection, scope: InstallScope) => {
+  const installable = installableAgentsForScope(scope);
+  return detection[scope].filter((agent) => installable.includes(agent));
+};
 
 const uniqueSupportedAgents = (values: readonly (AgentType | string)[]) =>
   supportedAgents.filter((agent) => values.includes(agent));
@@ -55,7 +65,17 @@ export const resolveInstallDefaults = (detection: AgentDetection, hasGitProject:
 };
 
 const detectedAgentLine = (label: string, agents: SupportedAgent[]) =>
-  `${label}: ${agents.length > 0 ? agents.map(agentDisplayName).join(', ') : 'none'}`;
+  `${colors.bold(label)}  ${agents.length > 0 ? agents.map(agentDisplayName).join(', ') : colors.dim('none')}`;
+
+const agentHint = (agent: SupportedAgent, detection: AgentDetection, scope: InstallScope) => {
+  const detected = detection[scope].includes(agent)
+    ? scope === 'project'
+      ? colors.green('detected in project')
+      : colors.cyan('detected globally')
+    : colors.dim(`not detected ${scope === 'project' ? 'in project' : 'globally'}`);
+  const capability = supportsProjectInstallation(agent) ? 'Project + Global' : 'Global only';
+  return `${detected} · ${capability}`;
+};
 
 const detectAgents = async (projectRoot: string | null): Promise<AgentDetection> => {
   const global = uniqueSupportedAgents([...(await detectGlobalAgents()), ...detectGlobalSkillAgents()]);
@@ -86,6 +106,7 @@ const installAgent = async (
 
   const skillPath = skillInstallDirectory(agent, scope, projectRoot ?? undefined);
   await installSkillDirectory(skillSourcePath, skillPath);
+  await removeLegacyMonadDesignSkill(join(dirname(skillPath), 'monad-design-live'));
   return { mcpPath: mcp.path, skillPath };
 };
 
@@ -96,20 +117,36 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   const detection = await detectAgents(projectRoot);
   const defaults = resolveInstallDefaults(detection, Boolean(projectRoot));
 
-  writeLine('Monad Design installer');
-  writeLine(`Git project: ${projectRoot ?? 'not detected'}`);
-  if (projectRoot) writeLine(detectedAgentLine('Project agents', detection.project));
-  writeLine(detectedAgentLine('Global agents', detection.global));
+  prompts.intro(colors.bgCyan(colors.black(' Monad Design installer ')));
+  prompts.note(
+    [
+      `${colors.bold('Git project')}  ${projectRoot ?? colors.dim('not detected')}`,
+      ...(projectRoot ? [detectedAgentLine('Project agents', detection.project)] : []),
+      detectedAgentLine('Global agents', detection.global)
+    ].join('\n'),
+    'Detected environment'
+  );
 
-  let selectedAgents = defaults.agents;
+  let scope = defaults.scope;
+  if (projectRoot && interactive) {
+    scope = await chooseScope(projectRoot, defaults.scope);
+  }
+
+  const installableAgents = installableAgentsForScope(scope);
+  const defaultAgents = detectedAgentsForScope(detection, scope);
+  let selectedAgents = defaultAgents;
   if (!options.yes && interactive) {
-    writeLine('Available agents:');
-    for (const agent of supportedAgents) writeLine(`  ${agent} — ${agentDisplayName(agent)}`);
     selectedAgents = await chooseFromList(
-      'Agents (comma-separated)',
-      supportedAgents,
-      defaults.agents.length > 0 ? defaults.agents : supportedAgents
+      'Select coding agents',
+      installableAgents.map((agent) => ({
+        value: agent,
+        label: agentDisplayName(agent),
+        hint: agentHint(agent, detection, scope)
+      })),
+      defaultAgents
     );
+  } else {
+    prompts.log.info(`Using detected agents: ${colors.cyan(selectedAgents.map(agentDisplayName).join(', '))}`);
   }
   if (selectedAgents.length === 0) {
     throw new Error(
@@ -117,46 +154,71 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
     );
   }
 
-  const projectUnsupported = selectedAgents.filter((agent) => !supportsProjectInstallation(agent));
-  let scope: InstallScope = projectRoot && projectUnsupported.length === 0 ? 'project' : 'global';
-  if (projectRoot && !options.yes && interactive && projectUnsupported.length === 0) {
-    scope = await chooseScope(projectRoot, scope);
-  } else if (projectRoot && projectUnsupported.length > 0) {
-    writeLine(
-      `Global scope required: ${projectUnsupported.map(agentDisplayName).join(', ')} do not support project MCP configuration.`
-    );
-  }
-
-  writeLine(`Installing Skill + MCP: ${scope === 'project' ? projectRoot : 'global'}`);
-  const assets = await resolveReleaseAssets();
-  const core = await installCoreExecutable({
-    sourcePath: assets.corePath,
-    version: assets.manifest.version,
-    source: 'cli',
-    platform: assets.manifest.platform,
-    arch: assets.manifest.arch
-  });
-  const runtime = await ensureCoreRunning(core.executablePath);
-  writeLine(
-    `Core ${core.manifest.version}: ${core.status}${runtime.started ? ', started' : ', running'} (${core.executablePath})`
+  prompts.note(
+    [
+      `${colors.bold('Agents')}  ${selectedAgents.map(agentDisplayName).join(', ')}`,
+      `${colors.bold('Integration')}  ${scope === 'project' ? projectRoot : 'Global'}`,
+      `${colors.bold('Core')}  Machine-level shared runtime`
+    ].join('\n'),
+    'Installation plan'
   );
+
+  const coreSpinner = prompts.spinner();
+  coreSpinner.start('Installing Monad Design Core');
+  let assets: Awaited<ReturnType<typeof resolveReleaseAssets>>;
+  let core: Awaited<ReturnType<typeof installCoreExecutable>>;
+  let runtime: Awaited<ReturnType<typeof restartCore>>;
+  try {
+    assets = await resolveReleaseAssets();
+    core = await installCoreExecutable({
+      sourcePath: assets.corePath,
+      nativeAddonPath: assets.coreNativeAddonPath,
+      version: assets.manifest.version,
+      source: 'cli',
+      platform: assets.manifest.platform,
+      arch: assets.manifest.arch
+    });
+    await stopLegacyCore();
+    runtime = await restartCore(core.executablePath);
+    coreSpinner.stop(
+      `Core ${core.manifest.version} ${colors.dim(`(${core.status}, ${runtime.restarted ? 'restarted' : 'started'})`)}`
+    );
+  } catch (error) {
+    coreSpinner.error('Core installation failed');
+    throw error;
+  }
 
   const mcpUrl = `${runtime.bootstrap.localClient.origin}/mcp`;
   const failures: string[] = [];
   for (const agent of selectedAgents) {
+    const name = agentDisplayName(agent);
+    const agentSpinner = prompts.spinner();
+    agentSpinner.start(`Installing ${name}`);
     try {
       const installed = await installAgent(agent, scope, projectRoot, assets.skillPath, mcpUrl);
-      writeLine(`✓ ${agentDisplayName(agent)} MCP: ${installed.mcpPath}`);
-      writeLine(`✓ ${agentDisplayName(agent)} Skill: ${installed.skillPath}`);
+      agentSpinner.stop(`${name} installed`);
+      prompts.log.message([
+        `${colors.dim('MCP')}    ${colors.cyan(installed.mcpPath)}`,
+        `${colors.dim('Skill')}  ${colors.cyan(installed.skillPath)}`
+      ]);
     } catch (error) {
-      const message = `${agentDisplayName(agent)}: ${(error as Error).message}`;
+      const message = `${name}: ${(error as Error).message}`;
       failures.push(message);
-      writeError(`✗ ${message}`);
+      agentSpinner.error(`${name} failed`);
+      prompts.log.error((error as Error).message);
     }
   }
 
   if (failures.length > 0) {
     throw new Error(`Skill + MCP installation was incomplete for ${failures.length} agent(s).`);
   }
-  writeLine('Monad Design is ready. Restart open agent sessions to load the new Skill and MCP server.');
+  prompts.note(
+    [
+      `${colors.bold('Core')}  ${colors.cyan(core.executablePath)}`,
+      `${colors.bold('MCP')}   ${colors.cyan(mcpUrl)}`,
+      `${colors.bold('Scope')} ${scope === 'project' ? colors.cyan(projectRoot ?? cwd) : colors.cyan('Global')}`
+    ].join('\n'),
+    'Installed'
+  );
+  prompts.outro(colors.green('Monad Design is ready — restart open agent sessions to load it.'));
 };

@@ -58,23 +58,23 @@ describe('agent and project detection', () => {
     );
 
     expect(relativeParents).toEqual({
-      antigravity: '.agents/skills/monad-design-live',
-      cline: '.agents/skills/monad-design-live',
-      'cline-cli': '.agents/skills/monad-design-live',
-      'claude-code': '.claude/skills/monad-design-live',
-      codex: '.agents/skills/monad-design-live',
-      cursor: '.agents/skills/monad-design-live',
-      'gemini-cli': '.agents/skills/monad-design-live',
-      goose: '.goose/skills/monad-design-live',
-      'github-copilot-cli': '.agents/skills/monad-design-live',
-      'grok-build': '.grok/skills/monad-design-live',
-      'kilo-code': '.kilocode/skills/monad-design-live',
-      'kimi-code': '.agents/skills/monad-design-live',
-      'kiro-cli': '.kiro/skills/monad-design-live',
-      opencode: '.agents/skills/monad-design-live',
-      vscode: '.agents/skills/monad-design-live',
-      windsurf: '.windsurf/skills/monad-design-live',
-      zed: '.agents/skills/monad-design-live'
+      antigravity: '.agents/skills/monad-design',
+      cline: '.agents/skills/monad-design',
+      'cline-cli': '.agents/skills/monad-design',
+      'claude-code': '.claude/skills/monad-design',
+      codex: '.agents/skills/monad-design',
+      cursor: '.agents/skills/monad-design',
+      'gemini-cli': '.agents/skills/monad-design',
+      goose: '.goose/skills/monad-design',
+      'github-copilot-cli': '.agents/skills/monad-design',
+      'grok-build': '.grok/skills/monad-design',
+      'kilo-code': '.kilocode/skills/monad-design',
+      'kimi-code': '.agents/skills/monad-design',
+      'kiro-cli': '.kiro/skills/monad-design',
+      opencode: '.agents/skills/monad-design',
+      vscode: '.agents/skills/monad-design',
+      windsurf: '.windsurf/skills/monad-design',
+      zed: '.agents/skills/monad-design'
     });
   });
 

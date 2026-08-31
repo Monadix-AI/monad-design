@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
+import * as prompts from '@clack/prompts';
+import colors from 'picocolors';
+
 import { runInstall } from './install';
-import { writeError, writeLine } from './output';
+import { writeLine } from './output';
+import { InstallCancelledError } from './prompt';
 
 const usage = `Monad Design
 
@@ -12,7 +16,7 @@ Commands:
   install    Install machine Core, then Skill + MCP for detected agents
 
 Options:
-  -y, --yes  Accept detected agents and the recommended scope
+  -y, --yes  Accept detected agents (scope is still asked inside a Git project)
   -h, --help Show this help`;
 
 const main = async () => {
@@ -30,6 +34,7 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  writeError(`Error: ${(error as Error).message}`);
+  if (error instanceof InstallCancelledError) return;
+  prompts.log.error(colors.red((error as Error).message));
   process.exitCode = 1;
 });

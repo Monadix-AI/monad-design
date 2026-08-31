@@ -37,8 +37,8 @@ interface AgentTarget {
 
 const codexHome = (home: string) => process.env.CODEX_HOME?.trim() || join(home, '.codex');
 const claudeHome = (home: string) => process.env.CLAUDE_CONFIG_DIR?.trim() || join(home, '.claude');
-const projectSkill = (directory: string) => (root: string) => join(root, directory, 'monad-design-live');
-const globalSkill = (directory: string) => (home: string) => join(home, directory, 'monad-design-live');
+const projectSkill = (directory: string) => (root: string) => join(root, directory, 'monad-design');
+const globalSkill = (directory: string) => (home: string) => join(home, directory, 'monad-design');
 
 export const agentTargets: Record<SupportedAgent, AgentTarget> = {
   antigravity: {
@@ -67,14 +67,14 @@ export const agentTargets: Record<SupportedAgent, AgentTarget> = {
     projectHarnessDirectories: ['.claude'],
     globalHarnessDirectories: (home) => [claudeHome(home)],
     projectSkillDirectory: projectSkill('.claude/skills'),
-    globalSkillDirectory: (home) => join(claudeHome(home), 'skills', 'monad-design-live')
+    globalSkillDirectory: (home) => join(claudeHome(home), 'skills', 'monad-design')
   },
   codex: {
     displayName: 'Codex',
     projectHarnessDirectories: ['.codex'],
     globalHarnessDirectories: (home) => [codexHome(home)],
     projectSkillDirectory: projectSkill('.agents/skills'),
-    globalSkillDirectory: (home) => join(codexHome(home), 'skills', 'monad-design-live')
+    globalSkillDirectory: (home) => join(codexHome(home), 'skills', 'monad-design')
   },
   cursor: {
     displayName: 'Cursor',

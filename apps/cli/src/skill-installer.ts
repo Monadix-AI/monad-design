@@ -1,4 +1,4 @@
-import { cp, mkdir, rename, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 export const installSkillDirectory = async (sourcePath: string, destinationPath: string) => {
@@ -27,4 +27,17 @@ export const installSkillDirectory = async (sourcePath: string, destinationPath:
   } finally {
     await rm(temporaryPath, { recursive: true, force: true });
   }
+};
+
+export const removeLegacyMonadDesignSkill = async (legacyPath: string) => {
+  let skill: string;
+  try {
+    skill = await readFile(`${legacyPath}/SKILL.md`, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  if (!/^name:\s*monad-design-live\s*$/m.test(skill)) return false;
+  await rm(legacyPath, { recursive: true });
+  return true;
 };

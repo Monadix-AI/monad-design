@@ -8,6 +8,7 @@ interface ReleaseAsset {
   platform: NodeJS.Platform;
   arch: string;
   core: string;
+  coreNativeAddon: string;
   skill: string;
 }
 
@@ -21,6 +22,7 @@ export const resolveReleaseAssets = async (moduleUrl = import.meta.url) => {
     typeof manifest.platform !== 'string' ||
     typeof manifest.arch !== 'string' ||
     typeof manifest.core !== 'string' ||
+    typeof manifest.coreNativeAddon !== 'string' ||
     typeof manifest.skill !== 'string'
   ) {
     throw new Error(`Invalid Monad Design release manifest: ${manifestPath}`);
@@ -33,6 +35,7 @@ export const resolveReleaseAssets = async (moduleUrl = import.meta.url) => {
   return {
     manifest,
     corePath: join(directory, 'assets', manifest.core),
+    coreNativeAddonPath: join(directory, 'assets', manifest.coreNativeAddon),
     skillPath: join(directory, 'assets', manifest.skill)
   };
 };
