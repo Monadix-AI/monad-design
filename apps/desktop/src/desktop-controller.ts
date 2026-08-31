@@ -7,13 +7,10 @@ import type {
 } from './electron';
 
 import { ClientApi } from '@monaddesign/client-rtk';
-import { deviceFrameMetrics } from '@monaddesign/device-frame';
 import {
   accessibilityElementAtPoint,
   accessibilityElementName as axElementName,
   buildAgentTurnContext,
-  canvasOffsetForZoom,
-  clampCanvasOffset,
   encodeSimulatorFrame,
   normalizedCanvasPoint,
   orientCanvasPoint,
@@ -28,7 +25,7 @@ import {
   sortSimulatorsForProject
 } from '@monaddesign/simulator-history';
 import { workspaceStore } from '@monaddesign/state';
-import { fitLiveWorkspaceCanvas, webDeviceControlsReservedHeight } from '@monaddesign/ui';
+import { liveSimulatorDeviceFrame, useCanvasViewport } from '@monaddesign/ui';
 import { useNavigate } from '@tanstack/react-router';
 import {
   type ClipboardEvent,
@@ -56,19 +53,6 @@ import {
   variantLabels
 } from './desktop-model';
 import { captureStableSimulatorScreen } from './lib/variant-capture';
-
-const orientedInsets = (
-  portrait: { top: number; right: number; bottom: number; left: number },
-  orientation: SimulatorOrientation
-) => {
-  if (orientation === 'landscape_left')
-    return { top: portrait.right, right: portrait.bottom, bottom: portrait.left, left: portrait.top };
-  if (orientation === 'landscape_right')
-    return { top: portrait.left, right: portrait.top, bottom: portrait.right, left: portrait.bottom };
-  if (orientation === 'portrait_upside_down')
-    return { top: portrait.bottom, right: portrait.left, bottom: portrait.top, left: portrait.right };
-  return portrait;
-};
 
 const errorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -160,33 +144,11 @@ export function useDesktopController() {
   const [variantCount, setVariantCount] = useState(1);
   const [agentSessionError, setAgentSessionError] = useState<string | null>(null);
   const [pendingAutoCapture, setPendingAutoCapture] = useState<{ requestId: string; count: number } | null>(null);
-  const [canvasScale, setCanvasScale] = useState(1);
-  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
-  const canvasScaleRef = useRef(canvasScale);
   const pointerActive = useRef(false);
   const lastPointerMove = useRef(0);
   const screenImage = useRef<HTMLImageElement | null>(null);
   const socket = useRef<WebSocket | null>(null);
-  const canvas = useRef<HTMLDivElement | null>(null);
-  const fitCanvasRef = useRef<() => void>(() => undefined);
-  const constrainCanvasOffsetRef = useRef<
-    (offset: { x: number; y: number }, scale: number) => { x: number; y: number }
-  >((offset) => offset);
-  const canvasDrag = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
-  const canvasViewChanged = useRef(false);
-  const annotationCanvasView = useRef<{
-    offset: { x: number; y: number };
-    scale: number;
-    viewChanged: boolean;
-  } | null>(null);
   const openedAgentSessionId = useRef<string | null>(null);
-  canvasScaleRef.current = canvasScale;
 
   useEffect(() => {
     resetWorkspaceState();
@@ -562,162 +524,29 @@ export function useDesktopController() {
   }, [devicePixelRatio, logicalScreenSize, screenSize]);
   const deviceWidth = (isLandscape ? screenSize.height : screenSize.width) / devicePixelRatio;
   const deviceHeight = (isLandscape ? screenSize.width : screenSize.height) / devicePixelRatio;
-  const fallbackDeviceFrame = deviceFrameMetrics({
+  const deviceFrame = liveSimulatorDeviceFrame({
+    deviceChrome: connected?.deviceChrome,
+    deviceHeight,
     deviceName: connected?.name ?? 'iOS Simulator',
-    screenWidth: deviceWidth,
-    screenHeight: deviceHeight,
+    deviceWidth,
     orientation
   });
-  const chromeScreenWidth = connected?.deviceChrome
-    ? isLandscape
-      ? connected.deviceChrome.screen.height
-      : connected.deviceChrome.screen.width
-    : null;
-  const chromeScale = chromeScreenWidth ? deviceWidth / chromeScreenWidth : 1;
-  const chromeInsets = connected?.deviceChrome
-    ? orientedInsets(
-        {
-          top: connected.deviceChrome.insets.top * chromeScale,
-          right: connected.deviceChrome.insets.right * chromeScale,
-          bottom: connected.deviceChrome.insets.bottom * chromeScale,
-          left: connected.deviceChrome.insets.left * chromeScale
-        },
-        orientation
-      )
-    : null;
-  const deviceFrame =
-    chromeInsets && connected?.deviceChrome
-      ? {
-          ...fallbackDeviceFrame,
-          insets: chromeInsets,
-          frameWidth:
-            (isLandscape ? connected.deviceChrome.frame.height : connected.deviceChrome.frame.width) * chromeScale,
-          frameHeight:
-            (isLandscape ? connected.deviceChrome.frame.width : connected.deviceChrome.frame.height) * chromeScale
-        }
-      : fallbackDeviceFrame;
-  const constrainCanvasOffset = useCallback(
-    (offset: { x: number; y: number }, scale: number) => {
-      const bounds = canvas.current;
-      if (!bounds) return offset;
-      return clampCanvasOffset(
-        offset,
-        { width: bounds.clientWidth, height: bounds.clientHeight },
-        {
-          width: deviceFrame.frameWidth * scale,
-          height: deviceFrame.frameHeight * scale + webDeviceControlsReservedHeight
-        }
-      );
-    },
-    [deviceFrame.frameHeight, deviceFrame.frameWidth]
-  );
-  const fitCanvas = useCallback(() => {
-    const bounds = canvas.current;
-    if (!bounds) return;
-    const nextView = fitLiveWorkspaceCanvas(
-      { width: bounds.clientWidth, height: bounds.clientHeight },
-      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
-    );
-    canvasScaleRef.current = nextView.scale;
-    setCanvasScale(nextView.scale);
-    setCanvasOffset(nextView.offset);
-  }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
-  fitCanvasRef.current = fitCanvas;
-  constrainCanvasOffsetRef.current = constrainCanvasOffset;
-
-  useEffect(() => {
-    if (!connection) return;
-    canvasViewChanged.current = false;
-    const frame = window.requestAnimationFrame(() => fitCanvasRef.current());
-    const observer = new ResizeObserver(() => {
-      if (!canvasViewChanged.current) {
-        fitCanvasRef.current();
-        return;
-      }
-      setCanvasOffset((current) => constrainCanvasOffsetRef.current(current, canvasScaleRef.current));
-    });
-    if (canvas.current) observer.observe(canvas.current);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [connection]);
-
-  useEffect(() => {
-    if (!connection) return;
-    setCanvasOffset((current) => constrainCanvasOffset(current, canvasScaleRef.current));
-  }, [connection, constrainCanvasOffset]);
-
-  const changeCanvasScale = (nextScale: number) => {
-    canvasViewChanged.current = true;
-    const boundedScale = Math.min(maximumCanvasScale, Math.max(minimumCanvasScale, nextScale));
-    canvasScaleRef.current = boundedScale;
-    setCanvasScale(boundedScale);
-    setCanvasOffset((current) => constrainCanvasOffset(current, boundedScale));
-  };
-  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    canvasViewChanged.current = true;
-    const bounds = canvas.current?.getBoundingClientRect();
-    if (!bounds) return;
-    const deltaPixels =
-      event.deltaY *
-      (event.deltaMode === WheelEvent.DOM_DELTA_LINE
-        ? 16
-        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-          ? bounds.height
-          : 1);
-    const currentScale = canvasScaleRef.current;
-    const nextScale = Math.min(
-      maximumCanvasScale,
-      Math.max(minimumCanvasScale, currentScale * Math.exp(-deltaPixels * 0.0025))
-    );
-    if (nextScale === currentScale) return;
-    canvasScaleRef.current = nextScale;
-    setCanvasScale(nextScale);
-    setCanvasOffset((current) =>
-      constrainCanvasOffset(
-        canvasOffsetForZoom(
-          current,
-          { width: bounds.width, height: bounds.height },
-          { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
-          currentScale,
-          nextScale
-        ),
-        nextScale
-      )
-    );
-  };
-  const handleCanvasPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest('[data-canvas-ui]')) return;
-    canvasViewChanged.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    canvasDrag.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      offsetX: canvasOffset.x,
-      offsetY: canvasOffset.y
-    };
-  };
-  const handleCanvasPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const drag = canvasDrag.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    setCanvasOffset(
-      constrainCanvasOffset(
-        {
-          x: drag.offsetX + event.clientX - drag.startX,
-          y: drag.offsetY + event.clientY - drag.startY
-        },
-        canvasScale
-      )
-    );
-  };
-  const finishCanvasDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (canvasDrag.current?.pointerId === event.pointerId) {
-      canvasDrag.current = null;
-    }
-  };
+  const canvasMode = isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact';
+  const {
+    beginTemporaryView: beginAnnotationCanvasView,
+    canvas,
+    changeScale: changeCanvasScale,
+    finishPointer: finishCanvasDrag,
+    fit: fitCanvas,
+    handlePointerDown: handleCanvasPointerDown,
+    handlePointerMove: handleCanvasPointerMove,
+    handleWheel: handleCanvasWheel,
+    isDragging: isCanvasDragging,
+    offset: canvasOffset,
+    restoreTemporaryView: restoreAnnotationCanvasView,
+    scale: canvasScale,
+    viewChanged: canvasViewChanged
+  } = useCanvasViewport({ deviceFrame, mode: canvasMode, resetKey: connection?.udid });
   const sendFrame = (tag: number, payload: object) => {
     const ws = socket.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -1061,11 +890,7 @@ export function useDesktopController() {
   };
   const openAnnotation = () => {
     if (!connection || isAnnotationMode) return;
-    annotationCanvasView.current = {
-      offset: canvasOffset,
-      scale: canvasScaleRef.current,
-      viewChanged: canvasViewChanged.current
-    };
+    beginAnnotationCanvasView();
     setIsAnnotationMode(true);
     setIsAXTreeOpen(false);
     setSelectedAXPath(null);
@@ -1077,17 +902,7 @@ export function useDesktopController() {
   };
   const closeAnnotation = () => {
     setIsAnnotationMode(false);
-    canvasDrag.current = null;
-    const previousCanvasView = annotationCanvasView.current;
-    annotationCanvasView.current = null;
-    if (previousCanvasView) {
-      setCanvasScale(previousCanvasView.scale);
-      setCanvasOffset(previousCanvasView.offset);
-      canvasViewChanged.current = previousCanvasView.viewChanged;
-    } else {
-      canvasViewChanged.current = false;
-      fitCanvas();
-    }
+    restoreAnnotationCanvasView();
   };
   const changeWorkspaceMode = (value: string) => {
     if (!value) return;
@@ -1112,7 +927,6 @@ export function useDesktopController() {
     axError,
     axSnapshot,
     canvas,
-    canvasDrag,
     canvasOffset,
     canvasScale,
     canvasScaleStep,
@@ -1156,6 +970,7 @@ export function useDesktopController() {
     isAppearanceChanging,
     isAXTreeOpen,
     isAnnotationMode,
+    isCanvasDragging,
     isConnecting,
     isLandscape,
     isLoadingProjects,

@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react';
 
+import AiProgrammingIcon from '@hugeicons/core-free-icons/AiProgrammingIcon';
+import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
+import CheckmarkCircle01Icon from '@hugeicons/core-free-icons/CheckmarkCircle01Icon';
+import CursorRectangleSelection02Icon from '@hugeicons/core-free-icons/CursorRectangleSelection02Icon';
 import { RadioGroup, ToggleGroup } from 'radix-ui';
 
 import { Button } from '../../primitives/button';
 import { Label } from '../../primitives/label';
 import { Textarea } from '../../primitives/textarea';
+import { ActionIcon } from '../action-icon';
 
 export type LiveWorkspaceMode = 'annotate' | 'interact' | 'select' | 'variants';
 
@@ -103,6 +108,26 @@ export function LiveWorkspaceInspector({
   variants = [],
   variantTransition = null
 }: LiveWorkspaceInspectorProps) {
+  const resolvedIcons: LiveWorkspaceInspectorIcons = {
+    accept: <ActionIcon icon={CheckmarkCircle01Icon} />,
+    agent: <ActionIcon icon={AiProgrammingIcon} />,
+    agentSpinning: (
+      <ActionIcon
+        icon={AiProgrammingIcon}
+        spinning
+      />
+    ),
+    clear: <ActionIcon icon={Cancel01Icon} />,
+    discard: <ActionIcon icon={Cancel01Icon} />,
+    select: <ActionIcon icon={CursorRectangleSelection02Icon} />,
+    sending: (
+      <ActionIcon
+        icon={AiProgrammingIcon}
+        spinning
+      />
+    ),
+    ...icons
+  };
   const canRequestAgent = agentStatus === 'awaiting_request';
   const isAgentWorking = agentStatus === 'change_requested' || agentStatus === 'working';
   const isReviewingVariants = agentStatus === 'variants_ready' || agentStatus === 'selection_confirmed';
@@ -159,7 +184,7 @@ export function LiveWorkspaceInspector({
             id="agent-live-required"
             role="status"
           >
-            {icons?.agent}
+            {resolvedIcons.agent}
             <div>
               <strong>Start Live in your coding agent</strong>
               <span>Open this project in your agent, then run /monad-design to enable editing and sending.</span>
@@ -172,7 +197,7 @@ export function LiveWorkspaceInspector({
             className="agent-waiting-state"
             role="status"
           >
-            <span className="agent-waiting-orbit">{icons?.agentSpinning ?? icons?.agent}</span>
+            <span className="agent-waiting-orbit">{resolvedIcons.agentSpinning ?? resolvedIcons.agent}</span>
             <strong>{agentStatus === 'working' ? 'Agent is building variants' : 'Waiting for agent'}</strong>
             <p>{requestInFlight}</p>
             <small>
@@ -208,7 +233,7 @@ export function LiveWorkspaceInspector({
                 className="agent-finalizing-state"
                 role="status"
               >
-                {icons?.agentSpinning ?? icons?.agent}
+                {resolvedIcons.agentSpinning ?? resolvedIcons.agent}
                 <span>
                   {confirmedVariant === 'original'
                     ? 'Discard sent · agent is restoring the original'
@@ -223,7 +248,7 @@ export function LiveWorkspaceInspector({
                   onClick={onDiscardVariant}
                   type="button"
                 >
-                  {icons?.discard}
+                  {resolvedIcons.discard}
                   {variantTransition === 'discarding' ? 'Discarding…' : 'Discard'}
                 </Button>
                 <Button
@@ -232,7 +257,7 @@ export function LiveWorkspaceInspector({
                   onClick={onAcceptVariant}
                   type="button"
                 >
-                  {icons?.accept}
+                  {resolvedIcons.accept}
                   {variantTransition === 'confirming' ? 'Accepting…' : 'Accept'}
                 </Button>
               </div>
@@ -247,7 +272,7 @@ export function LiveWorkspaceInspector({
                 onClick={onClearSelection}
                 type="button"
               >
-                {icons?.clear}
+                {resolvedIcons.clear}
                 <span className="sr-only">Clear selection</span>
               </Button>
             </div>
@@ -263,7 +288,7 @@ export function LiveWorkspaceInspector({
             onClick={onBeginSelection}
             type="button"
           >
-            {icons?.select}
+            {resolvedIcons.select}
             <strong>{agentStatus ? 'No element selected' : 'Select an element on the simulator'}</strong>
             <span>
               {agentStatus
@@ -274,64 +299,66 @@ export function LiveWorkspaceInspector({
         )}
 
         {!isAgentWorking && !isReviewingVariants && (
-          <Label
-            className="handoff-request"
-            htmlFor="canvas-agent-request"
-          >
-            <span>Adjustment request</span>
-            <Textarea
-              aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
-              disabled={!canRequestAgent}
-              id="canvas-agent-request"
-              onChange={(event) => onRequestChange(event.target.value)}
-              placeholder="Describe what should change and what must stay intact…"
-              rows={5}
-              value={request}
-            />
-          </Label>
-        )}
-        {!isAgentWorking && !isReviewingVariants && (
-          <Label
-            className="variant-count-field"
-            htmlFor="canvas-agent-variant-count"
-          >
-            <span>Variants</span>
-            <select
-              aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
-              disabled={!canRequestAgent}
-              id="canvas-agent-variant-count"
-              onChange={(event) => onVariantCountChange(Number(event.target.value))}
-              value={variantCount}
+          <div className="request-composer">
+            <Label
+              className="handoff-request"
+              htmlFor="canvas-agent-request"
             >
-              {[1, 2, 3, 4, 5].map((count) => (
-                <option
-                  key={count}
-                  value={count}
-                >
-                  {count}
-                </option>
-              ))}
-            </select>
-            <small>Generate 1–5 alternatives. Default: 1.</small>
-          </Label>
+              <span>Adjustment request</span>
+              <Textarea
+                aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+                disabled={!canRequestAgent}
+                id="canvas-agent-request"
+                onChange={(event) => onRequestChange(event.target.value)}
+                placeholder="Describe what should change and what must stay intact…"
+                rows={5}
+                value={request}
+              />
+            </Label>
+            <Label
+              className="variant-count-field"
+              htmlFor="canvas-agent-variant-count"
+            >
+              <span>Variants</span>
+              <select
+                aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+                disabled={!canRequestAgent}
+                id="canvas-agent-variant-count"
+                onChange={(event) => onVariantCountChange(Number(event.target.value))}
+                value={variantCount}
+              >
+                {[1, 2, 3, 4, 5].map((count) => (
+                  <option
+                    key={count}
+                    value={count}
+                  >
+                    {count}
+                  </option>
+                ))}
+              </select>
+              <small>Generate 1–5 alternatives. Default: 1.</small>
+            </Label>
+          </div>
         )}
         {!isAgentWorking && !isReviewingVariants && (
-          <Button
-            aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
-            className="copy-prompt-action"
-            disabled={!canRequestAgent || !request.trim() || isSendingRequest}
-            onClick={onSendRequest}
-            type="button"
-          >
-            {isSendingRequest ? (icons?.sending ?? icons?.agentSpinning) : icons?.agent}
-            {isSendingRequest
-              ? 'Sending…'
-              : canRequestAgent
-                ? 'Send to agent'
-                : agentStatus
-                  ? 'Request sent'
-                  : 'Agent unavailable'}
-          </Button>
+          <div className="request-footer">
+            <Button
+              aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+              className="copy-prompt-action"
+              disabled={!canRequestAgent || !request.trim() || isSendingRequest}
+              onClick={onSendRequest}
+              type="button"
+            >
+              {isSendingRequest ? (resolvedIcons.sending ?? resolvedIcons.agentSpinning) : resolvedIcons.agent}
+              {isSendingRequest
+                ? 'Sending…'
+                : canRequestAgent
+                  ? 'Send to agent'
+                  : agentStatus
+                    ? 'Request sent'
+                    : 'Agent unavailable'}
+            </Button>
+          </div>
         )}
         {agentError}
       </section>

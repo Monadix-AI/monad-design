@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  annotationContainsPoint,
+  calloutBadgeGeometry,
   canvasOffsetForZoom,
   clampCanvasOffset,
   encodeSimulatorFrame,
@@ -8,7 +10,8 @@ import {
   normalizedCanvasPoint,
   orientCanvasPoint,
   rotatedSimulatorOrientation,
-  simulatorKeyUsage
+  simulatorKeyUsage,
+  translateAnnotation
 } from '../../src';
 
 describe('shared canvas positioning', () => {
@@ -60,5 +63,31 @@ describe('shared Simulator input protocol', () => {
     expect(simulatorKeyUsage('Digit0')).toBe(39);
     expect(simulatorKeyUsage('ArrowLeft')).toBe(80);
     expect(simulatorKeyUsage('F12')).toBeUndefined();
+  });
+});
+
+describe('shared annotation interaction', () => {
+  const rectangle = {
+    id: 'rectangle-1',
+    type: 'rectangle' as const,
+    start: { x: 40, y: 80 },
+    end: { x: 240, y: 280 },
+    note: ''
+  };
+
+  test('places the number outside the shape and starts the connector after it', () => {
+    const badge = calloutBadgeGeometry(rectangle, { width: 390, height: 844 }, 20);
+    expect(badge.anchor).toEqual({ x: 240, y: 180 });
+    expect(badge.center).toEqual({ x: 260, y: 180 });
+    expect(badge.connector).toEqual({ x: 280, y: 180 });
+  });
+
+  test('hit-tests and drags annotations while keeping them in the image', () => {
+    expect(annotationContainsPoint(rectangle, { x: 120, y: 160 })).toBe(true);
+    expect(annotationContainsPoint(rectangle, { x: 300, y: 160 })).toBe(false);
+    expect(translateAnnotation(rectangle, { x: 300, y: -200 }, { width: 390, height: 844 })).toMatchObject({
+      start: { x: 190, y: 0 },
+      end: { x: 390, y: 200 }
+    });
   });
 });

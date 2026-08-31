@@ -3,7 +3,7 @@ import QrCodeIcon from '@hugeicons/core-free-icons/QrCodeIcon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import { createPairingPayload } from '@monaddesign/pairing';
-import { AppHeaderFrame } from '@monaddesign/ui';
+import { AppHeaderFrame, useClientTheme } from '@monaddesign/ui';
 import { QRCodeSVG } from 'qrcode.react';
 import { Popover } from 'radix-ui';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -11,19 +11,9 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useDesktopApp } from '@/desktop-app-provider';
 import { ActionIcon } from './action-icon';
 
-type ThemePreference = 'system' | 'light' | 'dark';
-
-const themeStorageKey = 'monad-design-theme';
-
-const initialTheme = (): ThemePreference => {
-  const stored = window.localStorage.getItem(themeStorageKey);
-  if (stored === 'system' || stored === 'light' || stored === 'dark') return stored;
-  return 'system';
-};
-
 export function AppHeader({ center }: { center?: ReactNode }) {
   const { remoteClient } = useDesktopApp();
-  const [theme, setTheme] = useState<ThemePreference>(initialTheme);
+  const { setTheme, theme } = useClientTheme();
   const [copiedPairingValue, setCopiedPairingValue] = useState<'code' | 'origin' | null>(null);
   const remoteClientOrigin = remoteClient?.addresses[0]
     ? `http://${remoteClient.addresses[0]}:${remoteClient.port}`
@@ -35,23 +25,6 @@ export function AppHeader({ center }: { center?: ReactNode }) {
           pairingCode: remoteClient.pairingCode
         })
       : null;
-
-  useEffect(() => {
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const applyTheme = () => {
-      const resolvedTheme = theme === 'system' ? (systemTheme.matches ? 'dark' : 'light') : theme;
-      document.documentElement.dataset.theme = resolvedTheme;
-      document.documentElement.dataset.themePreference = theme;
-      document.documentElement.style.colorScheme = resolvedTheme;
-    };
-
-    applyTheme();
-    window.localStorage.setItem(themeStorageKey, theme);
-    if (theme !== 'system') return;
-
-    systemTheme.addEventListener('change', applyTheme);
-    return () => systemTheme.removeEventListener('change', applyTheme);
-  }, [theme]);
 
   useEffect(() => {
     if (!copiedPairingValue) return;

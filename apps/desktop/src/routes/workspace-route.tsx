@@ -1,8 +1,7 @@
-import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
 import FitToScreenIcon from '@hugeicons/core-free-icons/FitToScreenIcon';
 import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
 import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
-import { CanvasZoomControls, LiveWorkspaceFrame } from '@monaddesign/ui';
+import { CanvasZoomControls, LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui';
 import { Navigate } from '@tanstack/react-router';
 
 import { ActionIcon } from '@/components/action-icon';
@@ -16,7 +15,6 @@ export function WorkspaceRoute() {
   const {
     activePreviewVariant,
     canvas,
-    canvasDrag,
     canvasScale,
     canvasScaleStep,
     canvasViewChanged,
@@ -31,6 +29,7 @@ export function WorkspaceRoute() {
     handleCanvasPointerMove,
     handleCanvasWheel,
     isAnnotationMode,
+    isCanvasDragging,
     isStreamReady,
     isVariantPreviewOpen,
     maximumCanvasScale,
@@ -50,7 +49,8 @@ export function WorkspaceRoute() {
     <LiveWorkspaceFrame
       canvas={<SimulatorCanvas />}
       canvasProps={{
-        className: canvasDrag.current ? 'dragging' : undefined,
+        className: isCanvasDragging ? 'dragging' : undefined,
+        onLostPointerCapture: finishCanvasDrag,
         onPointerCancel: finishCanvasDrag,
         onPointerDown: handleCanvasPointerDown,
         onPointerMove: handleCanvasPointerMove,
@@ -61,28 +61,12 @@ export function WorkspaceRoute() {
       error={error}
       header={<AppHeader />}
       heading={
-        <div
-          className="canvas-page-heading"
-          data-canvas-ui
-        >
-          <button
-            className="page-back"
-            onClick={disconnect}
-            type="button"
-          >
-            <ActionIcon icon={ArrowLeft01Icon} />
-            Simulators
-          </button>
-          <h1>{connected?.name ?? 'iOS Simulator'}</h1>
-          <div
-            className="live-device-status"
-            role="status"
-          >
-            <span className={`connection-light ${isStreamReady ? 'online' : ''}`} />
-            <span>{isStreamReady ? 'Live' : 'Starting stream…'}</span>
-            {activePreviewVariant && <em>{variantLabels[activePreviewVariant]} · preview only</em>}
-          </div>
-        </div>
+        <LiveWorkspaceHeading
+          isLive={isStreamReady}
+          name={connected?.name ?? 'iOS Simulator'}
+          onBack={disconnect}
+          previewLabel={activePreviewVariant ? variantLabels[activePreviewVariant] : undefined}
+        />
       }
       inspector={
         <>

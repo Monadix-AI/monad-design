@@ -1,5 +1,9 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
 
+import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
+
+import { ActionIcon } from '../action-icon';
+
 export function AppHeaderFrame({ actions, center }: { actions?: ReactNode; center?: ReactNode }) {
   return (
     <header className="app-header">
@@ -13,6 +17,45 @@ export function AppHeaderFrame({ actions, center }: { actions?: ReactNode; cente
         </nav>
       ) : null}
     </header>
+  );
+}
+
+export function LiveWorkspaceHeading({
+  backLabel = 'Simulators',
+  isLive,
+  name,
+  onBack,
+  previewLabel
+}: {
+  backLabel?: string;
+  isLive: boolean;
+  name: string;
+  onBack: () => void;
+  previewLabel?: string;
+}) {
+  return (
+    <div
+      className="canvas-page-heading"
+      data-canvas-ui
+    >
+      <button
+        className="page-back"
+        onClick={onBack}
+        type="button"
+      >
+        <ActionIcon icon={ArrowLeft01Icon} />
+        {backLabel}
+      </button>
+      <h1>{name}</h1>
+      <div
+        className="live-device-status"
+        role="status"
+      >
+        <span className={`connection-light ${isLive ? 'online' : ''}`} />
+        <span>{isLive ? 'Live' : 'Starting stream…'}</span>
+        {previewLabel ? <em>{previewLabel} · preview only</em> : null}
+      </div>
+    </div>
   );
 }
 

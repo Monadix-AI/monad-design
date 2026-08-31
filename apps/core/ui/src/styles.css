@@ -1,39 +1,17 @@
 @import "@monaddesign/ui/client.css";
 
-.core-session-heading {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.core-session-heading strong,
-.core-session-heading span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.core-session-heading span {
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
-.core-annotation-surface {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-}
-.core-ax-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.core-ax-element {
-  position: absolute;
-  background: rgb(var(--primary-rgb) / 10%);
-  border: 1px solid var(--primary);
-}
 .core-waiting {
   display: grid;
   place-items: center;
   min-height: 100vh;
   padding: 40px;
   text-align: center;
+}
+
+.simulator-list-panel {
+  padding-top: 24px;
+}
+
+.canvas-page-heading {
+  top: 24px;
 }

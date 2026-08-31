@@ -79,6 +79,103 @@ export const calloutAnchor = (annotation: DrawnAnnotation): AnnotationPoint => {
   return { x: Math.max(annotation.start.x, annotation.end.x), y: (annotation.start.y + annotation.end.y) / 2 };
 };
 
+export const calloutBadgeGeometry = (annotation: DrawnAnnotation, image: AnnotationSize, radius: number) => {
+  const anchor = calloutAnchor(annotation);
+  const other = annotation.type === 'arrow' ? (anchor === annotation.start ? annotation.end : annotation.start) : null;
+  const length = other ? Math.hypot(anchor.x - other.x, anchor.y - other.y) : 0;
+  const direction =
+    other && length > 0 ? { x: (anchor.x - other.x) / length, y: (anchor.y - other.y) / length } : { x: 1, y: 0 };
+  const center = {
+    x: Math.min(image.width - radius, Math.max(radius, anchor.x + direction.x * radius)),
+    y: Math.min(image.height - radius, Math.max(radius, anchor.y + direction.y * radius))
+  };
+  return {
+    anchor,
+    center,
+    connector: { x: center.x + direction.x * radius, y: center.y + direction.y * radius }
+  };
+};
+
+export const annotationBounds = (annotation: Annotation): AnnotationFrame => {
+  if (annotation.type === 'freehand') {
+    const xs = annotation.points.map(({ x }) => x);
+    const ys = annotation.points.map(({ y }) => y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+  }
+  if (annotation.type === 'text') {
+    return {
+      x: annotation.start.x,
+      y: annotation.start.y - 32,
+      width: Math.max(60, annotation.text.length * 18),
+      height: 42
+    };
+  }
+  const x = Math.min(annotation.start.x, annotation.end.x);
+  const y = Math.min(annotation.start.y, annotation.end.y);
+  return {
+    x,
+    y,
+    width: Math.abs(annotation.end.x - annotation.start.x),
+    height: Math.abs(annotation.end.y - annotation.start.y)
+  };
+};
+
+const pointToSegmentDistance = (point: AnnotationPoint, start: AnnotationPoint, end: AnnotationPoint) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+};
+
+export const annotationContainsPoint = (annotation: Annotation, point: AnnotationPoint, tolerance = 12) => {
+  if (annotation.type === 'arrow') return pointToSegmentDistance(point, annotation.start, annotation.end) <= tolerance;
+  if (annotation.type === 'freehand') {
+    return annotation.points.some((current, index) => {
+      const previous = annotation.points[index - 1];
+      return previous ? pointToSegmentDistance(point, previous, current) <= tolerance : false;
+    });
+  }
+  const bounds = annotationBounds(annotation);
+  if (annotation.type === 'ellipse') {
+    const rx = bounds.width / 2 + tolerance;
+    const ry = bounds.height / 2 + tolerance;
+    const cx = bounds.x + bounds.width / 2;
+    const cy = bounds.y + bounds.height / 2;
+    return rx > 0 && ry > 0 && ((point.x - cx) / rx) ** 2 + ((point.y - cy) / ry) ** 2 <= 1;
+  }
+  return (
+    point.x >= bounds.x - tolerance &&
+    point.x <= bounds.x + bounds.width + tolerance &&
+    point.y >= bounds.y - tolerance &&
+    point.y <= bounds.y + bounds.height + tolerance
+  );
+};
+
+export const translateAnnotation = <Value extends Annotation>(
+  annotation: Value,
+  delta: AnnotationPoint,
+  image: AnnotationSize
+): Value => {
+  const bounds = annotationBounds(annotation);
+  const dx = Math.min(image.width - bounds.x - bounds.width, Math.max(-bounds.x, delta.x));
+  const dy = Math.min(image.height - bounds.y - bounds.height, Math.max(-bounds.y, delta.y));
+  if (annotation.type === 'freehand') {
+    return { ...annotation, points: annotation.points.map((point) => ({ x: point.x + dx, y: point.y + dy })) } as Value;
+  }
+  if (annotation.type === 'text') {
+    return { ...annotation, start: { x: annotation.start.x + dx, y: annotation.start.y + dy } } as Value;
+  }
+  return {
+    ...annotation,
+    start: { x: annotation.start.x + dx, y: annotation.start.y + dy },
+    end: { x: annotation.end.x + dx, y: annotation.end.y + dy }
+  } as Value;
+};
+
 export const annotationArrowHead = (start: AnnotationPoint, end: AnnotationPoint, size: number) => {
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
   return [

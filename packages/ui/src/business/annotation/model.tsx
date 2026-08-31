@@ -18,13 +18,17 @@ export type {
 } from '@monaddesign/simulator';
 
 export {
+  annotationBounds,
+  annotationContainsPoint,
   annotationId,
   annotationInk,
   annotationIsVisible,
   buildCalloutLayout,
   calloutAnchor,
+  calloutBadgeGeometry,
   calloutConnector as calloutConnectorPath,
-  isDrawnAnnotation
+  isDrawnAnnotation,
+  translateAnnotation
 } from '@monaddesign/simulator';
 
 export function AnnotationShape({ annotation, imageSize }: { annotation: Annotation; imageSize: ImageSize }) {

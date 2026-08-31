@@ -1,20 +1,26 @@
-export { AnnotationEditor } from './business/annotation/editor';
+export { ActionIcon } from './business/action-icon';
+export { type LiveAnnotationIcons, LiveAnnotationSurface } from './business/annotation/live-surface';
 export * from './business/annotation/model';
 export {
   type CanvasMode,
   CanvasZoomControls,
   fitLiveWorkspaceCanvas,
+  type LiveSimulatorDeviceChrome,
+  liveSimulatorDeviceFrame,
+  liveWorkspaceCanvasPlacement,
   liveWorkspaceInspectorReservedWidth,
   SimulatorDeviceControls,
   webDeviceControlsReservedHeight
 } from './business/canvas-controls';
-export { AppHeaderFrame, LiveWorkspaceFrame } from './business/live-session/app-frame';
+export { canvasModeAllowsViewportNavigation, useCanvasViewport } from './business/canvas-viewport';
+export { AppHeaderFrame, LiveWorkspaceFrame, LiveWorkspaceHeading } from './business/live-session/app-frame';
 export { SimulatorDeviceGlyph } from './business/live-session/simulator-device-glyph';
 export {
   LiveSessionSimulatorPicker,
   type SimulatorPickerDevice,
   type SimulatorPickerTarget
 } from './business/live-session/simulator-picker';
+export { type ThemePreference, useClientTheme } from './business/live-session/theme';
 export {
   LiveWorkspaceInspector,
   type LiveWorkspaceInspectorElement,

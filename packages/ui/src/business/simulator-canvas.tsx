@@ -115,6 +115,7 @@ export function SimulatorCanvas({
         className={cn(
           'relative grid touch-none p-0',
           deviceChrome ? 'overflow-visible rounded-none' : 'overflow-hidden bg-black shadow-2xl',
+          pointer && 'simulator-pointer-visible',
           screenClassName
         )}
         onKeyDown={onKeyDown}

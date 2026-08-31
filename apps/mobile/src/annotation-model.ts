@@ -13,15 +13,19 @@ export type {
 
 export {
   annotationArrowHead as arrowHead,
+  annotationBounds,
+  annotationContainsPoint,
   annotationId,
   annotationImagePoint as imagePoint,
   annotationInk,
   annotationIsVisible,
   calloutAnchor,
+  calloutBadgeGeometry,
   containAnnotationFrame as containFrame,
   freehandIsVisible,
   isDrawnAnnotation,
   isFreehandAnnotation,
+  translateAnnotation,
   wrapAnnotationText
 } from '@monaddesign/simulator';
 

@@ -9,11 +9,13 @@ import { captureRef } from 'react-native-view-shot';
 import {
   type Annotation,
   type AnnotationTool,
+  annotationBounds,
+  annotationContainsPoint,
   annotationId,
   annotationInk,
   annotationIsVisible,
   arrowHead,
-  calloutAnchor,
+  calloutBadgeGeometry,
   calloutConnectorPath,
   containFrame,
   type DrawnAnnotation,
@@ -24,6 +26,7 @@ import {
   isFreehandAnnotation,
   type Point,
   type Size,
+  translateAnnotation,
   wrapAnnotationText
 } from '../annotation-model';
 import { GlassControl } from './GlassControl';
@@ -57,17 +60,17 @@ export function AnnotationModal({
   const [viewport, setViewport] = useState<Size | null>(null);
   const [compositionSize, setCompositionSize] = useState<Size | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const captureSurface = useRef<View>(null);
   const textInput = useRef<TextInput>(null);
   const noteInputs = useRef(new Map<string, TextInput>());
-  const pendingNoteFocus = useRef<string | null>(null);
   const drawing = useRef<
     | { pointerId: number; kind: 'shape'; draft: DrawnAnnotation }
     | { pointerId: number; kind: 'freehand'; draft: FreehandAnnotation }
+    | { pointerId: number; kind: 'move'; annotation: Annotation; origin: Point }
     | null
   >(null);
   const callouts = useMemo(() => annotations.filter(isDrawnAnnotation), [annotations]);
-  const incompleteCallout = callouts.some(({ note }) => !note.trim());
 
   useEffect(() => {
     drawing.current = null;
@@ -75,8 +78,8 @@ export function AnnotationModal({
     setDraft(null);
     setTextPoint(null);
     setTextValue('');
+    setSelectedId(null);
     noteInputs.current.clear();
-    pendingNoteFocus.current = null;
     if (!image) return;
     Image.getSize(
       image,
@@ -87,16 +90,6 @@ export function AnnotationModal({
 
   const frame = viewport && imageSize ? containFrame(viewport, imageSize) : null;
   const all = draft ? [...annotations, draft] : annotations;
-  useEffect(() => {
-    const pendingId = pendingNoteFocus.current;
-    if (!pendingId || !callouts.some(({ id }) => id === pendingId)) return;
-    const frameId = requestAnimationFrame(() => {
-      noteInputs.current.get(pendingId)?.focus();
-      pendingNoteFocus.current = null;
-    });
-    return () => cancelAnimationFrame(frameId);
-  }, [callouts]);
-
   const commitText = () => {
     if (textPoint && textValue.trim()) {
       setAnnotations((current) => [
@@ -123,6 +116,13 @@ export function AnnotationModal({
       return;
     }
     if (pointerType !== 'touch' && pointerType !== 'mouse') return;
+    const selected = [...annotations].reverse().find((annotation) => annotationContainsPoint(annotation, point));
+    if (selected) {
+      setSelectedId(selected.id);
+      drawing.current = { pointerId, kind: 'move', annotation: selected, origin: point };
+      return;
+    }
+    setSelectedId(null);
     if (tool === 'text') {
       setTextPoint(point);
       setTextValue('');
@@ -139,6 +139,15 @@ export function AnnotationModal({
     if (active?.pointerId !== pointerId) return;
     const point = eventPoint(event);
     if (!point) return;
+    if (active.kind === 'move') {
+      const moved = translateAnnotation(
+        active.annotation,
+        { x: point.x - active.origin.x, y: point.y - active.origin.y },
+        imageSize ?? { width: 0, height: 0 }
+      );
+      setAnnotations((current) => current.map((annotation) => (annotation.id === moved.id ? moved : annotation)));
+      return;
+    }
     active.draft =
       active.kind === 'freehand'
         ? { ...active.draft, points: [...active.draft.points, point] }
@@ -149,26 +158,31 @@ export function AnnotationModal({
     const { pointerId } = event.nativeEvent;
     const active = drawing.current;
     if (active?.pointerId !== pointerId) return;
+    if (active.kind === 'move') {
+      drawing.current = null;
+      return;
+    }
     if (
       (active.kind === 'freehand' && freehandIsVisible(active.draft)) ||
       (active.kind === 'shape' && annotationIsVisible(active.draft))
     ) {
-      if (active.kind === 'shape') pendingNoteFocus.current = active.draft.id;
+      if (active.kind === 'shape') setSelectedId(active.draft.id);
       setAnnotations((current) => [...current, active.draft]);
     }
     drawing.current = null;
     setDraft(null);
   };
   const finish = async () => {
-    if (!imageSize || incompleteCallout || isFinishing) return;
+    if (!imageSize || isFinishing) return;
     setIsFinishing(true);
     try {
-      const sidecarWidth = callouts.length ? Math.max(760, Math.round(imageSize.width * 1.05)) : 0;
+      setSelectedId(null);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const base64 = await captureRef(captureSurface, {
         format: 'png',
         quality: 1,
         result: 'base64',
-        width: imageSize.width + sidecarWidth,
+        width: imageSize.width,
         height: imageSize.height
       });
       await onFinish(`data:image/png;base64,${base64}`);
@@ -185,6 +199,7 @@ export function AnnotationModal({
     setDraft(null);
     setTextPoint(null);
     setTextValue('');
+    setSelectedId(null);
     onRecapture();
   };
 
@@ -192,10 +207,11 @@ export function AnnotationModal({
     if (!compositionSize || !frame || !imageSize || !callouts.length) return [];
     const notesLeft = compositionSize.width - 300;
     return callouts.map((callout, index) => {
-      const anchor = calloutAnchor(callout);
+      const radius = Math.max(20, imageSize.width * 0.019);
+      const badge = calloutBadgeGeometry(callout, imageSize, radius);
       const start = {
-        x: frame.x + (anchor.x / imageSize.width) * frame.width,
-        y: frame.y + (anchor.y / imageSize.height) * frame.height
+        x: frame.x + (badge.connector.x / imageSize.width) * frame.width,
+        y: frame.y + (badge.connector.y / imageSize.height) * frame.height
       };
       const end = { x: notesLeft - 8, y: 84 + index * 122 };
       return {
@@ -248,7 +264,7 @@ export function AnnotationModal({
             </GlassControl>
             <GlassControl
               contentStyle={styles.headerButtonContent}
-              disabled={incompleteCallout || !imageSize || isFinishing}
+              disabled={!imageSize || isFinishing}
               onPress={() => void finish()}
               style={styles.headerButton}
               tone="accent"
@@ -268,7 +284,6 @@ export function AnnotationModal({
             onLayout={({ nativeEvent: { layout } }) =>
               setCompositionSize({ width: layout.width, height: layout.height })
             }
-            ref={captureSurface}
             style={styles.composition}
           >
             <View
@@ -281,7 +296,9 @@ export function AnnotationModal({
             >
               {image && frame && imageSize && (
                 <View
+                  collapsable={false}
                   pointerEvents="none"
+                  ref={captureSurface}
                   style={{
                     left: frame.x,
                     top: frame.y,
@@ -392,16 +409,34 @@ export function AnnotationModal({
                           })()
                         );
                       const number = callouts.findIndex(({ id }) => id === item.id) + 1;
-                      const anchor = calloutAnchor(item);
                       const radius = Math.max(20, imageSize.width * 0.019);
+                      const badge = calloutBadgeGeometry(item, imageSize, radius);
                       return (
                         <Svg key={item.id}>
                           {shape}
+                          {selectedId === item.id &&
+                            (() => {
+                              const bounds = annotationBounds(item);
+                              const padding = Math.max(7, imageSize.width * 0.009);
+                              return (
+                                <Rect
+                                  fill="none"
+                                  height={bounds.height + padding * 2}
+                                  rx={padding}
+                                  stroke="#ffffff"
+                                  strokeDasharray={`${padding} ${padding * 0.7}`}
+                                  strokeWidth={Math.max(2, imageSize.width * 0.0025)}
+                                  width={bounds.width + padding * 2}
+                                  x={bounds.x - padding}
+                                  y={bounds.y - padding}
+                                />
+                              );
+                            })()}
                           {number > 0 && (
                             <>
                               <Circle
-                                cx={anchor.x}
-                                cy={anchor.y}
+                                cx={badge.center.x}
+                                cy={badge.center.y}
                                 fill={annotationInk}
                                 r={radius}
                               />
@@ -410,8 +445,8 @@ export function AnnotationModal({
                                 fontSize={radius * 1.05}
                                 fontWeight="800"
                                 textAnchor="middle"
-                                x={anchor.x}
-                                y={anchor.y + radius * 0.36}
+                                x={badge.center.x}
+                                y={badge.center.y + radius * 0.36}
                               >
                                 {number}
                               </SvgText>
@@ -450,7 +485,7 @@ export function AnnotationModal({
               <View style={styles.notes}>
                 <Text style={styles.notesTitle}>Implementation notes</Text>
                 <Text style={styles.notesMeta}>
-                  {callouts.length} numbered callout{callouts.length === 1 ? '' : 's'} · prepared locally
+                  {callouts.length} numbered callout{callouts.length === 1 ? '' : 's'} · optional · not in sent image
                 </Text>
                 <ScrollView
                   contentContainerStyle={styles.noteList}
@@ -534,6 +569,23 @@ export function AnnotationModal({
             ))}
             <GlassControl
               contentStyle={styles.toolContent}
+              disabled={!selectedId}
+              glassStyle="clear"
+              onPress={() => {
+                setAnnotations((items) => items.filter(({ id }) => id !== selectedId));
+                setSelectedId(null);
+              }}
+              style={styles.tool}
+            >
+              <Ionicons
+                color={selectedId ? '#b8bbc2' : '#55585f'}
+                name="trash-bin-outline"
+                size={20}
+              />
+              <Text style={styles.toolText}>Delete</Text>
+            </GlassControl>
+            <GlassControl
+              contentStyle={styles.toolContent}
               disabled={!annotations.length}
               glassStyle="clear"
               onPress={() => setAnnotations((items) => items.slice(0, -1))}
@@ -561,9 +613,6 @@ export function AnnotationModal({
               <Text style={styles.toolText}>Clear</Text>
             </GlassControl>
           </View>
-          {incompleteCallout && (
-            <Text style={styles.sendHint}>Add a note to every numbered callout before sending.</Text>
-          )}
         </View>
       </View>
     </Modal>
@@ -655,6 +704,5 @@ const styles = StyleSheet.create({
   tool: { height: 44, minWidth: 76, borderRadius: 10 },
   toolContent: { paddingHorizontal: 12, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   toolText: { color: '#b8bbc2', fontSize: 12 },
-  toolTextActive: { color: '#10130e', fontSize: 12, fontWeight: '800' },
-  sendHint: { color: '#ff9aab', fontSize: 11, textAlign: 'center' }
+  toolTextActive: { color: '#10130e', fontSize: 12, fontWeight: '800' }
 });
