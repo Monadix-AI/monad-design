@@ -9,7 +9,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/.codegraph", "!**/.cursor", "!**/.impeccable", "!apps/mobile/dist-map"]
+    "includes": ["**", "!**/.cursor"]
   },
   "formatter": {
     "enabled": true,

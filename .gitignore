@@ -32,8 +32,14 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.tsbuildinfo
 
 # local tool state
+/.cursor/
 /.codegraph/
-/.impeccable/
+/CLAUDE.md
+**/.impeccable/
+**/.impeccable-live/
+**/.impeccable-live.json
+**/impeccable-live.client.ts
+**/src/lib/impeccable/
 
 # Expo local state and generated exports
 .expo/

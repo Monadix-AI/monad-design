@@ -4,15 +4,7 @@ import type { MonadDesignProject, ProjectTargetApp } from './project-store';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
-const ignoredDirectories = new Set([
-  '.git',
-  'DerivedData',
-  'Pods',
-  'build',
-  'dist',
-  'node_modules',
-  'release'
-]);
+const ignoredDirectories = new Set(['.git', 'DerivedData', 'Pods', 'build', 'dist', 'node_modules', 'release']);
 const maximumDepth = 8;
 const maximumDirectories = 800;
 const maximumIconBytes = 5 * 1024 * 1024;
