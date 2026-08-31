@@ -30,7 +30,7 @@ configuring_project
 Any non-closed state -> closed
 ```
 
-Every transition increments a revision. The `wait_for_change` MCP tool waits by revision for at most 30 seconds. One immutable request ID is in flight, so a late completion cannot acknowledge a newer request.
+Every transition increments a revision. The `wait_for_change` MCP tool waits by revision for at most 120 seconds. The agent treats this long wait as an optimization: if its MCP client applies a shorter hard timeout, it reconciles with `get_live_session` and resumes polling. The distributed skill stops its current listening turn only after 10 continuous minutes without a new revision or instruction, and it does not close the live session on that idle stop. One immutable request ID is in flight, so a late completion cannot acknowledge a newer request.
 
 `complete_change` validates the active request and Simulator connection, relaunches the exact connected UDID and Bundle ID, records the agent's summary, and only then returns to `awaiting_request`. The agent must build and install the updated Debug app before calling it. Build/container/scheme or framework-specific build facts come from the persisted adapter.
 

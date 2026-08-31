@@ -11,6 +11,18 @@ import { CoreServer } from '../../src/server/core-server';
 const servers: CoreServer[] = [];
 const temporaryDirectories: string[] = [];
 
+const arraySchemasWithoutItems = (value: unknown, path = '$'): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => arraySchemasWithoutItems(item, `${path}[${index}]`));
+  }
+  if (!value || typeof value !== 'object') return [];
+  const schema = value as Record<string, unknown>;
+  return [
+    ...(schema.type === 'array' && !('items' in schema) ? [path] : []),
+    ...Object.entries(schema).flatMap(([key, item]) => arraySchemasWithoutItems(item, `${path}.${key}`))
+  ];
+};
+
 const live = {
   schemaVersion: 1 as const,
   framework: 'swiftui' as const,
@@ -216,7 +228,8 @@ describe('Core server', () => {
     const client = new Client({ name: 'monad-design-test', version: '1.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
     try {
-      expect((await client.listTools()).tools.map(({ name }) => name)).toEqual([
+      const tools = (await client.listTools()).tools;
+      expect(tools.map(({ name }) => name)).toEqual([
         'start_live_session',
         'configure_live_project',
         'get_live_session',
@@ -227,6 +240,12 @@ describe('Core server', () => {
         'complete_change',
         'close_live_session'
       ]);
+      const configureTool = tools.find(({ name }) => name === 'configure_live_project');
+      expect(arraySchemasWithoutItems(configureTool?.inputSchema)).toEqual([]);
+      const waitTool = tools.find(({ name }) => name === 'wait_for_change');
+      expect(waitTool?.inputSchema).toMatchObject({
+        properties: { waitMs: { default: 120_000, maximum: 120_000 } }
+      });
 
       const started = await client.callTool({
         name: 'start_live_session',

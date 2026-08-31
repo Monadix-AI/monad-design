@@ -22,7 +22,7 @@ Every transition increments `revision`. Start, configure, and get return full bo
 - `start_live_session` — `{ workspacePath, task? }`
 - `configure_live_project` — `{ sessionId, targets: [{ bundleIdentifier, live }] }`
 - `get_live_session` — `{ sessionId? }`
-- `wait_for_change` — `{ sessionId, afterRevision, waitMs? }`
+- `wait_for_change` — `{ sessionId, afterRevision, waitMs? }`, where `waitMs` is bounded to 120 seconds
 - `capture_simulator_context` — `{ sessionId, includeScreenshot?, includeAccessibility? }`
 - `claim_change` — `{ sessionId, requestId }`
 - `publish_variants` — `{ sessionId, requestId, summary }`
@@ -30,3 +30,5 @@ Every transition increments `revision`. Start, configure, and get return full bo
 - `close_live_session` — `{ sessionId }`
 
 Mutations fail for stale state or request IDs. Call `get_live_session`, reconcile by exact request ID, and continue only when it is still the same user request.
+
+A client-side timeout or transport reset does not close the session. Reconcile with `get_live_session` and resume polling with the latest revision. The distributed agent skill owns the 10-minute inactivity window; Core keeps the live session open when that window expires.

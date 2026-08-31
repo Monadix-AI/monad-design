@@ -23,6 +23,8 @@ type ProjectResolver = Pick<ProjectStore, 'list' | 'add'>;
 
 const sessionIdSchema = z.string().uuid();
 const requestIdSchema = z.string().uuid();
+const frameworkVariantValues = ['original', 'v1', 'v2', 'v3', 'v4', 'v5'] as const;
+const defaultWaitMs = 120_000;
 
 const structuredResult = (value: Record<string, unknown>) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
@@ -53,14 +55,7 @@ const frameworkAdapterSchema = z.object({
     bridge: z.enum(['native-launch-arguments', 'react-native-initial-properties', 'flutter-method-channel']),
     bootstrapPath: z.string().trim().min(1),
     launchArgument: z.literal('-MonadDesignVariant'),
-    values: z.tuple([
-      z.literal('original'),
-      z.literal('v1'),
-      z.literal('v2'),
-      z.literal('v3'),
-      z.literal('v4'),
-      z.literal('v5')
-    ])
+    values: z.array(z.enum(frameworkVariantValues)).length(frameworkVariantValues.length)
   }),
   build: z.object({
     system: z.enum(['xcodebuild', 'react-native', 'expo', 'flutter', 'custom']),
@@ -205,11 +200,11 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore) 
     {
       title: 'Wait for Monad Design change',
       description:
-        'Wait until a live session revision changes or the bounded timeout expires. Reuse the returned revision for the next wait.',
+        'Wait until a live session revision changes or the bounded timeout expires. Reuse the returned revision for the next wait. Client transport timeouts are recoverable and callers should reconcile the session before polling again.',
       inputSchema: z.object({
         sessionId: sessionIdSchema,
         afterRevision: z.number().int().nonnegative(),
-        waitMs: z.number().int().min(0).max(30_000).default(30_000)
+        waitMs: z.number().int().min(0).max(defaultWaitMs).default(defaultWaitMs)
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
