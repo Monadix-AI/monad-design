@@ -1,4 +1,3 @@
-import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -6,6 +5,8 @@ import { dirname, join } from 'node:path';
 import { resolveCorePaths } from './core-paths';
 import { createCoreRuntime } from './core-runtime';
 import { acquireCoreInstance } from './single-instance';
+import { embeddedUiPath, requestedUiPath } from './ui-assets';
+import { launchPreferredUi } from './ui-launcher';
 
 interface PersistedCredentials {
   schemaVersion: 1;
@@ -30,22 +31,12 @@ const contentType = (path: string) => {
 
 const uiFiles = new Map<string, Blob>();
 for (const file of Bun.embeddedFiles) {
-  const name = (file as File).name.replaceAll('\\', '/');
-  const marker = '/ui/dist/';
-  const markerIndex = name.lastIndexOf(marker);
-  if (markerIndex >= 0) uiFiles.set(name.slice(markerIndex + marker.length), file);
-  else if (name.startsWith('ui/dist/')) uiFiles.set(name.slice('ui/dist/'.length), file);
-  else {
-    const basename = name.slice(name.lastIndexOf('/') + 1);
-    if (basename === 'index.html') {
-      uiFiles.set(basename, file);
-    }
-  }
+  const path = embeddedUiPath((file as File).name);
+  if (path) uiFiles.set(path, file);
 }
 
 const ui = async (pathname: string) => {
-  const requestedPath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const relativePath = requestedPath.startsWith('assets/') ? requestedPath.slice('assets/'.length) : requestedPath;
+  const relativePath = requestedUiPath(pathname);
   const embedded = uiFiles.get(relativePath);
   if (embedded) {
     return new Response(embedded, {
@@ -107,11 +98,12 @@ try {
       if (session.status !== 'selecting_simulator' || openedSessions.has(session.id) || !uiOrigin) return;
       openedSessions.add(session.id);
       const url = `${uiOrigin}/?accessToken=${encodeURIComponent(credentials.localAccessToken)}`;
-      execFile('/usr/bin/open', [url], (error) => {
-        if (!error) return;
-        openedSessions.delete(session.id);
-        // biome-ignore lint/suspicious/noConsole: Browser launch failures need operator-visible evidence.
-        console.error('Could not open the Core Simulator UI.', error);
+      void launchPreferredUi(url, {
+        reportError: (message, error) => {
+          openedSessions.delete(session.id);
+          // biome-ignore lint/suspicious/noConsole: UI launch failures need operator-visible evidence.
+          console.error(message, error);
+        }
       });
     },
     ui

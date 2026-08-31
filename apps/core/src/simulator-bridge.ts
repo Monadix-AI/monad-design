@@ -21,6 +21,7 @@ type SimMiddlewareFactory = (options: {
 }) => SimMiddleware;
 
 const execFileAsync = promisify(execFile);
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 // These literal paths let `bun build --compile` embed both the middleware and
 // its N-API addon in the standalone Core executable.
 const { simMiddleware } = require('../node_modules/serve-sim/dist/middleware.cjs') as {
@@ -28,6 +29,33 @@ const { simMiddleware } = require('../node_modules/serve-sim/dist/middleware.cjs
 };
 const native = require('../node_modules/serve-sim/dist/native/serve-sim-native.node') as {
   axDescribe(udid: string): Promise<string>;
+};
+
+export const waitForSimulatorBridgeHealth = async (
+  url: string,
+  options: {
+    attempts?: number;
+    fetcher?: typeof fetch;
+    intervalMilliseconds?: number;
+  } = {}
+) => {
+  const attempts = options.attempts ?? 30;
+  const fetcher = options.fetcher ?? fetch;
+  const intervalMilliseconds = options.intervalMilliseconds ?? 100;
+  let lastError = 'Simulator stream did not become ready.';
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const health = await fetcher(url, { signal: AbortSignal.timeout(1_000) });
+      if (health.ok) return;
+      lastError = (await health.text()) || `Simulator stream returned HTTP ${health.status}.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    if (attempt + 1 < attempts) await delay(intervalMilliseconds);
+  }
+
+  throw new Error(lastError);
 };
 
 export interface SimulatorConnection {
@@ -159,10 +187,7 @@ class SimulatorBridge {
     const helperPath = `${basePath}/helper/${udid}`;
 
     try {
-      const health = await fetch(`${origin}${helperPath}/health`, {
-        signal: AbortSignal.timeout(15_000)
-      });
-      if (!health.ok) throw new Error(await health.text());
+      await waitForSimulatorBridgeHealth(`${origin}${helperPath}/health`);
     } catch (error) {
       await this.disconnect();
       throw new Error(

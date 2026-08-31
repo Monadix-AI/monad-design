@@ -5,7 +5,7 @@ import { constants } from 'node:fs';
 import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resolveCorePaths } from '@monaddesign/core/paths';
-import { installCoreExecutable } from '@monaddesign/core-installation';
+import { installCoreExecutable, stopLegacyCore } from '@monaddesign/core-installation';
 import { app, shell } from 'electron';
 
 interface CoreBootstrap {
@@ -74,7 +74,10 @@ export class CoreProcess {
   async #isHealthy(bootstrap: CoreBootstrap) {
     try {
       const response = await fetch(`${bootstrap.localClient.origin}/v1/admin/projects/`, {
-        headers: { authorization: `Bearer ${bootstrap.localClient.accessToken}` },
+        headers: {
+          authorization: `Bearer ${bootstrap.localClient.accessToken}`,
+          'x-monad-design-client-kind': 'desktop'
+        },
         signal: AbortSignal.timeout(1_000)
       });
       return response.ok;
@@ -100,8 +103,10 @@ export class CoreProcess {
   async #installBundledCore() {
     if (!app.isPackaged) return;
     const bundledPath = join(process.resourcesPath, 'core', 'monad-design');
+    const bundledNativeAddonPath = join(process.resourcesPath, 'core', 'native', 'serve-sim-native.node');
     const result = await installCoreExecutable({
       sourcePath: bundledPath,
+      nativeAddonPath: bundledNativeAddonPath,
       version: app.getVersion(),
       source: 'desktop'
     });
@@ -114,6 +119,7 @@ export class CoreProcess {
   async #prepareMachineCore() {
     await this.#copyLegacyState();
     await this.#installBundledCore();
+    await stopLegacyCore();
   }
 
   #spawn() {

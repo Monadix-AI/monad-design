@@ -18,6 +18,10 @@
       {
         "from": "../core/dist/monad-design",
         "to": "core/monad-design"
+      },
+      {
+        "from": "../core/dist/native/serve-sim-native.node",
+        "to": "core/native/serve-sim-native.node"
       }
     ],
     "mac": {

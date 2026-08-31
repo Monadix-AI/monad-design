@@ -133,7 +133,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore) 
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
-        'Use this server through the monad-design-live skill. Project bootstrap is returned once; change events contain only turn-local requests and runtime context.'
+        'Use this server through the monad-design skill. Project bootstrap is returned once; change events contain only turn-local requests and runtime context.'
     }
   );
 

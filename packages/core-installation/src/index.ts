@@ -1,8 +1,13 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { chmod, copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export interface CorePathsEnvironment {
   MONAD_DESIGN_CORE_BOOTSTRAP_PATH?: string;
@@ -16,12 +21,14 @@ export interface CoreInstallationManifest {
   platform: NodeJS.Platform;
   arch: string;
   sha256: string;
+  nativeAddonSha256?: string;
   source: 'cli' | 'desktop';
   installedAt: string;
 }
 
 export interface InstallCoreExecutableOptions {
   sourcePath: string;
+  nativeAddonPath?: string;
   version: string;
   source: CoreInstallationManifest['source'];
   environment?: CorePathsEnvironment;
@@ -46,11 +53,56 @@ export const resolveCorePaths = (environment: CorePathsEnvironment = process.env
     bootstrapPath: environment.MONAD_DESIGN_CORE_BOOTSTRAP_PATH ?? join(stateDirectory, 'bootstrap.json'),
     credentialsPath: join(stateDirectory, 'credentials.json'),
     executablePath: environment.MONAD_DESIGN_CORE_EXECUTABLE_PATH ?? join(stateDirectory, 'bin', 'monad-design'),
+    nativeAddonPath: join(
+      dirname(environment.MONAD_DESIGN_CORE_EXECUTABLE_PATH ?? join(stateDirectory, 'bin', 'monad-design')),
+      'native',
+      'serve-sim-native.node'
+    ),
     installManifestPath: join(stateDirectory, 'install.json'),
     lockPath: join(stateDirectory, 'core.lock'),
     sessionsPath: join(stateDirectory, 'agent-sessions.json'),
     versionsDirectory: join(stateDirectory, 'versions')
   };
+};
+
+export const resolveLegacyCorePaths = (homeDirectory = homedir()) => {
+  const stateDirectory = join(homeDirectory, 'Library', 'Application Support', 'Monad Design Core');
+  return {
+    stateDirectory,
+    executablePath: join(stateDirectory, 'bin', 'monad-design-core'),
+    lockPath: join(stateDirectory, 'core.lock')
+  };
+};
+
+const processIsRunning = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+
+export const stopLegacyCore = async (homeDirectory = homedir()) => {
+  const legacy = resolveLegacyCorePaths(homeDirectory);
+  let pid: number;
+  try {
+    pid = Number((await readFile(legacy.lockPath, 'utf8')).trim());
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  if (!Number.isSafeInteger(pid) || pid <= 0 || !processIsRunning(pid)) return false;
+
+  const { stdout } = await execFileAsync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' });
+  if (stdout.trim() !== legacy.executablePath) return false;
+
+  process.kill(pid, 'SIGTERM');
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (!processIsRunning(pid)) return true;
+    await delay(100);
+  }
+  throw new Error('The legacy Monad Design Core did not stop within 5 seconds.');
 };
 
 const fileHash = (path: string) =>
@@ -78,6 +130,7 @@ const readManifest = async (path: string): Promise<CoreInstallationManifest | nu
       typeof value.platform === 'string' &&
       typeof value.arch === 'string' &&
       typeof value.sha256 === 'string' &&
+      (value.nativeAddonSha256 === undefined || typeof value.nativeAddonSha256 === 'string') &&
       (value.source === 'cli' || value.source === 'desktop') &&
       typeof value.installedAt === 'string'
       ? (value as CoreInstallationManifest)
@@ -124,11 +177,15 @@ export const installCoreExecutable = async (options: InstallCoreExecutableOption
   const platform = options.platform ?? process.platform;
   const arch = options.arch ?? process.arch;
   const sha256 = await fileHash(options.sourcePath);
+  const nativeAddonSha256 = options.nativeAddonPath ? await fileHash(options.nativeAddonPath) : undefined;
   const existing = await readManifest(paths.installManifestPath);
   const comparison = existing ? compareCoreVersions(existing.version, options.version) : null;
 
   if (!options.force && existing && comparison === 1) {
-    if (await fileMatchesHash(paths.executablePath, existing.sha256)) {
+    if (
+      (await fileMatchesHash(paths.executablePath, existing.sha256)) &&
+      (!existing.nativeAddonSha256 || (await fileMatchesHash(paths.nativeAddonPath, existing.nativeAddonSha256)))
+    ) {
       return { status: 'newer-preserved', executablePath: paths.executablePath, manifest: existing };
     }
     const existingVersionPath = join(
@@ -138,10 +195,22 @@ export const installCoreExecutable = async (options: InstallCoreExecutableOption
     );
     if (await fileMatchesHash(existingVersionPath, existing.sha256)) {
       await writeExecutable(existingVersionPath, paths.executablePath);
+      if (existing.nativeAddonSha256) {
+        const existingNativeAddonPath = join(dirname(existingVersionPath), 'native', 'serve-sim-native.node');
+        if (await fileMatchesHash(existingNativeAddonPath, existing.nativeAddonSha256)) {
+          await writeExecutable(existingNativeAddonPath, paths.nativeAddonPath);
+        }
+      }
       return { status: 'newer-preserved', executablePath: paths.executablePath, manifest: existing };
     }
   }
-  if (!options.force && existing?.sha256 === sha256 && (await fileMatchesHash(paths.executablePath, sha256))) {
+  if (
+    !options.force &&
+    existing?.sha256 === sha256 &&
+    existing.nativeAddonSha256 === nativeAddonSha256 &&
+    (await fileMatchesHash(paths.executablePath, sha256)) &&
+    (!nativeAddonSha256 || (await fileMatchesHash(paths.nativeAddonPath, nativeAddonSha256)))
+  ) {
     return { status: 'up-to-date', executablePath: paths.executablePath, manifest: existing };
   }
 
@@ -151,12 +220,17 @@ export const installCoreExecutable = async (options: InstallCoreExecutableOption
     platform,
     arch,
     sha256,
+    ...(nativeAddonSha256 ? { nativeAddonSha256 } : {}),
     source: options.source,
     installedAt: new Date().toISOString()
   };
   const versionDirectory = join(paths.versionsDirectory, `${options.version}-${platform}-${arch}`);
   await writeExecutable(options.sourcePath, join(versionDirectory, 'monad-design'));
   await writeExecutable(options.sourcePath, paths.executablePath);
+  if (options.nativeAddonPath) {
+    await writeExecutable(options.nativeAddonPath, join(versionDirectory, 'native', 'serve-sim-native.node'));
+    await writeExecutable(options.nativeAddonPath, paths.nativeAddonPath);
+  }
   await writeManifest(paths.installManifestPath, manifest);
   return { status: 'installed', executablePath: paths.executablePath, manifest };
 };

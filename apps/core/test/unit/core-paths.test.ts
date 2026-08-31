@@ -9,6 +9,7 @@ describe('machine Core paths', () => {
       bootstrapPath: '/tmp/monad-design-machine-core/bootstrap.json',
       credentialsPath: '/tmp/monad-design-machine-core/credentials.json',
       executablePath: '/tmp/monad-design-machine-core/bin/monad-design',
+      nativeAddonPath: '/tmp/monad-design-machine-core/bin/native/serve-sim-native.node',
       installManifestPath: '/tmp/monad-design-machine-core/install.json',
       lockPath: '/tmp/monad-design-machine-core/core.lock',
       sessionsPath: '/tmp/monad-design-machine-core/agent-sessions.json',

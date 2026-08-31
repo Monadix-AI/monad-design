@@ -3,16 +3,19 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { compareCoreVersions, installCoreExecutable, resolveCorePaths } from '../../src';
+import { compareCoreVersions, installCoreExecutable, resolveCorePaths, resolveLegacyCorePaths } from '../../src';
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), 'monad-design-core-installation-'));
   const sourcePath = join(root, 'source-core');
+  const nativeAddonPath = join(root, 'serve-sim-native.node');
   await writeFile(sourcePath, 'core-v1');
+  await writeFile(nativeAddonPath, 'native-v1');
   await chmod(sourcePath, 0o755);
   return {
     environment: { MONAD_DESIGN_CORE_STATE_DIR: join(root, 'state') },
-    sourcePath
+    sourcePath,
+    nativeAddonPath
   };
 };
 
@@ -50,6 +53,39 @@ describe('core installation', () => {
     expect(await readFile(resolveCorePaths(environment).executablePath, 'utf8')).toBe('core-v1');
   });
 
+  test('installs and repairs the native simulator addon beside Core', async () => {
+    const { environment, sourcePath, nativeAddonPath } = await fixture();
+    const paths = resolveCorePaths(environment);
+    await installCoreExecutable({
+      sourcePath,
+      nativeAddonPath,
+      version: '1.2.3',
+      source: 'cli',
+      environment,
+      platform: 'darwin',
+      arch: 'arm64'
+    });
+
+    expect(await readFile(paths.nativeAddonPath, 'utf8')).toBe('native-v1');
+    expect(
+      await readFile(join(paths.versionsDirectory, '1.2.3-darwin-arm64', 'native', 'serve-sim-native.node'), 'utf8')
+    ).toBe('native-v1');
+
+    await rm(paths.nativeAddonPath);
+    const result = await installCoreExecutable({
+      sourcePath,
+      nativeAddonPath,
+      version: '1.2.3',
+      source: 'cli',
+      environment,
+      platform: 'darwin',
+      arch: 'arm64'
+    });
+
+    expect(result.status).toBe('installed');
+    expect(await readFile(paths.nativeAddonPath, 'utf8')).toBe('native-v1');
+  });
+
   test('repairs a missing stable executable from the preserved newer version', async () => {
     const { environment, sourcePath } = await fixture();
     await installCoreExecutable({ sourcePath, version: '2.0.0', source: 'cli', environment });
@@ -68,5 +104,13 @@ describe('core installation', () => {
     expect(compareCoreVersions('1.0.0', '1.0.0')).toBe(0);
     expect(compareCoreVersions('0.9.0', '1.0.0')).toBe(-1);
     expect(compareCoreVersions('development', '1.0.0')).toBeNull();
+  });
+
+  test('resolves the retired machine Core location separately from the canonical runtime', () => {
+    expect(resolveLegacyCorePaths('/Users/example')).toEqual({
+      stateDirectory: '/Users/example/Library/Application Support/Monad Design Core',
+      executablePath: '/Users/example/Library/Application Support/Monad Design Core/bin/monad-design-core',
+      lockPath: '/Users/example/Library/Application Support/Monad Design Core/core.lock'
+    });
   });
 });
