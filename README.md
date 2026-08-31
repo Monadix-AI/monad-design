@@ -39,6 +39,10 @@ that every external-agent and physical-device workflow works in every setup.
 npx monad-design install
 ```
 
+The 0.0.1 npm release supports macOS on Apple silicon and Intel and contains
+only the CLI, the machine-level Core runtime, and coding-agent integration
+assets. Desktop and Mobile apps are not published to npm.
+
 The installer puts Core in the machine-level Monad Design application-support
 directory, where the Desktop app can reuse it. It detects supported coding
 agents and installs both the `monad-design` Skill and the local MCP

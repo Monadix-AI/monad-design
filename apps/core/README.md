@@ -26,7 +26,9 @@ those product features.
 ## Commands
 
 - `bun run --cwd apps/core dev` starts the source entrypoint.
-- `bun run --cwd apps/core build` creates `dist/monad-design`.
+- `bun run --cwd apps/core build` creates arm64 and x64 release executables in
+  `dist/darwin-arm64/` and `dist/darwin-x64/`, plus a host-architecture
+  `dist/monad-design` for local Desktop packaging.
 - `bun run --cwd apps/cli build` packages that executable with the npm CLI and
   the `monad-design` Skill.
 - `bun run --cwd apps/desktop package` embeds that executable under

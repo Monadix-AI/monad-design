@@ -81,6 +81,22 @@ bun run check:fix
 bun run format
 ```
 
+## CLI release
+
+The public npm package is `apps/cli`; every other workspace remains private.
+Build Core before the CLI so the platform executable and native simulator addon
+are copied into the package, then inspect the exact npm file list:
+
+```bash
+bun run --cwd apps/core build
+bun run --cwd apps/cli build
+npm pack ./apps/cli --dry-run
+```
+
+The CLI `prepack` check rejects stale versions, mismatched platforms or
+architectures, missing release assets, and workspace runtime dependencies.
+Publish only from a clean release commit after the full `bun run ci` gate.
+
 The same primary entry points are available through mise, such as
 `mise run check` and `mise run build`.
 

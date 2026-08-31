@@ -35,7 +35,7 @@
   },
   "private": true,
   "scripts": {
-    "build": "bun run build:ui && bun build --compile --minify --asset ui/dist --outfile dist/monad-design src/main.ts && bun run scripts/copy-native-addon.ts",
+    "build": "bun run build:ui && bun run scripts/build-releases.ts && bun run scripts/copy-native-addon.ts",
     "build:ui": "vite build",
     "check": "tsc --noEmit --pretty false",
     "dev": "bun run src/main.ts",

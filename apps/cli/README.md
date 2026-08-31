@@ -22,6 +22,10 @@ versa.
 npx monad-design install
 ```
 
+Version 0.0.1 ships the CLI and its machine-level Core runtime for macOS on
+Apple silicon and Intel. The npm package does not contain the Desktop or Mobile
+apps.
+
 Core always lives in the machine-level Monad Design application-support
 directory so the Desktop app can reuse it. The install is safe to repeat:
 managed skills and MCP registrations are updated in place while unrelated agent
