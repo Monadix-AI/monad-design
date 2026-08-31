@@ -21,18 +21,7 @@ export interface ProjectTargetDetection {
   warnings: string[];
 }
 
-const ignoredDirectories = new Set([
-  '.codegraph',
-  '.cursor',
-  '.git',
-  '.impeccable',
-  'DerivedData',
-  'Pods',
-  'build',
-  'dist',
-  'node_modules',
-  'release'
-]);
+const ignoredDirectories = new Set(['.git', 'DerivedData', 'Pods', 'build', 'dist', 'node_modules', 'release']);
 const maximumDepth = 6;
 const maximumCandidateFiles = 200;
 const maximumDirectories = 500;
