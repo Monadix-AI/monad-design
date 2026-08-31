@@ -1,5 +1,6 @@
 {
-  "name": "monad-design",
+  "name": "@monaddesign/workspace",
+  "description": "A native visual implementation layer for coding agents, built around real iOS Simulator evidence.",
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",
     "@commitlint/cli": "^21.2.2",
@@ -11,14 +12,20 @@
     "syncpack": "15.3.3",
     "turbo": "^2.10.12"
   },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "license": "Apache-2.0",
   "packageManager": "bun@1.4.0",
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "check": "bun run check:repo && bun run check:deps && turbo run check",
+    "check": "bun run check:repo && bun run check:deps && bun run check:boundaries && turbo run check",
+    "check:boundaries": "bun scripts/check-workspace-boundaries.ts",
     "check:deps": "syncpack lint",
     "check:fix": "biome check --write .",
     "check:repo": "biome check --error-on-warnings .",
+    "ci": "bun run check && bun run test && bun run build",
     "dev": "turbo run dev --ui=tui",
     "fix:deps": "syncpack fix",
     "format": "biome format --write .",
