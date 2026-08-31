@@ -3057,7 +3057,7 @@ h1 {
   place-items: center;
   width: 30px;
   height: 30px;
-  color: var(--muted-foreground);
+  color: #b8bcc4;
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -3075,7 +3075,7 @@ h1 {
   width: 45px;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground);
+  color: #b8bcc4;
   text-align: center;
 }
 .zoom-controls .fit-control {

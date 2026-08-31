@@ -1,7 +1,29 @@
 import type { ReactNode } from 'react';
 
+import { fitCanvasScale, maximumCanvasScale } from '@monaddesign/simulator';
+
 export type CanvasMode = 'annotate' | 'interact' | 'variants';
 export const webDeviceControlsReservedHeight = 64;
+export const liveWorkspaceInspectorReservedWidth = 380;
+
+export const fitLiveWorkspaceCanvas = (
+  viewport: { height: number; width: number },
+  device: { height: number; width: number }
+) => ({
+  offset: {
+    x: -liveWorkspaceInspectorReservedWidth / 2,
+    y: -webDeviceControlsReservedHeight / 2
+  },
+  scale: fitCanvasScale(
+    viewport,
+    { width: device.width, height: device.height + webDeviceControlsReservedHeight },
+    {
+      horizontalReserve: liveWorkspaceInspectorReservedWidth,
+      maximumScale: maximumCanvasScale,
+      verticalReserve: 180
+    }
+  )
+});
 
 export function SimulatorDeviceControls({
   appearance,

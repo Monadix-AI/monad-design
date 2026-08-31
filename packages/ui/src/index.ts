@@ -3,6 +3,8 @@ export * from './business/annotation/model';
 export {
   type CanvasMode,
   CanvasZoomControls,
+  fitLiveWorkspaceCanvas,
+  liveWorkspaceInspectorReservedWidth,
   SimulatorDeviceControls,
   webDeviceControlsReservedHeight
 } from './business/canvas-controls';
@@ -13,6 +15,14 @@ export {
   type SimulatorPickerDevice,
   type SimulatorPickerTarget
 } from './business/live-session/simulator-picker';
+export {
+  LiveWorkspaceInspector,
+  type LiveWorkspaceInspectorElement,
+  type LiveWorkspaceInspectorIcons,
+  type LiveWorkspaceInspectorProps,
+  type LiveWorkspaceInspectorVariant,
+  type LiveWorkspaceMode
+} from './business/live-session/workspace-inspector';
 export { SimulatorCanvas, type SimulatorCanvasProps } from './business/simulator-canvas';
 export { Button, buttonVariants } from './primitives/button';
 export { Input } from './primitives/input';

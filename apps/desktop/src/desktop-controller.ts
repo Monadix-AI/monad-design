@@ -15,7 +15,6 @@ import {
   canvasOffsetForZoom,
   clampCanvasOffset,
   encodeSimulatorFrame,
-  fitCanvasScale,
   normalizedCanvasPoint,
   orientCanvasPoint,
   rotatedSimulatorOrientation,
@@ -29,7 +28,7 @@ import {
   sortSimulatorsForProject
 } from '@monaddesign/simulator-history';
 import { workspaceStore } from '@monaddesign/state';
-import { webDeviceControlsReservedHeight } from '@monaddesign/ui';
+import { fitLiveWorkspaceCanvas, webDeviceControlsReservedHeight } from '@monaddesign/ui';
 import { useNavigate } from '@tanstack/react-router';
 import {
   type ClipboardEvent,
@@ -615,14 +614,13 @@ export function useDesktopController() {
   const fitCanvas = useCallback(() => {
     const bounds = canvas.current;
     if (!bounds) return;
-    const nextScale = fitCanvasScale(
+    const nextView = fitLiveWorkspaceCanvas(
       { width: bounds.clientWidth, height: bounds.clientHeight },
-      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight + webDeviceControlsReservedHeight },
-      { horizontalReserve: 440, maximumScale: maximumCanvasScale, verticalReserve: 180 }
+      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
     );
-    canvasScaleRef.current = nextScale;
-    setCanvasScale(nextScale);
-    setCanvasOffset({ x: -150, y: -webDeviceControlsReservedHeight / 2 });
+    canvasScaleRef.current = nextView.scale;
+    setCanvasScale(nextView.scale);
+    setCanvasOffset(nextView.offset);
   }, [deviceFrame.frameHeight, deviceFrame.frameWidth]);
   fitCanvasRef.current = fitCanvas;
   constrainCanvasOffsetRef.current = constrainCanvasOffset;
