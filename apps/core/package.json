@@ -5,6 +5,7 @@
     "@elysia/node": "^1.4.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@monaddesign/client-contract": "workspace:*",
+    "@monaddesign/core-installation": "workspace:*",
     "@monaddesign/device-frame": "workspace:*",
     "@monaddesign/ui": "workspace:*",
     "elysia": "^1.4.29",
@@ -33,7 +34,7 @@
   },
   "private": true,
   "scripts": {
-    "build": "bun run build:ui && bun build --compile --minify --asset ui/dist --outfile dist/monad-design-core src/main.ts",
+    "build": "bun run build:ui && bun build --compile --minify --asset ui/dist --outfile dist/monad-design src/main.ts",
     "build:ui": "vite build",
     "check": "tsc --noEmit --pretty false",
     "dev": "bun run src/main.ts",

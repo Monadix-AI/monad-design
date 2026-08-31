@@ -21,15 +21,17 @@ of the same process and retains those product features.
 ## Commands
 
 - `bun run --cwd apps/core dev` starts the source entrypoint.
-- `bun run --cwd apps/core build` creates `dist/monad-design-core`.
+- `bun run --cwd apps/core build` creates `dist/monad-design`.
+- `bun run --cwd apps/cli build` packages that executable with the npm CLI and
+  the `monad-design-live` Skill.
 - `bun run --cwd apps/desktop package` embeds that executable under
   `Contents/Resources/core/` as an installation source for the Electron
   application.
 
 Every local client discovers the same machine Core under
-`~/Library/Application Support/Monad Design Core`. Electron installs or updates
-the bundled executable at `bin/monad-design-core`, then connects through the
-shared `bootstrap.json`; it never owns a private Core instance. A process lock
+`~/Library/Application Support/Monad Design`. The npm CLI and Electron install
+or update the bundled executable at `bin/monad-design`, then connect through
+the shared `bootstrap.json`; neither owns a private Core instance. A process lock
 prevents duplicate Core instances, while projects, pairing state, credentials,
 and agent sessions use the same persistent directory.
 

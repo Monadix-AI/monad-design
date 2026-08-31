@@ -16,8 +16,8 @@
     ],
     "extraResources": [
       {
-        "from": "../core/dist/monad-design-core",
-        "to": "core/monad-design-core"
+        "from": "../core/dist/monad-design",
+        "to": "core/monad-design"
       }
     ],
     "mac": {
@@ -35,6 +35,7 @@
     "@monaddesign/client-contract": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core": "workspace:*",
+    "@monaddesign/core-installation": "workspace:*",
     "@monaddesign/device-frame": "workspace:*",
     "@monaddesign/pairing": "workspace:*",
     "@monaddesign/simulator-history": "workspace:*",

@@ -1,8 +1,11 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalPassThroughEnv": [
+    "CLAUDE_CONFIG_DIR",
+    "CODEX_HOME",
     "MONAD_DESIGN_BUN_PATH",
     "MONAD_DESIGN_CORE_BOOTSTRAP_PATH",
+    "MONAD_DESIGN_CORE_EXECUTABLE_PATH",
     "MONAD_DESIGN_CORE_HOST",
     "MONAD_DESIGN_CORE_PORT",
     "MONAD_DESIGN_CORE_STATE_DIR"

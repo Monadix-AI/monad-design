@@ -1,11 +1,11 @@
 import type { AgentSessionSnapshot } from '@monaddesign/client-contract';
 
 import { type ChildProcess, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { constants, createReadStream } from 'node:fs';
-import { chmod, copyFile, mkdir, readFile, rename } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resolveCorePaths } from '@monaddesign/core/paths';
+import { installCoreExecutable } from '@monaddesign/core-installation';
 import { app, shell } from 'electron';
 
 interface CoreBootstrap {
@@ -17,24 +17,6 @@ interface CoreBootstrap {
 }
 
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-const fileHash = (path: string) =>
-  new Promise<string>((resolveHash, reject) => {
-    const hash = createHash('sha256');
-    const stream = createReadStream(path);
-    stream.on('data', (chunk) => hash.update(chunk));
-    stream.once('error', reject);
-    stream.once('end', () => resolveHash(hash.digest('hex')));
-  });
-
-const sameFileContents = async (left: string, right: string) => {
-  try {
-    return (await fileHash(left)) === (await fileHash(right));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-    throw error;
-  }
-};
 
 const isBootstrap = (value: unknown): value is CoreBootstrap => {
   const bootstrap = value as Partial<CoreBootstrap>;
@@ -117,13 +99,16 @@ export class CoreProcess {
 
   async #installBundledCore() {
     if (!app.isPackaged) return;
-    const bundledPath = join(process.resourcesPath, 'core', 'monad-design-core');
-    if (await sameFileContents(bundledPath, this.#executablePath)) return;
-    await mkdir(join(this.#stateDirectory, 'bin'), { recursive: true });
-    const temporaryPath = `${this.#executablePath}.${process.pid}.tmp`;
-    await copyFile(bundledPath, temporaryPath);
-    await chmod(temporaryPath, 0o755);
-    await rename(temporaryPath, this.#executablePath);
+    const bundledPath = join(process.resourcesPath, 'core', 'monad-design');
+    const result = await installCoreExecutable({
+      sourcePath: bundledPath,
+      version: app.getVersion(),
+      source: 'desktop'
+    });
+    if (result.status === 'newer-preserved') {
+      // biome-ignore lint/suspicious/noConsole: A protected machine-runtime upgrade must be visible in app logs.
+      console.log(`Keeping newer Monad Design Core v${result.manifest.version}.`);
+    }
   }
 
   async #prepareMachineCore() {

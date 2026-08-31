@@ -8,9 +8,11 @@ describe('machine Core paths', () => {
       stateDirectory: '/tmp/monad-design-machine-core',
       bootstrapPath: '/tmp/monad-design-machine-core/bootstrap.json',
       credentialsPath: '/tmp/monad-design-machine-core/credentials.json',
-      executablePath: '/tmp/monad-design-machine-core/bin/monad-design-core',
+      executablePath: '/tmp/monad-design-machine-core/bin/monad-design',
+      installManifestPath: '/tmp/monad-design-machine-core/install.json',
       lockPath: '/tmp/monad-design-machine-core/core.lock',
-      sessionsPath: '/tmp/monad-design-machine-core/agent-sessions.json'
+      sessionsPath: '/tmp/monad-design-machine-core/agent-sessions.json',
+      versionsDirectory: '/tmp/monad-design-machine-core/versions'
     });
   });
 
