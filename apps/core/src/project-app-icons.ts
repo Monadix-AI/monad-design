@@ -5,10 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
 const ignoredDirectories = new Set([
-  '.codegraph',
-  '.cursor',
   '.git',
-  '.impeccable',
   'DerivedData',
   'Pods',
   'build',

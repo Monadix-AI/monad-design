@@ -18,7 +18,10 @@ Core listens on TCP port `41765`. macOS may ask permission to accept local-netwo
 - View its live MJPEG stream and forward touch input.
 - Rotate, switch appearance, go Home, lock, and paste text.
 - Inspect the accessibility hierarchy and prepare a coding-agent handoff locally.
-- Capture and export annotated runtime evidence.
+- Capture annotated runtime evidence and send the composed image to the active
+  local agent session.
 - Capture, compare, open, and restore Debug-only `original` and `v1` through `v5` previews.
 
-Variant selection remains preview evidence and is never presented as a source change. Coding-agent prompts are prepared locally and are not sent automatically.
+Variant selection remains preview evidence and is never presented as a source
+change. Annotated evidence is sent only when the user explicitly chooses **Send
+to agent** in an active session.
