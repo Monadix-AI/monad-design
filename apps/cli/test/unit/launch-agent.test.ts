@@ -68,4 +68,26 @@ describe('Core launch agent', () => {
 
     expect(unloaded).toBe(false);
   });
+
+  test('retries a transient launchd bootstrap race', async () => {
+    const homeDirectory = await mkdtemp(join(tmpdir(), 'monad-design-launch-agent-'));
+    temporaryDirectories.push(homeDirectory);
+    let attempts = 0;
+
+    await installCoreLaunchAgent('/tmp/monad-design', '/tmp/monad-design-state', {
+      homeDirectory,
+      uid: 501,
+      exec: async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw Object.assign(new Error('Bootstrap failed'), {
+            code: 5,
+            stderr: 'Bootstrap failed: 5: Input/output error'
+          });
+        }
+      }
+    });
+
+    expect(attempts).toBe(3);
+  });
 });

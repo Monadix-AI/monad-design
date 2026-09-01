@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const coreLaunchAgentLabel = 'ai.monadix.monad-design.core';
 
@@ -79,6 +80,15 @@ const isMissingService = (error: unknown) => {
   );
 };
 
+const isTransientBootstrapFailure = (error: unknown) => {
+  const value = error as Error & { code?: number | string; stderr?: string | Uint8Array };
+  return (
+    value.code === 5 ||
+    value.code === '5' ||
+    /bootstrap failed:\s*5:\s*input\/output error/i.test(String(value.stderr ?? ''))
+  );
+};
+
 export const unloadCoreLaunchAgent = async (overrides: Partial<LaunchAgentDependencies> = {}) => {
   const dependencies = { ...defaultDependencies(), ...overrides };
   const launchAgent = resolveCoreLaunchAgent(dependencies.homeDirectory, dependencies.uid);
@@ -103,7 +113,15 @@ export const installCoreLaunchAgent = async (
   await writeFile(temporaryPath, coreLaunchAgentPlist(executablePath, stateDirectory), { mode: 0o644 });
   await chmod(temporaryPath, 0o644);
   await rename(temporaryPath, launchAgent.path);
-  await dependencies.exec('/bin/launchctl', ['bootstrap', launchAgent.domain, launchAgent.path]);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await dependencies.exec('/bin/launchctl', ['bootstrap', launchAgent.domain, launchAgent.path]);
+      break;
+    } catch (error) {
+      if (attempt >= 19 || !isTransientBootstrapFailure(error)) throw error;
+      await delay(100);
+    }
+  }
   return launchAgent;
 };
 

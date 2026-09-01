@@ -22,7 +22,7 @@ versa.
 npx monad-design install
 ```
 
-Version 0.0.1 ships the CLI and its machine-level Core runtime for macOS on
+Version 0.0.2 ships the CLI and its machine-level Core runtime for macOS on
 Apple silicon and Intel. The npm package does not contain the Desktop or Mobile
 apps.
 
