@@ -18,6 +18,7 @@ interface CoreBootstrap {
 }
 
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 
 const isBootstrap = (value: unknown): value is CoreBootstrap => {
   const bootstrap = value as Partial<CoreBootstrap>;
@@ -82,6 +83,19 @@ export class CoreProcess {
     }
   }
 
+  async #stopDevelopmentCore(bootstrap: CoreBootstrap) {
+    try {
+      process.kill(bootstrap.pid, 'SIGTERM');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+    }
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      if (!(await this.#isHealthy(bootstrap))) return;
+      await delay(100);
+    }
+    throw new Error('The previous Monad Design Core did not stop within 5 seconds.');
+  }
+
   async #copyLegacyState() {
     await mkdir(this.#stateDirectory, { recursive: true });
     if (this.#legacyStateDirectory === this.#stateDirectory) return;
@@ -97,7 +111,7 @@ export class CoreProcess {
   }
 
   async #installBundledCore() {
-    if (!app.isPackaged) return;
+    if (isDevelopment) return;
     const bundledPath = join(process.resourcesPath, 'core', 'monad-design');
     const bundledNativeAddonPath = join(process.resourcesPath, 'core', 'native', 'serve-sim-native.node');
     const result = await installCoreExecutable({
@@ -126,7 +140,7 @@ export class CoreProcess {
       MONAD_DESIGN_CORE_BOOTSTRAP_PATH: this.#bootstrapPath,
       MONAD_DESIGN_CORE_STATE_DIR: this.#stateDirectory
     };
-    if (app.isPackaged) {
+    if (!isDevelopment) {
       this.#child = spawn(this.#executablePath, [], {
         detached: true,
         env: environment,
@@ -155,9 +169,12 @@ export class CoreProcess {
     await this.#prepareMachineCore();
     const existing = await this.#readBootstrap();
     if (existing && (await this.#isHealthy(existing))) {
-      this.#bootstrap = existing;
-      this.#client = new ClientApi(existing.localClient, { requestTimeoutMilliseconds: 2_000 });
-      return existing;
+      if (!isDevelopment) {
+        this.#bootstrap = existing;
+        this.#client = new ClientApi(existing.localClient, { requestTimeoutMilliseconds: 2_000 });
+        return existing;
+      }
+      await this.#stopDevelopmentCore(existing);
     }
 
     this.#spawn();
