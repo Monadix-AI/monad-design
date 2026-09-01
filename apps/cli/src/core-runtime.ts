@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { resolveCorePaths } from '@monaddesign/core-installation';
 
-interface CoreBootstrap {
+export interface CoreBootstrap {
   schemaVersion: 1;
   pid: number;
   localClient: { origin: string; accessToken: string };
@@ -99,12 +99,42 @@ const startCore = async (executablePath: string, dependencies: CoreRuntimeDepend
   throw new Error('Monad Design Core did not become healthy within 10 seconds.');
 };
 
+export const currentHealthyCore = async (dependencies: CoreRuntimeDependencies = defaultDependencies) => {
+  const bootstrap = await dependencies.readBootstrap();
+  return bootstrap && (await dependencies.isHealthy(bootstrap)) ? bootstrap : null;
+};
+
+export const waitForCoreRunning = async (dependencies: CoreRuntimeDependencies = defaultDependencies) => {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const bootstrap = await currentHealthyCore(dependencies);
+    if (bootstrap) return bootstrap;
+    await dependencies.delay(100);
+  }
+  throw new Error('Monad Design Core did not become healthy within 10 seconds.');
+};
+
+export const stopCore = async (dependencies: CoreRuntimeDependencies = defaultDependencies) => {
+  const existing = await currentHealthyCore(dependencies);
+  if (!existing) return false;
+  try {
+    dependencies.signal(existing.pid, 'SIGTERM');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+  }
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (!dependencies.processIsRunning(existing.pid) && !(await dependencies.isHealthy(existing))) return true;
+    if (attempt === 49) throw new Error('Monad Design Core did not stop within 5 seconds.');
+    await dependencies.delay(100);
+  }
+  return true;
+};
+
 export const ensureCoreRunning = async (
   executablePath: string,
   dependencies: CoreRuntimeDependencies = defaultDependencies
 ) => {
-  const existing = await dependencies.readBootstrap();
-  if (existing && (await dependencies.isHealthy(existing))) return { bootstrap: existing, started: false };
+  const existing = await currentHealthyCore(dependencies);
+  if (existing) return { bootstrap: existing, started: false };
   return startCore(executablePath, dependencies);
 };
 
@@ -112,20 +142,6 @@ export const restartCore = async (
   executablePath: string,
   dependencies: CoreRuntimeDependencies = defaultDependencies
 ) => {
-  const existing = await dependencies.readBootstrap();
-  let restarted = false;
-  if (existing && (await dependencies.isHealthy(existing))) {
-    try {
-      dependencies.signal(existing.pid, 'SIGTERM');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
-    }
-    restarted = true;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      if (!dependencies.processIsRunning(existing.pid) && !(await dependencies.isHealthy(existing))) break;
-      if (attempt === 49) throw new Error('Monad Design Core did not stop within 5 seconds.');
-      await dependencies.delay(100);
-    }
-  }
+  const restarted = await stopCore(dependencies);
   return { ...(await startCore(executablePath, dependencies)), restarted };
 };

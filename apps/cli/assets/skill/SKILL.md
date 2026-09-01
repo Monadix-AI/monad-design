@@ -13,6 +13,8 @@ Use Monad Design as the user-facing runtime workbench while this agent remains t
 
 Treat a missing subcommand as `start`. Connect through the configured `monad-design` MCP server and call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known. Do not require the user to launch a UI first.
 
+If the configured MCP server is present but the initial call fails because Core is unreachable (for example connection refused, connection reset, or a transport send error before a session ID exists), run `npx --yes monad-design core start`, wait for it to report a healthy local URL, then retry the same MCP call once. Do not reinstall Core or create a substitute session during this recovery. If the `monad-design` MCP tool itself is absent from the agent, starting Core cannot reload the MCP configuration; report that the agent session must be restarted after installation.
+
 On a successful start, retain the returned `uiUrl`, immediately open it in a browser using the agent's available browser-opening capability, and emit the same URL as a clickable Markdown link in the agent response. Open and present the exact clean localhost URL returned by Core; do not add a token, key, or other query parameter. If browser opening fails, still emit the link and continue the MCP session.
 
 Core may also open the installed Monad Design desktop app or its browser UI. Do not probe for, install, launch, or wait on Desktop yourself. UI launch success is not the readiness signal and must not interrupt the MCP session or listening loop; judge readiness from MCP session state only.

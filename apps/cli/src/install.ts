@@ -2,7 +2,7 @@ import type { AgentType, InstallResult } from 'add-mcp';
 
 import { dirname, join } from 'node:path';
 import * as prompts from '@clack/prompts';
-import { installCoreExecutable, stopLegacyCore } from '@monaddesign/core-installation';
+import { installCoreExecutable, resolveCorePaths, stopLegacyCore } from '@monaddesign/core-installation';
 import { detectGlobalAgents, detectProjectAgents, upsertServer } from 'add-mcp';
 import colors from 'picocolors';
 
@@ -17,7 +17,8 @@ import {
   supportsProjectInstallation
 } from './agent-targets';
 import { resolveReleaseAssets } from './assets';
-import { restartCore } from './core-runtime';
+import { stopCore, waitForCoreRunning } from './core-runtime';
+import { installCoreLaunchAgent, unloadCoreLaunchAgent } from './launch-agent';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
 import { installSkillDirectory, removeLegacyMonadDesignSkill } from './skill-installer';
@@ -167,7 +168,7 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   coreSpinner.start('Installing Monad Design Core');
   let assets: Awaited<ReturnType<typeof resolveReleaseAssets>>;
   let core: Awaited<ReturnType<typeof installCoreExecutable>>;
-  let runtime: Awaited<ReturnType<typeof restartCore>>;
+  let runtime: { bootstrap: Awaited<ReturnType<typeof waitForCoreRunning>>; restarted: boolean };
   try {
     assets = await resolveReleaseAssets();
     core = await installCoreExecutable({
@@ -179,9 +180,13 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
       arch: assets.manifest.arch
     });
     await stopLegacyCore();
-    runtime = await restartCore(core.executablePath);
+    const unloaded = await unloadCoreLaunchAgent();
+    const stopped = await stopCore();
+    const paths = resolveCorePaths();
+    await installCoreLaunchAgent(core.executablePath, paths.stateDirectory);
+    runtime = { bootstrap: await waitForCoreRunning(), restarted: unloaded || stopped };
     coreSpinner.stop(
-      `Core ${core.manifest.version} ${colors.dim(`(${core.status}, ${runtime.restarted ? 'restarted' : 'started'})`)}`
+      `Core ${core.manifest.version} ${colors.dim(`(${core.status}, ${runtime.restarted ? 'restarted' : 'started'}, auto-start enabled)`)}`
     );
   } catch (error) {
     coreSpinner.error('Core installation failed');
@@ -216,6 +221,7 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
     [
       `${colors.bold('Core')}  ${colors.cyan(core.executablePath)}`,
       `${colors.bold('MCP')}   ${colors.cyan(mcpUrl)}`,
+      `${colors.bold('Auto-start')} ${colors.cyan('enabled for this macOS user')}`,
       `${colors.bold('Scope')} ${scope === 'project' ? colors.cyan(projectRoot ?? cwd) : colors.cyan('Global')}`
     ].join('\n'),
     'Installed'

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { restartCore } from '../../src/core-runtime';
+import { restartCore, waitForCoreRunning } from '../../src/core-runtime';
 
 const bootstrap = (pid: number) => ({
   schemaVersion: 1 as const,
@@ -69,5 +69,23 @@ describe('Core restart', () => {
         }
       })
     ).rejects.toThrow('Monad Design Core did not stop within 5 seconds.');
+  });
+
+  test('waits for a launch-agent-managed Core without spawning another process', async () => {
+    const replacement = bootstrap(505);
+    let reads = 0;
+    const result = await waitForCoreRunning({
+      delay: async () => undefined,
+      isHealthy: async () => true,
+      processIsRunning: () => false,
+      readBootstrap: async () => (++reads < 3 ? null : replacement),
+      signal: () => undefined,
+      spawnCore: () => {
+        throw new Error('The installer must not race launchd.');
+      }
+    });
+
+    expect(result).toEqual(replacement);
+    expect(reads).toBe(3);
   });
 });

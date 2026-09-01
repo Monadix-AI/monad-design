@@ -30,5 +30,14 @@ Core always lives in the machine-level Monad Design application-support
 directory so the Desktop app can reuse it. The install is safe to repeat:
 managed skills and MCP registrations are updated in place while unrelated agent
 configuration is preserved. After installing or verifying the machine Core,
-the installer gracefully stops any active Core process and starts the final
-installed executable so the current version takes effect immediately.
+the installer gracefully stops any active Core process, registers a per-user
+macOS LaunchAgent, and starts the final installed executable through launchd.
+Core starts again automatically after the user logs in and is relaunched if it
+exits unexpectedly.
+
+If an agent cannot reach the configured MCP endpoint after Core has stopped,
+the installed runtime can be recovered without reinstalling it:
+
+```bash
+npx monad-design core start
+```
