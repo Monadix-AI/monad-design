@@ -321,6 +321,18 @@ describe('Core server', () => {
       const projectsResource = await client.readResource({ uri: 'monaddesign://projects' });
       const projectsContent = projectsResource.contents[0];
       expect(JSON.parse(projectsContent && 'text' in projectsContent ? projectsContent.text : '[]')).toHaveLength(2);
+
+      const closeResponse = await fetch(`${origin}/v1/agent-session/${active.session.id}/close`, {
+        method: 'POST',
+        headers: { cookie: cookie ?? '' }
+      });
+      expect(closeResponse.status).toBe(200);
+      expect(await closeResponse.json()).toMatchObject({ id: active.session.id, status: 'closed' });
+      expect(
+        await fetch(`${origin}/v1/agent-session/active`, { headers: { cookie: cookie ?? '' } }).then((response) =>
+          response.json()
+        )
+      ).toEqual({ session: null });
     } finally {
       await client.close();
     }

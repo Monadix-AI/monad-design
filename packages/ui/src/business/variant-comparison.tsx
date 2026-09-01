@@ -28,6 +28,7 @@ interface VariantComparisonDeviceFrame {
 }
 
 export function VariantComparison({
+  capturingVariant,
   captures,
   deviceChrome,
   deviceFrame,
@@ -37,10 +38,12 @@ export function VariantComparison({
   labels,
   offset = { x: 0, y: 0 },
   onSelect,
+  orientation = 'portrait',
   scale = 1,
   selectedVariant,
   variants
 }: {
+  capturingVariant?: string | null;
   captures: VariantComparisonCapture[];
   deviceChrome?: VariantComparisonDeviceChrome;
   deviceFrame: VariantComparisonDeviceFrame;
@@ -50,6 +53,7 @@ export function VariantComparison({
   labels: Record<string, string>;
   offset?: { x: number; y: number };
   onSelect: (variant: string) => void;
+  orientation?: SimulatorOrientation;
   scale?: number;
   selectedVariant?: string | null;
   variants: string[];
@@ -61,15 +65,20 @@ export function VariantComparison({
     const strip = variantStrip.current;
     if (!strip) return;
     const fitVariants = () => {
-      const gap = Math.min(44, Math.max(18, strip.clientWidth * 0.03));
-      const horizontalSpace = strip.clientWidth - 72 - gap * Math.max(0, variants.length - 1);
+      const canvas = strip.parentElement;
+      const canvasWidth = canvas?.clientWidth ?? window.innerWidth;
+      const canvasHeight = canvas?.clientHeight ?? window.innerHeight;
+      const availableWidth = Math.max(240, canvasWidth - 380 - 96);
+      const availableHeight = Math.max(240, canvasHeight - 160);
+      const gap = Math.min(44, Math.max(18, availableWidth * 0.03));
+      const horizontalSpace = availableWidth - gap * Math.max(0, variants.length - 1);
       const widthScale = horizontalSpace / Math.max(1, deviceFrame.frameWidth * variants.length);
-      const heightScale = (strip.clientHeight - 72) / Math.max(1, deviceFrame.frameHeight);
+      const heightScale = (availableHeight - 34) / Math.max(1, deviceFrame.frameHeight);
       setPreviewScale(Math.min(0.78, Math.max(0.25, Math.min(widthScale, heightScale))));
     };
     fitVariants();
     const observer = new ResizeObserver(fitVariants);
-    observer.observe(strip);
+    observer.observe(strip.parentElement ?? strip);
     return () => observer.disconnect();
   }, [deviceFrame.frameHeight, deviceFrame.frameWidth, variants.length]);
 
@@ -90,7 +99,8 @@ export function VariantComparison({
     >
       {variants.map((variant) => {
         const capture = captures.find((candidate) => candidate.id === variant);
-        const captureOrientation = capture?.orientation ?? 'portrait';
+        const isCapturing = capturingVariant === variant;
+        const captureOrientation = capture?.orientation ?? orientation;
         const captureIsLandscape = captureOrientation === 'landscape_left' || captureOrientation === 'landscape_right';
         const stageWidth = captureIsLandscape ? deviceHeight : deviceWidth;
         const stageHeight = captureIsLandscape ? deviceWidth : deviceHeight;
@@ -130,12 +140,17 @@ export function VariantComparison({
             aria-label={labels[variant] ?? variant}
             className="canvas-variant-device"
             data-canvas-ui
+            data-capturing={isCapturing ? 'true' : undefined}
             data-variant={variant}
             disabled={!capture}
             key={variant}
             style={frameStyle}
             value={variant}
           >
+            <span className="canvas-variant-label">
+              <strong>{labels[variant] ?? variant}</strong>
+              <small>{variant === 'original' ? 'BASE' : variant.replace(/^v/u, '').padStart(2, '0')}</small>
+            </span>
             <span
               aria-hidden="true"
               className="canvas-variant-device-scale"
@@ -189,6 +204,19 @@ export function VariantComparison({
                         maskRepeat: 'no-repeat'
                       }}
                     />
+                  )}
+                  {isCapturing && (
+                    <span
+                      aria-label={`Capturing ${labels[variant] ?? variant}`}
+                      className="variant-capture-loading"
+                      role="status"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="variant-capture-spinner spin"
+                      />
+                      <strong>Capturing…</strong>
+                    </span>
                   )}
                 </span>
                 {!framebufferMask && deviceFrame.hardware && (

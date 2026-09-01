@@ -22,6 +22,7 @@ describe('shared variant comparison', () => {
             orientation: 'portrait'
           }
         ]}
+        capturingVariant="v1"
         deviceFrame={deviceFrame}
         deviceHeight={844}
         deviceWidth={390}
@@ -34,6 +35,7 @@ describe('shared variant comparison', () => {
     );
 
     expect(markup).toContain('aria-label="Original"');
+    expect(markup).toContain('<strong>Original</strong><small>BASE</small>');
     expect(markup).toContain('src="data:image/png;base64,original"');
     expect(markup).toContain('--variant-canvas-offset-x:24px');
     expect(markup).toContain('--variant-canvas-offset-y:-16px');
@@ -41,6 +43,10 @@ describe('shared variant comparison', () => {
     expect(markup).not.toContain('class="canvas-variant-strip" data-canvas-ui');
     expect(markup).toContain('class="canvas-variant-device" data-canvas-ui');
     expect(markup).toContain('aria-label="Variant 1"');
+    expect(markup).toContain('<strong>Variant 1</strong><small>01</small>');
+    expect(markup).toContain('data-capturing="true"');
+    expect(markup).toContain('aria-label="Capturing Variant 1"');
+    expect(markup).toContain('<strong>Capturing…</strong>');
     expect(markup).toContain('disabled=""');
   });
 });

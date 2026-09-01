@@ -6,9 +6,17 @@ import {
   useLaunchSimulatorVariantMutation,
   useLazyCaptureSimulatorScreenshotQuery
 } from '@monaddesign/client-rtk';
-import { simulatorVariantIdsForCount, simulatorVariantLabels } from '@monaddesign/simulator';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  canvasOffsetForZoom,
+  canvasScaleStep,
+  clampCanvasOffset,
+  maximumCanvasScale,
+  minimumCanvasScale,
+  simulatorVariantIdsForCount,
+  simulatorVariantLabels
+} from '@monaddesign/simulator';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlassControl } from './GlassControl';
 
@@ -20,6 +28,16 @@ const errorMessage = (error: unknown, fallback: string) =>
     : error && typeof error === 'object' && 'message' in error
       ? String(error.message)
       : fallback;
+const touchPoint = (touch: { locationX: number; locationY: number }) => ({
+  x: touch.locationX,
+  y: touch.locationY
+});
+const touchDistance = (first: { locationX: number; locationY: number }, second: typeof first) =>
+  Math.hypot(second.locationX - first.locationX, second.locationY - first.locationY);
+const touchMidpoint = (first: { locationX: number; locationY: number }, second: typeof first) => ({
+  x: (first.locationX + second.locationX) / 2,
+  y: (first.locationY + second.locationY) / 2
+});
 
 export function VariantModal({
   bundleIdentifier,
@@ -47,7 +65,146 @@ export function VariantModal({
   const [selected, setSelected] = useState<SimulatorVariantId | null>(null);
   const [working, setWorking] = useState<SimulatorVariantId | 'open' | 'restore' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [canvasViewport, setCanvasViewport] = useState<{ width: number; height: number } | null>(null);
   const capturedKey = useRef<string | null>(null);
+  const canvasScaleRef = useRef(canvasScale);
+  const canvasOffsetRef = useRef(canvasOffset);
+  const canvasGesture = useRef<
+    | { mode: 'pan'; start: { x: number; y: number }; offset: { x: number; y: number } }
+    | {
+        mode: 'pinch';
+        distance: number;
+        midpoint: { x: number; y: number };
+        offset: { x: number; y: number };
+        scale: number;
+      }
+    | null
+  >(null);
+  canvasScaleRef.current = canvasScale;
+  canvasOffsetRef.current = canvasOffset;
+  const updateCanvasOffset = useCallback(
+    (offset: { x: number; y: number }, scale: number) => {
+      const next = canvasViewport
+        ? clampCanvasOffset(offset, canvasViewport, {
+            width: canvasViewport.width * scale,
+            height: canvasViewport.height * scale
+          })
+        : offset;
+      canvasOffsetRef.current = next;
+      setCanvasOffset(next);
+    },
+    [canvasViewport]
+  );
+  const changeCanvasScale = useCallback(
+    (requestedScale: number) => {
+      const nextScale = Math.min(maximumCanvasScale, Math.max(minimumCanvasScale, requestedScale));
+      canvasScaleRef.current = nextScale;
+      setCanvasScale(nextScale);
+      updateCanvasOffset(canvasOffsetRef.current, nextScale);
+    },
+    [updateCanvasOffset]
+  );
+  const fitCanvas = useCallback(() => {
+    canvasGesture.current = null;
+    canvasScaleRef.current = 1;
+    canvasOffsetRef.current = { x: 0, y: 0 };
+    setCanvasScale(1);
+    setCanvasOffset({ x: 0, y: 0 });
+  }, []);
+  const canvasResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length >= 2,
+        onMoveShouldSetPanResponder: (event, gesture) =>
+          event.nativeEvent.touches.length >= 2 || Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4,
+        onPanResponderGrant: (event) => {
+          const [first, second] = event.nativeEvent.touches;
+          if (first && second && canvasViewport) {
+            canvasGesture.current = {
+              mode: 'pinch',
+              distance: Math.max(1, touchDistance(first, second)),
+              midpoint: touchMidpoint(first, second),
+              offset: canvasOffsetRef.current,
+              scale: canvasScaleRef.current
+            };
+          } else if (first) {
+            canvasGesture.current = {
+              mode: 'pan',
+              start: touchPoint(first),
+              offset: canvasOffsetRef.current
+            };
+          }
+        },
+        onPanResponderMove: (event) => {
+          const [first, second] = event.nativeEvent.touches;
+          if (!first) return;
+          if (second && canvasViewport) {
+            if (canvasGesture.current?.mode !== 'pinch') {
+              canvasGesture.current = {
+                mode: 'pinch',
+                distance: Math.max(1, touchDistance(first, second)),
+                midpoint: touchMidpoint(first, second),
+                offset: canvasOffsetRef.current,
+                scale: canvasScaleRef.current
+              };
+              return;
+            }
+            const gesture = canvasGesture.current;
+            const midpoint = touchMidpoint(first, second);
+            const nextScale = Math.min(
+              maximumCanvasScale,
+              Math.max(minimumCanvasScale, gesture.scale * (touchDistance(first, second) / gesture.distance))
+            );
+            const anchored = canvasOffsetForZoom(
+              gesture.offset,
+              canvasViewport,
+              gesture.midpoint,
+              gesture.scale,
+              nextScale
+            );
+            canvasScaleRef.current = nextScale;
+            setCanvasScale(nextScale);
+            updateCanvasOffset(
+              {
+                x: anchored.x + midpoint.x - gesture.midpoint.x,
+                y: anchored.y + midpoint.y - gesture.midpoint.y
+              },
+              nextScale
+            );
+            return;
+          }
+          if (canvasGesture.current?.mode !== 'pan') {
+            canvasGesture.current = {
+              mode: 'pan',
+              start: touchPoint(first),
+              offset: canvasOffsetRef.current
+            };
+            return;
+          }
+          const gesture = canvasGesture.current;
+          const point = touchPoint(first);
+          updateCanvasOffset(
+            {
+              x: gesture.offset.x + point.x - gesture.start.x,
+              y: gesture.offset.y + point.y - gesture.start.y
+            },
+            canvasScaleRef.current
+          );
+        },
+        onPanResponderRelease: () => {
+          canvasGesture.current = null;
+        },
+        onPanResponderTerminate: () => {
+          canvasGesture.current = null;
+        }
+      }),
+    [canvasViewport, updateCanvasOffset]
+  );
+  useEffect(() => {
+    if (visible) fitCanvas();
+  }, [fitCanvas, visible]);
   const capture = useCallback(async () => {
     setCaptures({});
     setSelected(null);
@@ -178,37 +335,99 @@ export function VariantModal({
             </Text>
           </GlassControl>
         </View>
-        <View style={styles.grid}>
-          {variants.map((variant) => (
-            <Pressable
-              disabled={!captures[variant] || Boolean(working)}
-              key={variant}
-              onPress={() => setSelected(variant)}
-              style={[styles.tile, selected === variant && styles.selected]}
+        <View
+          onLayout={(event) => {
+            const { width, height } = event.nativeEvent.layout;
+            setCanvasViewport((current) =>
+              current?.width === width && current.height === height ? current : { width, height }
+            );
+          }}
+          style={styles.gridViewport}
+          {...canvasResponder.panHandlers}
+        >
+          <View
+            style={[
+              styles.grid,
+              {
+                transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }, { scale: canvasScale }]
+              }
+            ]}
+          >
+            {variants.map((variant) => (
+              <Pressable
+                disabled={!captures[variant] || Boolean(working)}
+                key={variant}
+                onPress={() => setSelected(variant)}
+                style={[styles.tile, selected === variant && styles.selected]}
+              >
+                <View style={styles.tileHeader}>
+                  <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
+                  <Text style={styles.tileState}>
+                    {working === variant
+                      ? 'CAPTURING'
+                      : captures[variant]
+                        ? selected === variant
+                          ? 'SELECTED'
+                          : 'CAPTURED'
+                        : 'WAITING'}
+                  </Text>
+                </View>
+                {captures[variant] ? (
+                  <Image
+                    resizeMode="contain"
+                    source={{ uri: captures[variant] }}
+                    style={styles.image}
+                  />
+                ) : (
+                  <View style={styles.placeholder}>{working === variant && <ActivityIndicator color="#a8ff78" />}</View>
+                )}
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.zoomControls}>
+            <GlassControl
+              accessibilityLabel="Zoom comparison out"
+              contentStyle={styles.zoomButtonContent}
+              disabled={canvasScale <= minimumCanvasScale}
+              glassStyle="clear"
+              onPress={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+              style={styles.zoomButton}
             >
-              <View style={styles.tileHeader}>
-                <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
-                <Text style={styles.tileState}>
-                  {working === variant
-                    ? 'CAPTURING'
-                    : captures[variant]
-                      ? selected === variant
-                        ? 'SELECTED'
-                        : 'CAPTURED'
-                      : 'WAITING'}
-                </Text>
-              </View>
-              {captures[variant] ? (
-                <Image
-                  resizeMode="contain"
-                  source={{ uri: captures[variant] }}
-                  style={styles.image}
-                />
-              ) : (
-                <View style={styles.placeholder}>{working === variant && <ActivityIndicator color="#a8ff78" />}</View>
-              )}
-            </Pressable>
-          ))}
+              <Ionicons
+                color="#eef0f4"
+                name="remove"
+                size={18}
+              />
+            </GlassControl>
+            <Text style={styles.zoomValue}>{Math.round(canvasScale * 100)}%</Text>
+            <GlassControl
+              accessibilityLabel="Zoom comparison in"
+              contentStyle={styles.zoomButtonContent}
+              disabled={canvasScale >= maximumCanvasScale}
+              glassStyle="clear"
+              onPress={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+              style={styles.zoomButton}
+            >
+              <Ionicons
+                color="#eef0f4"
+                name="add"
+                size={18}
+              />
+            </GlassControl>
+            <GlassControl
+              accessibilityLabel="Fit comparison to view"
+              contentStyle={styles.zoomButtonContent}
+              glassStyle="clear"
+              onPress={fitCanvas}
+              style={styles.zoomButton}
+            >
+              <Ionicons
+                color="#eef0f4"
+                name="scan-outline"
+                size={17}
+              />
+            </GlassControl>
+          </View>
         </View>
         {error && <Text style={styles.error}>{error}</Text>}
         <View style={styles.footer}>
@@ -297,6 +516,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   primaryText: { color: '#10130e', fontWeight: '800' },
+  gridViewport: { flex: 1, overflow: 'hidden' },
   grid: {
     flex: 1,
     padding: 26,
@@ -305,6 +525,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 14
   },
+  zoomControls: {
+    position: 'absolute',
+    left: 26,
+    bottom: 14,
+    height: 44,
+    padding: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 11,
+    backgroundColor: 'rgba(25, 27, 31, 0.94)'
+  },
+  zoomButton: { width: 38, height: 38, borderRadius: 8 },
+  zoomButtonContent: { alignItems: 'center', justifyContent: 'center' },
+  zoomValue: { width: 52, color: '#eef0f4', fontSize: 11, textAlign: 'center' },
   tile: {
     width: '48.9%',
     height: '47%',

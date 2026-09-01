@@ -46,6 +46,10 @@ export const createAgentSessionRoutes = (sessions: AgentSessionStore, accessToke
       body: submitAgentRequestSchema,
       response: { 200: agentSessionSnapshotSchema }
     })
+    .post('/:id/close', ({ params: { id } }) => publicSession(sessions.close(id)), {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+      response: { 200: agentSessionSnapshotSchema }
+    })
     .post(
       '/:id/confirm-selection',
       ({ body: { requestId, variant }, params: { id } }) =>

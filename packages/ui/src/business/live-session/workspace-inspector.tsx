@@ -51,12 +51,14 @@ export interface LiveWorkspaceInspectorProps {
   confirmedVariant?: string;
   icons?: LiveWorkspaceInspectorIcons;
   isBusy?: boolean;
+  isEndingLive?: boolean;
   isSendingRequest?: boolean;
   mode: LiveWorkspaceMode;
   onAcceptVariant: () => void;
   onBeginSelection: () => void;
   onClearSelection: () => void;
   onDiscardVariant: () => void;
+  onEndLive?: () => void;
   onModeChange: (mode: Exclude<LiveWorkspaceMode, 'variants'>) => void;
   onRequestChange: (request: string) => void;
   onSelectVariant: (variant: string) => void;
@@ -88,12 +90,14 @@ export function LiveWorkspaceInspector({
   confirmedVariant,
   icons,
   isBusy = false,
+  isEndingLive = false,
   isSendingRequest = false,
   mode,
   onAcceptVariant,
   onBeginSelection,
   onClearSelection,
   onDiscardVariant,
+  onEndLive,
   onModeChange,
   onRequestChange,
   onSelectVariant,
@@ -362,6 +366,19 @@ export function LiveWorkspaceInspector({
         )}
         {agentError}
       </section>
+      {onEndLive && (
+        <section className="live-session-footer">
+          <Button
+            className="end-live-action"
+            disabled={isEndingLive}
+            onClick={onEndLive}
+            type="button"
+            variant="destructive"
+          >
+            {isEndingLive ? 'Ending live…' : 'End live'}
+          </Button>
+        </section>
+      )}
     </aside>
   );
 }

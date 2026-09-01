@@ -1,6 +1,7 @@
 import type { AgentSessionSnapshot, IOSSimulator } from '@monaddesign/client-contract';
 
 import {
+  type AccessibilityElement,
   type AccessibilitySnapshot,
   accessibilityElementAtPoint,
   buildAgentTurnContext,
@@ -35,6 +36,13 @@ import {
   type VariantComparisonCapture
 } from '@monaddesign/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import {
+  captureTargetFramesAreStable,
+  captureTargetFromContext,
+  captureTargetIsVisible,
+  findCaptureTarget
+} from './variant-capture-target';
 
 type ActiveSessionResponse = { session: AgentSessionSnapshot | null };
 type SimulatorsResponse = { simulators: IOSSimulator[] };
@@ -81,6 +89,7 @@ export function App() {
   const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
   const [isScanning, setIsScanning] = useState(true);
   const [isChoosingSimulator, setIsChoosingSimulator] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isStreamReady, setIsStreamReady] = useState(false);
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
@@ -93,6 +102,7 @@ export function App() {
   const [capturingVariant, setCapturingVariant] = useState<SimulatorVariantId | null>(null);
   const [variantError, setVariantError] = useState('');
   const [isRestoringConnection, setIsRestoringConnection] = useState(false);
+  const [isEndingLive, setIsEndingLive] = useState(false);
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [axSnapshot, setAXSnapshot] = useState<AXSnapshot | null>(null);
@@ -107,6 +117,7 @@ export function App() {
   const orientationRef = useRef<SimulatorOrientation>('portrait');
   const restoredConnection = useRef<string | null>(null);
   const capturedRequest = useRef<string | null>(null);
+  const connectingSimulator = useRef(false);
   const selectedSimulator = useMemo(
     () => simulators.find((simulator) => simulator.udid === selectedUdid),
     [selectedUdid, simulators]
@@ -176,9 +187,17 @@ export function App() {
   }, [request]);
 
   useEffect(() => {
-    void refreshSession();
-    const interval = window.setInterval(() => void refreshSession(), 800);
-    return () => window.clearInterval(interval);
+    let cancelled = false;
+    let timeout: number | undefined;
+    const poll = async () => {
+      await refreshSession();
+      if (!cancelled) timeout = window.setTimeout(() => void poll(), 800);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
   }, [refreshSession]);
 
   useEffect(() => {
@@ -268,7 +287,9 @@ export function App() {
   }, [connectInput, connectionUdid]);
 
   const connectSimulator = async () => {
-    if (!session) return;
+    if (!session || connectingSimulator.current) return;
+    connectingSimulator.current = true;
+    setIsConnecting(true);
     try {
       setErrorMessage('');
       await request('/v1/simulators/connect', {
@@ -291,6 +312,9 @@ export function App() {
       setIsStreamReady(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      connectingSimulator.current = false;
+      setIsConnecting(false);
     }
   };
 
@@ -303,6 +327,24 @@ export function App() {
       setErrorMessage('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const endLive = async () => {
+    if (!session || isEndingLive) return;
+    setIsEndingLive(true);
+    try {
+      await request<AgentSessionSnapshot>(`/v1/agent-session/${encodeURIComponent(session.id)}/close`, {
+        method: 'POST'
+      });
+      socket.current?.close();
+      setIsStreamReady(false);
+      setSession(null);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsEndingLive(false);
     }
   };
 
@@ -352,20 +394,57 @@ export function App() {
     }
   };
 
-  const captureStableSimulatorImage = useCallback(async () => {
-    await wait(700);
-    let previous = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      await wait(450);
-      const current = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
-      if (await capturesAreVisuallyStable(previous, current)) return current;
-      previous = current;
-    }
-    throw new Error('The Simulator did not reach a stable frame for variant comparison.');
-  }, [request]);
+  const waitForVisibleCaptureTarget = useCallback(
+    async (variant: SimulatorVariantId, target: AccessibilityElement) => {
+      let previous: AccessibilityElement | undefined;
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 32; attempt += 1) {
+        try {
+          const snapshot = await request<AXSnapshot>('/v1/simulator/accessibility');
+          const current = findCaptureTarget(snapshot, target);
+          if (
+            current &&
+            captureTargetIsVisible(snapshot, current) &&
+            previous &&
+            captureTargetFramesAreStable(previous, current)
+          ) {
+            return;
+          }
+          previous = current && captureTargetIsVisible(snapshot, current) ? current : undefined;
+          lastError = undefined;
+        } catch (reason) {
+          previous = undefined;
+          lastError = reason;
+        }
+        await wait(250);
+      }
+      const detail = lastError instanceof Error ? ` ${lastError.message}` : '';
+      throw new Error(
+        `${simulatorVariantLabels[variant]} did not restore the selected page and scroll target in the visible viewport.${detail}`
+      );
+    },
+    [request]
+  );
+
+  const captureStableSimulatorImage = useCallback(
+    async (variant: SimulatorVariantId, target?: AccessibilityElement) => {
+      if (target) await waitForVisibleCaptureTarget(variant, target);
+      else await wait(700);
+      let previous = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await wait(450);
+        const current = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
+        if (await capturesAreVisuallyStable(previous, current)) return current;
+        previous = current;
+      }
+      throw new Error('The Simulator did not reach a stable frame for variant comparison.');
+    },
+    [request, waitForVisibleCaptureTarget]
+  );
 
   useEffect(() => {
-    const requestId = session?.changeRequest?.id;
+    const changeRequest = session?.changeRequest;
+    const requestId = changeRequest?.id;
     if (
       session?.status !== 'variants_ready' ||
       !requestId ||
@@ -383,8 +462,9 @@ export function App() {
     void (async () => {
       const captures: VariantComparisonCapture[] = [];
       let previewLaunchStarted = false;
+      const captureTarget = captureTargetFromContext(changeRequest.context);
       try {
-        for (const variant of simulatorVariantIdsForCount(session.changeRequest?.variantCount ?? 0)) {
+        for (const variant of simulatorVariantIdsForCount(changeRequest.variantCount)) {
           setCapturingVariant(variant);
           await request('/v1/simulator/variant', {
             method: 'POST',
@@ -393,7 +473,7 @@ export function App() {
           previewLaunchStarted = true;
           captures.push({
             id: variant,
-            image: await captureStableSimulatorImage(),
+            image: await captureStableSimulatorImage(variant, captureTarget),
             orientation: orientationRef.current
           });
           setVariantCaptures([...captures]);
@@ -576,7 +656,7 @@ export function App() {
         ) : session.status === 'selecting_simulator' || !session.connection || isChoosingSimulator ? (
           <LiveSessionSimulatorPicker
             error={error}
-            isConnecting={false}
+            isConnecting={isConnecting}
             isScanning={isScanning}
             onConnect={() => void connectSimulator()}
             onSelectSimulator={setSelectedUdid}
@@ -593,6 +673,7 @@ export function App() {
               isReviewingVariants ? (
                 <VariantComparison
                   captures={variantCaptures}
+                  capturingVariant={capturingVariant}
                   deviceChrome={selectedSimulator?.deviceChrome}
                   deviceFrame={deviceFrame}
                   deviceHeight={screen.height}
@@ -736,6 +817,7 @@ export function App() {
                 <LiveWorkspaceInspector
                   agentStatus={session.status}
                   confirmedVariant={session.confirmedSelection?.variant}
+                  isEndingLive={isEndingLive}
                   isSendingRequest={isSendingAgentRequest}
                   mode={
                     isAnnotationMode
@@ -752,6 +834,7 @@ export function App() {
                   onBeginSelection={() => void changeSelectionMode(true)}
                   onClearSelection={() => setSelectedAXPath(null)}
                   onDiscardVariant={() => void confirmVariant('original', 'discarding')}
+                  onEndLive={() => void endLive()}
                   onModeChange={(mode) => {
                     if (mode === 'annotate') {
                       openAnnotation();
