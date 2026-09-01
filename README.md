@@ -2,8 +2,6 @@
 
 Use Monad Design to work with a coding agent directly on your running iOS app. Navigate to the exact screen, point to what should change, compare real alternatives, and approve the result before it becomes the new design.
 
-> **Project status:** Monad Design is an early preview. Public downloads are not available yet, and the experience may change before the first stable release.
-
 ## Design in the running app
 
 Monad Design keeps design feedback connected to the real product instead of a detached mockup:
@@ -80,9 +78,17 @@ To use the complete workflow, you need:
 - A supported local coding agent
 - Image input support in the agent when you send annotated requests
 
-## Get access
+## Install
 
-Public downloads and the npm package are not available yet. You can currently run Monad Design from source as a contributor.
+Install Monad Design Core and connect it to a supported coding agent:
+
+```bash
+npx monad-design install
+```
+
+The npm package includes the CLI and machine-level Core runtime for Apple silicon and Intel Macs. It does not include the Desktop or iPad apps.
+
+You can also run Monad Design from source as a contributor.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, development commands, and contribution guidance.
 
@@ -102,7 +108,7 @@ The repository does not include a sample target app or hosted coding-agent servi
 
 The roadmap focuses on:
 
-- Public installation for the coding-agent integration
+- Simpler onboarding and broader coding-agent support
 - Desktop and iPad app distribution
 - Android support for the same visual workflow
 
