@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/readme-hero-v2.png" alt="Monad Design — The app is the canvas." width="100%">
+</p>
+
 # Monad Design
 
 > **The app is the canvas.**
