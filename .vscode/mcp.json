@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "monad-design": {
+      "type": "http",
+      "url": "http://127.0.0.1:41765/mcp"
+    }
+  }
+}

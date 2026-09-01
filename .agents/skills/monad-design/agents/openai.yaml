@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monad Design"
+  short_description: "Run a persistent visual editing session"
+  default_prompt: "Use $monad-design to start listening for visual change requests."
