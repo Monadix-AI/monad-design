@@ -7,6 +7,14 @@ export interface SimulatorRuntimeConfiguration {
   screenSize?: { width: number; height: number };
 }
 
+export const simulatorRuntimeDeviceSize = (
+  screenSize: { width: number; height: number },
+  devicePixelRatio: number
+) => ({
+  width: screenSize.width / devicePixelRatio,
+  height: screenSize.height / devicePixelRatio
+});
+
 export const reconcileSimulatorRuntimeOrientation = ({
   expected,
   received,

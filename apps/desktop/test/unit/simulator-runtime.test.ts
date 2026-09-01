@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   decodeSimulatorRuntimeConfiguration,
-  reconcileSimulatorRuntimeOrientation
+  reconcileSimulatorRuntimeOrientation,
+  simulatorRuntimeDeviceSize
 } from '../../src/lib/simulator-runtime';
 
 const frame = (value: unknown, tag = 130) => {
@@ -54,5 +55,12 @@ describe('Simulator runtime configuration', () => {
         synchronized: true
       })
     ).toEqual({ orientation: 'portrait', synchronized: true });
+  });
+
+  test('keeps raw portrait stream dimensions for the canvas rotation layer', () => {
+    expect(simulatorRuntimeDeviceSize({ width: 1179, height: 2556 }, 3)).toEqual({
+      width: 393,
+      height: 852
+    });
   });
 });

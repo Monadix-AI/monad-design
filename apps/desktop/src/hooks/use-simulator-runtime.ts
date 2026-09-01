@@ -24,7 +24,11 @@ import {
   useState
 } from 'react';
 
-import { decodeSimulatorRuntimeConfiguration, reconcileSimulatorRuntimeOrientation } from '../lib/simulator-runtime';
+import {
+  decodeSimulatorRuntimeConfiguration,
+  reconcileSimulatorRuntimeOrientation,
+  simulatorRuntimeDeviceSize
+} from '../lib/simulator-runtime';
 
 interface SimulatorRuntimeOptions {
   axSnapshot: AXSnapshot | null;
@@ -263,12 +267,13 @@ export const useSimulatorRuntime = ({
     setDevicePixelRatio(1);
   };
   const isLandscape = orientation === 'landscape_left' || orientation === 'landscape_right';
+  const deviceSize = simulatorRuntimeDeviceSize(screenSize, devicePixelRatio);
 
   return {
     appearance,
     changeAppearance,
-    deviceHeight: (isLandscape ? screenSize.width : screenSize.height) / devicePixelRatio,
-    deviceWidth: (isLandscape ? screenSize.height : screenSize.width) / devicePixelRatio,
+    deviceHeight: deviceSize.height,
+    deviceWidth: deviceSize.width,
     finishPointer,
     handleKey,
     handlePaste,
