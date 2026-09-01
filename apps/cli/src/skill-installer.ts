@@ -1,7 +1,15 @@
-import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { cp, mkdir, readdir, readFile, rename, rm } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
-export const installSkillDirectory = async (sourcePath: string, destinationPath: string) => {
+interface SkillInstallOptions {
+  includeOpenAiMetadata?: boolean;
+}
+
+export const installSkillDirectory = async (
+  sourcePath: string,
+  destinationPath: string,
+  options: SkillInstallOptions = {}
+) => {
   const parent = dirname(destinationPath);
   await mkdir(parent, { recursive: true });
   const nonce = `${process.pid}.${Date.now()}`;
@@ -9,6 +17,17 @@ export const installSkillDirectory = async (sourcePath: string, destinationPath:
   const backupPath = `${destinationPath}.${nonce}.bak`;
   await rm(temporaryPath, { recursive: true, force: true });
   await cp(sourcePath, temporaryPath, { recursive: true });
+  if (options.includeOpenAiMetadata === false) {
+    const agentsPath = join(temporaryPath, 'agents');
+    await rm(join(agentsPath, 'openai.yaml'), { force: true });
+    const remainingAgentMetadata = await readdir(agentsPath).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    });
+    if (remainingAgentMetadata.length === 0) {
+      await rm(agentsPath, { recursive: true });
+    }
+  }
 
   let backedUp = false;
   try {

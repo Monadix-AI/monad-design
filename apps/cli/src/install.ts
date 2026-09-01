@@ -106,7 +106,7 @@ const installAgent = async (
   if (!mcp.success) throw new Error(mcp.error ?? `Could not update ${mcp.path}`);
 
   const skillPath = skillInstallDirectory(agent, scope, projectRoot ?? undefined);
-  await installSkillDirectory(skillSourcePath, skillPath);
+  await installSkillDirectory(skillSourcePath, skillPath, { includeOpenAiMetadata: agent === 'codex' });
   await removeLegacyMonadDesignSkill(join(dirname(skillPath), 'monad-design-live'));
   return { mcpPath: mcp.path, skillPath };
 };

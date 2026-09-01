@@ -20,6 +20,27 @@ describe('skill installation', () => {
     expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toBe('version two');
   });
 
+  test('installs OpenAI metadata only when requested', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-skill-metadata-'));
+    const source = join(root, 'source');
+    const codexDestination = join(root, 'codex', 'skills', 'monad-design');
+    const otherDestination = join(root, 'other', 'skills', 'monad-design');
+    await Bun.write(join(source, 'SKILL.md'), 'shared skill');
+    await Bun.write(join(source, 'agents', 'openai.yaml'), 'interface: {}');
+
+    await installSkillDirectory(source, codexDestination, { includeOpenAiMetadata: true });
+    expect(await readFile(join(codexDestination, 'agents', 'openai.yaml'), 'utf8')).toBe('interface: {}');
+
+    await installSkillDirectory(source, otherDestination, { includeOpenAiMetadata: false });
+    expect(await readFile(join(otherDestination, 'SKILL.md'), 'utf8')).toBe('shared skill');
+    expect(
+      await access(join(otherDestination, 'agents')).then(
+        () => true,
+        () => false
+      )
+    ).toBe(false);
+  });
+
   test('removes only the legacy Monad Design skill after migration', async () => {
     const root = await mkdtemp(join(tmpdir(), 'monad-design-skill-migration-'));
     const legacy = join(root, 'monad-design-live');
