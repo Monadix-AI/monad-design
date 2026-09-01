@@ -4,6 +4,8 @@ import type { MonadDesignProject, ProjectTargetApp } from './project-store';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
+import { createSharedOperation } from './shared-operation';
+
 const ignoredDirectories = new Set(['.git', 'DerivedData', 'Pods', 'build', 'dist', 'node_modules', 'release']);
 const maximumDepth = 8;
 const maximumDirectories = 800;
@@ -133,27 +135,38 @@ const imageFromAppIconSet = async (root: string, path: string) => {
   return undefined;
 };
 
-export const resolveProjectTargetIcons = async (project: MonadDesignProject) => {
-  const iconSets = await appIconSetPaths(project.path);
-  const entries = await Promise.all(
-    project.targetApps.map(async (target) => {
-      if (target.sourcePath?.endsWith('app.json')) {
-        const path = await expoIconPath(project.path, target.sourcePath);
-        const icon = path ? await imageDataUrl(project.path, path) : undefined;
-        if (icon) return [target.bundleIdentifier, icon] as const;
-      }
+const loadProjectTargetIcons = createSharedOperation(
+  async (project: MonadDesignProject) => {
+    const iconSets = await appIconSetPaths(project.path);
+    const entries = await Promise.all(
+      project.targetApps.map(async (target) => {
+        if (target.sourcePath?.endsWith('app.json')) {
+          const path = await expoIconPath(project.path, target.sourcePath);
+          const icon = path ? await imageDataUrl(project.path, path) : undefined;
+          if (icon) return [target.bundleIdentifier, icon] as const;
+        }
 
-      const iconName = await xcodeAppIconName(project.path, target);
-      const orderedSets = [...iconSets].sort((left, right) => {
-        const rank = (path: string) => (path.endsWith(`/${iconName}.appiconset`) ? 0 : 1);
-        return rank(left) - rank(right);
-      });
-      for (const path of orderedSets) {
-        const icon = await imageFromAppIconSet(project.path, path);
-        if (icon) return [target.bundleIdentifier, icon] as const;
-      }
-      return undefined;
-    })
-  );
-  return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => Boolean(entry)));
-};
+        const iconName = await xcodeAppIconName(project.path, target);
+        const orderedSets = [...iconSets].sort((left, right) => {
+          const rank = (path: string) => (path.endsWith(`/${iconName}.appiconset`) ? 0 : 1);
+          return rank(left) - rank(right);
+        });
+        for (const path of orderedSets) {
+          const icon = await imageFromAppIconSet(project.path, path);
+          if (icon) return [target.bundleIdentifier, icon] as const;
+        }
+        return undefined;
+      })
+    );
+    return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => Boolean(entry)));
+  },
+  {
+    key: (project) =>
+      JSON.stringify([
+        resolve(project.path),
+        project.targetApps.map(({ bundleIdentifier, sourcePath }) => [bundleIdentifier, sourcePath ?? ''])
+      ])
+  }
+);
+
+export const resolveProjectTargetIcons = (project: MonadDesignProject) => loadProjectTargetIcons(project);

@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
 
+import { createSharedOperation } from './shared-operation';
 import { listAvailableSimulators, readSimulatorOrientation, type SimulatorOrientation } from './simulators';
 
 interface SimMiddleware {
@@ -127,6 +128,31 @@ const normalizeAccessibilityTree = (roots: RawAccessibilityElement[]): Accessibi
   };
 };
 
+const loadAccessibilitySnapshot = createSharedOperation(
+  async (udid: string): Promise<AccessibilitySnapshot> => {
+    try {
+      return normalizeAccessibilityTree(JSON.parse(await native.axDescribe(udid)) as RawAccessibilityElement[]);
+    } catch (error) {
+      throw new Error(
+        `Could not read the simulator accessibility tree: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  },
+  { key: (udid) => udid }
+);
+
+const loadSimulatorAppearance = createSharedOperation(
+  async (udid: string): Promise<'light' | 'dark'> => {
+    const { stdout } = await execFileAsync('xcrun', ['simctl', 'ui', udid, 'appearance']);
+    const appearance = stdout.trim();
+    if (appearance !== 'light' && appearance !== 'dark') {
+      throw new Error('This simulator does not support appearance switching.');
+    }
+    return appearance;
+  },
+  { key: (udid) => udid }
+);
+
 class SimulatorBridge {
   #connection: SimulatorConnection | null = null;
   #server: Server | null = null;
@@ -218,24 +244,13 @@ class SimulatorBridge {
   async accessibilitySnapshot(): Promise<AccessibilitySnapshot> {
     const udid = this.#connection?.udid;
     if (!udid) throw new Error('Connect to a simulator first.');
-    try {
-      return normalizeAccessibilityTree(JSON.parse(await native.axDescribe(udid)) as RawAccessibilityElement[]);
-    } catch (error) {
-      throw new Error(
-        `Could not read the simulator accessibility tree: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return loadAccessibilitySnapshot(udid);
   }
 
   async appearance(): Promise<'light' | 'dark'> {
     const udid = this.#connection?.udid;
     if (!udid) throw new Error('Connect to a simulator first.');
-    const { stdout } = await execFileAsync('xcrun', ['simctl', 'ui', udid, 'appearance']);
-    const appearance = stdout.trim();
-    if (appearance !== 'light' && appearance !== 'dark') {
-      throw new Error('This simulator does not support appearance switching.');
-    }
-    return appearance;
+    return loadSimulatorAppearance(udid);
   }
 
   async setAppearance(appearance: 'light' | 'dark') {

@@ -1,9 +1,10 @@
 import type { Dirent } from 'node:fs';
 
 import { readdir, readFile } from 'node:fs/promises';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 
 import { assertGitProjectRoot } from './git-project-root';
+import { createSharedOperation } from './shared-operation';
 import { assertBundleIdentifier } from './simulator-variants';
 
 export type ProjectTargetSource = 'project-config' | 'expo' | 'xcode';
@@ -180,53 +181,58 @@ const sourcePriority: Record<ProjectTargetSource, number> = {
   xcode: 2
 };
 
-export const detectProjectTargets = async (root: string): Promise<ProjectTargetDetection> => {
-  await assertGitProjectRoot(root);
+const scanProjectTargets = createSharedOperation(
+  async (root: string): Promise<ProjectTargetDetection> => {
+    await assertGitProjectRoot(root);
 
-  const warnings: string[] = [];
-  const detected: ProjectTargetCandidate[] = [];
-  const configPaths = [join(root, '.monaddesign', 'project.json')];
-  for (const configPath of configPaths) {
-    try {
-      const candidates = projectConfigCandidates(await readFile(configPath, 'utf8'), relative(root, configPath));
-      detected.push(...candidates);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        warnings.push(`Could not inspect ${relative(root, configPath)}.`);
+    const warnings: string[] = [];
+    const detected: ProjectTargetCandidate[] = [];
+    const configPaths = [join(root, '.monaddesign', 'project.json')];
+    for (const configPath of configPaths) {
+      try {
+        const candidates = projectConfigCandidates(await readFile(configPath, 'utf8'), relative(root, configPath));
+        detected.push(...candidates);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          warnings.push(`Could not inspect ${relative(root, configPath)}.`);
+        }
       }
     }
-  }
 
-  const files = await candidateFiles(root);
-  for (const path of files) {
-    const sourcePath = relative(root, path);
-    try {
-      const value = await readFile(path, 'utf8');
-      if (basename(path) === 'app.json') {
-        const candidate = expoTargetCandidate(value, sourcePath);
-        if (candidate) detected.push(candidate);
-      } else {
-        detected.push(...xcodeTargetCandidates(value, sourcePath));
+    const files = await candidateFiles(root);
+    for (const path of files) {
+      const sourcePath = relative(root, path);
+      try {
+        const value = await readFile(path, 'utf8');
+        if (basename(path) === 'app.json') {
+          const candidate = expoTargetCandidate(value, sourcePath);
+          if (candidate) detected.push(candidate);
+        } else {
+          detected.push(...xcodeTargetCandidates(value, sourcePath));
+        }
+      } catch {
+        warnings.push(`Could not inspect ${sourcePath}.`);
       }
-    } catch {
-      warnings.push(`Could not inspect ${sourcePath}.`);
     }
-  }
 
-  const candidates = [...detected]
-    .sort(
-      (left, right) =>
-        sourcePriority[left.source] - sourcePriority[right.source] ||
-        left.bundleIdentifier.localeCompare(right.bundleIdentifier)
-    )
-    .filter(
-      (candidate, index, items) =>
-        items.findIndex((item) => item.bundleIdentifier === candidate.bundleIdentifier) === index
-    );
+    const candidates = [...detected]
+      .sort(
+        (left, right) =>
+          sourcePriority[left.source] - sourcePriority[right.source] ||
+          left.bundleIdentifier.localeCompare(right.bundleIdentifier)
+      )
+      .filter(
+        (candidate, index, items) =>
+          items.findIndex((item) => item.bundleIdentifier === candidate.bundleIdentifier) === index
+      );
 
-  return {
-    candidates,
-    inspectedFiles: files.length + configPaths.length,
-    warnings
-  };
-};
+    return {
+      candidates,
+      inspectedFiles: files.length + configPaths.length,
+      warnings
+    };
+  },
+  { key: (root) => resolve(root) }
+);
+
+export const detectProjectTargets = (root: string) => scanProjectTargets(root);

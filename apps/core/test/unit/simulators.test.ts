@@ -1,11 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  createSimulatorListLoader,
   deviceChromeGeometry,
   markConnectedSimulator,
   parseAvailableSimulators,
   parseSimulatorOrientation
 } from '../../src/simulators';
+
+const simulator = (udid: string) => ({
+  udid,
+  name: udid,
+  runtime: 'iOS 26.0',
+  state: 'Booted' as const,
+  connected: false
+});
 
 describe('simulator discovery', () => {
   test('returns both booted and shut down available devices', () => {
@@ -56,6 +65,51 @@ describe('simulator discovery', () => {
       false,
       true
     ]);
+  });
+
+  test('shares an in-flight simulator lookup and briefly reuses its result', async () => {
+    let now = 1_000;
+    let resolveLookup: ((simulators: ReturnType<typeof simulator>[]) => void) | undefined;
+    let lookups = 0;
+    const load = createSimulatorListLoader(
+      () => {
+        lookups += 1;
+        return new Promise((resolve) => {
+          resolveLookup = resolve;
+        });
+      },
+      { freshnessMilliseconds: 500, now: () => now }
+    );
+
+    const first = load();
+    const second = load();
+    expect(lookups).toBe(1);
+    resolveLookup?.([simulator('ONE')]);
+    expect(await first).toEqual([simulator('ONE')]);
+    expect(await second).toEqual([simulator('ONE')]);
+
+    now = 1_499;
+    expect(await load()).toEqual([simulator('ONE')]);
+    expect(lookups).toBe(1);
+
+    now = 1_500;
+    const refreshed = load();
+    expect(lookups).toBe(2);
+    resolveLookup?.([simulator('TWO')]);
+    expect(await refreshed).toEqual([simulator('TWO')]);
+  });
+
+  test('retries after a failed simulator lookup', async () => {
+    let lookups = 0;
+    const load = createSimulatorListLoader(async () => {
+      lookups += 1;
+      if (lookups === 1) throw new Error('simctl unavailable');
+      return [simulator('RECOVERED')];
+    });
+
+    await expect(load()).rejects.toThrow('simctl unavailable');
+    expect(await load()).toEqual([simulator('RECOVERED')]);
+    expect(lookups).toBe(2);
   });
 });
 

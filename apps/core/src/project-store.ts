@@ -4,6 +4,7 @@ import { basename, dirname, join } from 'node:path';
 
 import { assertGitProjectRoot } from './git-project-root';
 import { resolveProjectTargetIcons } from './project-app-icons';
+import { createSharedOperation } from './shared-operation';
 import { assertBundleIdentifier } from './simulator-variants';
 
 const projectSchemaVersion = 1;
@@ -306,9 +307,13 @@ export const initializeProject = async (
 };
 
 export class ProjectStore {
-  constructor(private readonly statePath: string) {}
+  readonly #listProjects: () => Promise<MonadDesignProject[]>;
 
-  async list(): Promise<MonadDesignProject[]> {
+  constructor(private readonly statePath: string) {
+    this.#listProjects = createSharedOperation(() => this.#readProjects());
+  }
+
+  async #readProjects(): Promise<MonadDesignProject[]> {
     const stored = await readStoredProjects(this.statePath);
     const projects = await Promise.all(
       stored.projects.map(async (item) => {
@@ -332,6 +337,10 @@ export class ProjectStore {
     return projects
       .filter((project): project is MonadDesignProject => project !== null)
       .sort((left, right) => right.lastOpenedAt.localeCompare(left.lastOpenedAt));
+  }
+
+  list(): Promise<MonadDesignProject[]> {
+    return this.#listProjects();
   }
 
   async add(path: string, targets: ProjectTargetApp[]): Promise<MonadDesignProject> {

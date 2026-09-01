@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 
+import { createSharedOperation } from './shared-operation';
 import {
   assertBundleIdentifier,
   assertSimulatorVariantId,
@@ -56,21 +57,26 @@ export const parseSimulatorOrientation = (value: string): SimulatorOrientation |
   }
 };
 
-export const readSimulatorOrientation = async (udid: string): Promise<SimulatorOrientation> => {
-  try {
-    const { stdout } = await execFileAsync('xcrun', [
-      'simctl',
-      'spawn',
-      udid,
-      'defaults',
-      'read',
-      'com.apple.backboardd'
-    ]);
-    return parseSimulatorOrientation(stdout) ?? 'portrait';
-  } catch {
-    return 'portrait';
-  }
-};
+const loadSimulatorOrientation = createSharedOperation(
+  async (udid: string): Promise<SimulatorOrientation> => {
+    try {
+      const { stdout } = await execFileAsync('xcrun', [
+        'simctl',
+        'spawn',
+        udid,
+        'defaults',
+        'read',
+        'com.apple.backboardd'
+      ]);
+      return parseSimulatorOrientation(stdout) ?? 'portrait';
+    } catch {
+      return 'portrait';
+    }
+  },
+  { key: (udid) => udid }
+);
+
+export const readSimulatorOrientation = (udid: string) => loadSimulatorOrientation(udid);
 
 interface SimctlDevice {
   deviceTypeIdentifier?: unknown;
@@ -342,7 +348,16 @@ const resolveDeviceProfile = (deviceType: ResolvedDeviceType) => {
   return resolution;
 };
 
-export const listAvailableSimulators = async (connectedUdid: string | null = null) => {
+export const createSimulatorListLoader = (
+  load: () => Promise<IOSSimulator[]>,
+  options: { freshnessMilliseconds?: number; now?: () => number } = {}
+) =>
+  createSharedOperation(load, {
+    freshnessMilliseconds: options.freshnessMilliseconds ?? 1_000,
+    now: options.now
+  });
+
+const loadAvailableSimulators = createSimulatorListLoader(async () => {
   const [{ stdout: devicesOutput }, { stdout: deviceTypesOutput }] = await Promise.all([
     execFileAsync('xcrun', ['simctl', 'list', 'devices', 'available', '--json'], { encoding: 'utf8', timeout: 10_000 }),
     execFileAsync('xcrun', ['simctl', 'list', 'devicetypes', '--json'], {
@@ -366,39 +381,54 @@ export const listAvailableSimulators = async (connectedUdid: string | null = nul
       }
     })
   );
+  return simulators;
+});
+
+export const listAvailableSimulators = async (connectedUdid: string | null = null) => {
+  const simulators = await loadAvailableSimulators();
   return markConnectedSimulator(simulators, connectedUdid);
 };
 
-export const ensureSimulatorBooted = async (udid: string) => {
-  const simulator = (await listAvailableSimulators()).find((item) => item.udid === udid);
-  if (!simulator) throw new Error('The selected simulator is not available.');
-  if (simulator.state === 'Booted') return simulator;
+const bootSimulator = createSharedOperation(
+  async (udid: string) => {
+    const simulator = (await listAvailableSimulators()).find((item) => item.udid === udid);
+    if (!simulator) throw new Error('The selected simulator is not available.');
+    if (simulator.state === 'Booted') return simulator;
 
-  await execFileAsync('xcrun', ['simctl', 'boot', udid], { timeout: 20_000 });
-  await execFileAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
-    timeout: 120_000
-  });
-  return { ...simulator, state: 'Booted' as const };
-};
-
-export const captureSimulatorScreen = async (udid: string) => {
-  const simulators = await listAvailableSimulators();
-  if (!simulators.some((simulator) => simulator.udid === udid)) {
-    throw new Error('The selected simulator is no longer running.');
-  }
-
-  const screenshotPath = join(tmpdir(), `monaddesign-simulator-${randomUUID()}.png`);
-
-  try {
-    await execFileAsync('xcrun', ['simctl', 'io', udid, 'screenshot', '--type=png', screenshotPath], {
-      timeout: 10_000
+    await execFileAsync('xcrun', ['simctl', 'boot', udid], { timeout: 20_000 });
+    await execFileAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
+      timeout: 120_000
     });
-    const screenshot = await readFile(screenshotPath);
-    return `data:image/png;base64,${screenshot.toString('base64')}`;
-  } finally {
-    await unlink(screenshotPath).catch(() => undefined);
-  }
-};
+    return { ...simulator, state: 'Booted' as const };
+  },
+  { key: (udid) => udid }
+);
+
+export const ensureSimulatorBooted = (udid: string) => bootSimulator(udid);
+
+const captureScreen = createSharedOperation(
+  async (udid: string) => {
+    const simulators = await listAvailableSimulators();
+    if (!simulators.some((simulator) => simulator.udid === udid)) {
+      throw new Error('The selected simulator is no longer running.');
+    }
+
+    const screenshotPath = join(tmpdir(), `monaddesign-simulator-${randomUUID()}.png`);
+
+    try {
+      await execFileAsync('xcrun', ['simctl', 'io', udid, 'screenshot', '--type=png', screenshotPath], {
+        timeout: 10_000
+      });
+      const screenshot = await readFile(screenshotPath);
+      return `data:image/png;base64,${screenshot.toString('base64')}`;
+    } finally {
+      await unlink(screenshotPath).catch(() => undefined);
+    }
+  },
+  { key: (udid) => udid }
+);
+
+export const captureSimulatorScreen = (udid: string) => captureScreen(udid);
 
 export const launchSimulatorVariant = async (udid: string, bundleId: unknown, variant: unknown) => {
   const simulators = await listAvailableSimulators();
@@ -438,17 +468,22 @@ export const launchSimulatorApp = async (udid: string, bundleId: unknown) => {
   };
 };
 
-export const ensureSimulatorAppInstalled = async (udid: string, bundleId: unknown) => {
-  const validBundleId = assertBundleIdentifier(bundleId);
-  try {
-    await execFileAsync('xcrun', simulatorAppContainerArguments(udid, validBundleId), {
-      encoding: 'utf8',
-      timeout: 20_000
-    });
-  } catch {
-    throw new Error(
-      `The target app ${validBundleId} is not installed on the selected Simulator. Build and install its Debug app, then connect again.`
-    );
-  }
-  return validBundleId;
-};
+const checkSimulatorAppInstalled = createSharedOperation(
+  async (udid: string, validBundleId: string) => {
+    try {
+      await execFileAsync('xcrun', simulatorAppContainerArguments(udid, validBundleId), {
+        encoding: 'utf8',
+        timeout: 20_000
+      });
+    } catch {
+      throw new Error(
+        `The target app ${validBundleId} is not installed on the selected Simulator. Build and install its Debug app, then connect again.`
+      );
+    }
+    return validBundleId;
+  },
+  { key: (udid, bundleId) => `${udid}\0${bundleId}` }
+);
+
+export const ensureSimulatorAppInstalled = (udid: string, bundleId: unknown) =>
+  checkSimulatorAppInstalled(udid, assertBundleIdentifier(bundleId));

@@ -1,5 +1,6 @@
 import type { ProjectStore } from '../project-store';
 
+import { createSharedOperation } from '../shared-operation';
 import { simulatorBridge } from '../simulator-bridge';
 import {
   ensureSimulatorAppInstalled,
@@ -19,29 +20,36 @@ const connectedTarget = () => {
   return connection;
 };
 
-export const createSimulatorService = (projectStore: ProjectResolver) => ({
-  async connect(projectId: string, udid: string, bundleIdentifier: string) {
-    const project = await projectStore.open(projectId);
-    const target = project.targetApps.find((app) => app.bundleIdentifier === bundleIdentifier);
-    if (!target) {
-      throw new CoreApiError(404, 'NOT_FOUND', 'The requested project target app is not available.');
+export const createSimulatorService = (projectStore: ProjectResolver) => {
+  const connect = createSharedOperation(
+    async (projectId: string, udid: string, bundleIdentifier: string) => {
+      const project = await projectStore.open(projectId);
+      const target = project.targetApps.find((app) => app.bundleIdentifier === bundleIdentifier);
+      if (!target) {
+        throw new CoreApiError(404, 'NOT_FOUND', 'The requested project target app is not available.');
+      }
+      await ensureSimulatorBooted(udid);
+      await ensureSimulatorAppInstalled(udid, target.bundleIdentifier);
+      await launchSimulatorApp(udid, target.bundleIdentifier);
+      return simulatorBridge.connect(udid, {
+        projectId: project.id,
+        bundleIdentifier: target.bundleIdentifier
+      });
+    },
+    { key: (projectId, udid, bundleIdentifier) => `${projectId}\0${udid}\0${bundleIdentifier}` }
+  );
+
+  return {
+    connect,
+
+    launchApp() {
+      const { udid, bundleIdentifier } = connectedTarget();
+      return launchSimulatorApp(udid, bundleIdentifier);
+    },
+
+    launchVariant(variant: 'original' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5') {
+      const { udid, bundleIdentifier } = connectedTarget();
+      return launchSimulatorVariant(udid, bundleIdentifier, variant);
     }
-    await ensureSimulatorBooted(udid);
-    await ensureSimulatorAppInstalled(udid, target.bundleIdentifier);
-    await launchSimulatorApp(udid, target.bundleIdentifier);
-    return simulatorBridge.connect(udid, {
-      projectId: project.id,
-      bundleIdentifier: target.bundleIdentifier
-    });
-  },
-
-  launchApp() {
-    const { udid, bundleIdentifier } = connectedTarget();
-    return launchSimulatorApp(udid, bundleIdentifier);
-  },
-
-  launchVariant(variant: 'original' | 'v1' | 'v2' | 'v3' | 'v4' | 'v5') {
-    const { udid, bundleIdentifier } = connectedTarget();
-    return launchSimulatorVariant(udid, bundleIdentifier, variant);
-  }
-});
+  };
+};
