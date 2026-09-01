@@ -1,70 +1,115 @@
 # Monad Design
 
-Monad Design is a native visual implementation layer for coding agents. It
-connects a real iOS Simulator, runtime evidence, and source-change requests so
-developers can evaluate UI work in the running product instead of a detached
-mockup.
+Use Monad Design to work with a coding agent directly on your running iOS app. Navigate to the exact screen, point to what should change, compare real alternatives, and approve the result before it becomes the new design.
 
-> **Project status:** early-stage and under active development. APIs, local
-> configuration, and workflows may change before the first stable release.
->
-> **Desktop and Mobile apps are coming soon.**
+> **Project status:** Monad Design is an early preview. Public downloads are not available yet, and the experience may change before the first stable release.
 
-## What works today
+## Design in the running app
 
-- Register an existing Git project and detect explicit Expo or Xcode iOS apps.
-- Discover, boot, mirror, and control iOS Simulators from a local Mac.
-- Inspect accessibility metadata and capture runtime screenshots.
-- Annotate screenshots with ordered implementation notes and send the composed
-  evidence to an active local coding-agent session.
-- Pair an iPad over the local network for touch control and Apple Pencil
-  freehand annotation.
-- Build and compare Debug-only UI variants while keeping preview selection
-  distinct from permanent source changes.
-- Connect external coding agents through a local MCP server.
+Monad Design keeps design feedback connected to the real product instead of a detached mockup:
 
-The repository does not include a target iOS app, hosted agent service, or proof
-that every external-agent and physical-device workflow works in every setup.
+- **Show the exact state**: navigate the app yourself, including screens that depend on account data, navigation, or interaction
+- **Point instead of overexplaining**: select an element or draw directly on the screen
+- **Compare before deciding**: review the original and several alternatives in the same app state
+- **Stay in control**: accept a result, keep the original, or continue refining the request
 
-## Requirements
+Your coding agent continues working in the existing repository. Monad Design gives both of you a shared visual workspace for requests, previews, and decisions.
 
-- macOS with Xcode and an installed iOS Simulator runtime for the complete
-  product workflow
-- Node.js 22.18.0 or later to run the installer
-- A supported local coding agent
+## Complete a change with your coding agent
 
-## Install the coding-agent integration
+Each live session follows one repeatable loop. You control the app and approve the design; your coding agent handles the source changes.
 
-```bash
-npx monad-design install
+### 1. Start a live session
+
+Open your iOS project in a supported coding agent, then start Monad Design:
+
+```text
+/monad-design start
 ```
 
-The 0.0.1 npm release supports macOS on Apple silicon and Intel and contains
-only the CLI, the machine-level Core runtime, and coding-agent integration
-assets. Desktop and Mobile apps are not published to npm.
+Choose the target app and Simulator you want to use.
 
-The installer puts Core in the machine-level Monad Design application-support
-directory, where the Desktop app can reuse it. It detects supported coding
-agents and installs both the `monad-design` Skill and the local MCP
-registration. The current capability intersection covers 17 MCP clients,
-including Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot, OpenCode,
-Windsurf, and Zed. Every interactive install inside a Git checkout asks for
-Project or Global scope and only updates the chosen scope; Core itself is
-always machine-level. Each install gracefully restarts Core from the final
-machine-level executable before writing the MCP registration.
+![Choose a target app and Simulator](docs/images/workflow-choose-app-and-simulator.png)
 
-## Local data and trust
+### 2. Reproduce the right app state
 
-Monad Design operates on explicitly selected local projects and controls local
-iOS Simulators. Pair only trusted devices on trusted networks, review agent-made
-source changes, and never commit `.monaddesign/`, credentials, pairing data, or
-captured project evidence.
+Use **Interact** mode to control the app as you normally would. Navigate to the screen you want to improve and prepare any state the agent should preserve.
+
+![Control the running app in Interact mode](docs/images/workflow-live-simulator.png)
+
+### 3. Describe the change visually
+
+Use **Annotate** mode when the change involves an area, position, or relationship. Draw rectangles, ellipses, text, and arrows on the screen, then add notes to explain the intended result.
+
+![Annotate the live screen and add implementation notes](docs/images/workflow-annotate.png)
+
+Use **Select** mode when you want to change a specific element. Select it, describe the outcome, and request one to five alternatives.
+
+![Select an element and request variants](docs/images/workflow-request-variants.png)
+
+### 4. Let the agent implement the request
+
+Your coding agent reads the visual context, finds the relevant source, and updates the existing app. You can continue the conversation with the agent while it works.
+
+### 5. Compare and choose
+
+Review the original and every alternative side by side in the same screen state. Accept the option you prefer or keep the original. The agent applies your decision and confirms when the app is ready.
+
+![Compare the original and generated variants](docs/images/workflow-compare-variants.png)
+
+After one change finishes, the same session stays available for the next request. You can repeat the loop until the screen feels right.
+
+## What you can do today
+
+The current preview lets you:
+
+- Control a local iOS Simulator from the visual workspace
+- Select interface elements and send their visual context to your coding agent
+- Annotate the running screen with shapes, arrows, text, and implementation notes
+- Request and compare one to five alternatives
+- Keep refining the app in the same live session
+- Use the iPad companion for touch control and Apple Pencil annotation
+- Work with local agents including Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, and Zed
+
+## What you need
+
+To use the complete workflow, you need:
+
+- A Mac with Xcode and an installed iOS Simulator
+- An existing Git repository containing an Expo or Xcode iOS app
+- A supported local coding agent
+- Image input support in the agent when you send annotated requests
+
+## Get access
+
+Public downloads and the npm package are not available yet. You can currently run Monad Design from source as a contributor.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, development commands, and contribution guidance.
+
+## Keep your project under your control
+
+Monad Design works with projects and Simulators that you explicitly choose. Your coding agent edits the same repository you already use, so you can inspect every source change with your existing Git workflow.
+
+Project configuration and captured evidence stay local and are excluded from Git by default. Pair only trusted devices on trusted networks, review agent-made changes, and never commit credentials or private captured evidence.
+
+## Current scope
+
+The preview currently focuses on local iOS development on macOS. It supports one active change at a time and expects a local coding agent to perform the implementation.
+
+The repository does not include a sample target app or hosted coding-agent service. Physical-device and external-agent behavior may vary by setup.
+
+## Roadmap
+
+The roadmap focuses on:
+
+- Public installation for the coding-agent integration
+- Desktop and iPad app distribution
+- Android support for the same visual workflow
+
+## Contribute
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before making a change and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Open an issue before a large change to confirm scope and avoid duplicated work.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
-
-## Contributing
-
-Developer setup, repository architecture, commands, and contribution guidance
-are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+Monad Design is licensed under the [Apache License 2.0](LICENSE).
