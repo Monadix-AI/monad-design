@@ -1,7 +1,12 @@
 import { clampCanvasOffset, maximumCanvasScale, minimumCanvasScale } from '@monaddesign/simulator';
 import { type PointerEvent, useCallback, useEffect, useRef, useState, type WheelEvent } from 'react';
 
-import { type CanvasMode, fitLiveWorkspaceCanvas, webDeviceControlsReservedHeight } from './canvas-controls';
+import {
+  type CanvasMode,
+  fitLiveWorkspaceCanvas,
+  liveWorkspaceCanvasPlacement,
+  webDeviceControlsReservedHeight
+} from './canvas-controls';
 
 export const canvasModeAllowsViewportNavigation = (mode: CanvasMode) => {
   switch (mode) {
@@ -16,6 +21,10 @@ interface CanvasViewportSnapshot {
   offset: { x: number; y: number };
   scale: number;
   viewChanged: boolean;
+}
+
+interface PendingCanvasView extends Pick<CanvasViewportSnapshot, 'offset' | 'scale'> {
+  commitState: boolean;
 }
 
 export function useCanvasViewport({
@@ -33,7 +42,7 @@ export function useCanvasViewport({
   const canvas = useRef<HTMLDivElement | null>(null);
   const scaleRef = useRef(scale);
   const offsetRef = useRef(offset);
-  const pendingView = useRef<Pick<CanvasViewportSnapshot, 'offset' | 'scale'> | null>(null);
+  const pendingView = useRef<PendingCanvasView | null>(null);
   const viewFrame = useRef<number | null>(null);
   const viewChanged = useRef(false);
   const temporaryView = useRef<CanvasViewportSnapshot | null>(null);
@@ -49,10 +58,18 @@ export function useCanvasViewport({
   const constrainOffsetRef = useRef<
     (nextOffset: { x: number; y: number }, nextScale: number) => { x: number; y: number }
   >((nextOffset) => nextOffset);
-  if (!pendingView.current) {
-    scaleRef.current = scale;
-    offsetRef.current = offset;
-  }
+  const applyCanvasView = useCallback(
+    (nextScale: number, nextOffset: { x: number; y: number }) => {
+      const viewport = canvas.current;
+      if (!viewport) return;
+      const placement = liveWorkspaceCanvasPlacement(mode);
+      viewport.style.setProperty('--canvas-offset-x', `${nextOffset.x}px`);
+      viewport.style.setProperty('--canvas-offset-y', `${nextOffset.y}px`);
+      viewport.style.setProperty('--canvas-scale', `${nextScale}`);
+      viewport.style.setProperty('--canvas-render-scale', `${nextScale * placement.scale}`);
+    },
+    [mode]
+  );
 
   const cancelScheduledView = useCallback(() => {
     if (viewFrame.current !== null) window.cancelAnimationFrame(viewFrame.current);
@@ -65,28 +82,37 @@ export function useCanvasViewport({
       cancelScheduledView();
       scaleRef.current = nextScale;
       offsetRef.current = nextOffset;
+      applyCanvasView(nextScale, nextOffset);
       setScale(nextScale);
       setOffset(nextOffset);
     },
-    [cancelScheduledView]
+    [applyCanvasView, cancelScheduledView]
+  );
+  const commitViewRef = useRef(commitView);
+  commitViewRef.current = commitView;
+
+  const scheduleView = useCallback(
+    (nextScale: number, nextOffset: { x: number; y: number }, commitState = true) => {
+      scaleRef.current = nextScale;
+      offsetRef.current = nextOffset;
+      pendingView.current = { scale: nextScale, offset: nextOffset, commitState };
+      if (viewFrame.current !== null) return;
+      viewFrame.current = window.requestAnimationFrame(() => {
+        const next = pendingView.current;
+        viewFrame.current = null;
+        pendingView.current = null;
+        if (!next) return;
+        applyCanvasView(next.scale, next.offset);
+        if (!next.commitState) return;
+        setScale(next.scale);
+        setOffset(next.offset);
+      });
+    },
+    [applyCanvasView]
   );
 
-  const scheduleView = useCallback((nextScale: number, nextOffset: { x: number; y: number }) => {
-    scaleRef.current = nextScale;
-    offsetRef.current = nextOffset;
-    pendingView.current = { scale: nextScale, offset: nextOffset };
-    if (viewFrame.current !== null) return;
-    viewFrame.current = window.requestAnimationFrame(() => {
-      const next = pendingView.current;
-      viewFrame.current = null;
-      pendingView.current = null;
-      if (!next) return;
-      setScale(next.scale);
-      setOffset(next.offset);
-    });
-  }, []);
-
   useEffect(() => cancelScheduledView, [cancelScheduledView]);
+  useEffect(() => applyCanvasView(scaleRef.current, offsetRef.current), [applyCanvasView]);
 
   const constrainOffset = useCallback(
     (nextOffset: { x: number; y: number }, nextScale: number) => {
@@ -130,7 +156,7 @@ export function useCanvasViewport({
         fitRef.current();
         return;
       }
-      setOffset((current) => constrainOffsetRef.current(current, scaleRef.current));
+      commitViewRef.current(scaleRef.current, constrainOffsetRef.current(offsetRef.current, scaleRef.current));
     });
     if (canvas.current) observer.observe(canvas.current);
     return () => {
@@ -154,8 +180,8 @@ export function useCanvasViewport({
 
   useEffect(() => {
     if (!resetKey) return;
-    setOffset((current) => constrainOffset(current, scaleRef.current));
-  }, [constrainOffset, resetKey]);
+    commitView(scaleRef.current, constrainOffset(offsetRef.current, scaleRef.current));
+  }, [commitView, constrainOffset, resetKey]);
 
   const changeScale = (nextScale: number) => {
     viewChanged.current = true;
@@ -210,7 +236,8 @@ export function useCanvasViewport({
           y: currentDrag.offsetY + event.clientY - currentDrag.startY
         },
         scaleRef.current
-      )
+      ),
+      false
     );
   };
 
@@ -220,6 +247,7 @@ export function useCanvasViewport({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    commitView(scaleRef.current, offsetRef.current);
     setIsDragging(false);
   };
 

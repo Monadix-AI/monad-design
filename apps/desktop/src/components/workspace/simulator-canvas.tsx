@@ -133,9 +133,9 @@ export function SimulatorCanvas() {
             className={`device-cluster canvas-mode-${canvasMode}`}
             data-canvas-ui
             style={{
-              left: `calc(${canvasPlacement.left} + ${canvasOffset.x}px)`,
-              top: `calc(50% + ${canvasOffset.y}px)`,
-              transform: `translate(-50%, -50%) scale(${canvasScale * canvasPlacement.scale})`
+              left: canvasPlacement.left,
+              top: '50%',
+              transform: `translate(calc(-50% + var(--canvas-offset-x, ${canvasOffset.x}px)), calc(-50% + var(--canvas-offset-y, ${canvasOffset.y}px))) scale(var(--canvas-render-scale, ${canvasScale * canvasPlacement.scale}))`
             }}
           >
             <SharedSimulatorCanvas
