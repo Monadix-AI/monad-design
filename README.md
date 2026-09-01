@@ -1,8 +1,12 @@
 # Monad Design
 
-Use Monad Design to work with a coding agent directly on your running iOS app. Navigate to the exact screen, point to what should change, compare real alternatives, and approve the result before it becomes the new design.
+> **The app is the canvas.**
 
-## Design in the running app
+Monad Design is a visual implementation workspace for coding agents and running mobile native apps. Navigate to the exact state, point to what should change, compare real alternatives, and approve the result before it becomes the new design.
+
+The current preview implements this workflow for local iOS development on macOS.
+
+## Design in the running mobile app
 
 Monad Design keeps design feedback connected to the real product instead of a detached mockup:
 
@@ -19,7 +23,7 @@ Each live session follows one repeatable loop. You control the app and approve t
 
 ### 1. Start a live session
 
-Open your iOS project in a supported coding agent, then start Monad Design:
+Open your mobile app project in a supported coding agent, then start Monad Design. The current preview detects Expo and Xcode iOS targets:
 
 ```text
 /monad-design start
@@ -100,7 +104,9 @@ Project configuration and captured evidence stay local and are excluded from Git
 
 ## Current scope
 
-The preview currently focuses on local iOS development on macOS. It supports one active change at a time and expects a local coding agent to perform the implementation.
+Monad Design is built for mobile native apps. The current preview implements the workflow for local iOS development on macOS.
+
+The preview supports one active change at a time and expects a local coding agent to perform the implementation.
 
 The repository does not include a sample target app or hosted coding-agent service. Physical-device and external-agent behavior may vary by setup.
 
@@ -110,7 +116,7 @@ The roadmap focuses on:
 
 - Simpler onboarding and broader coding-agent support
 - Desktop and iPad app distribution
-- Android support for the same visual workflow
+- Android support
 
 ## Contribute
 
