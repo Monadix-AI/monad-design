@@ -9,8 +9,7 @@ duplicated work.
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Search existing issues and pull requests.
 - Keep changes focused. Separate refactors from behavior changes when possible.
-- Never commit credentials, pairing codes, local project data, screenshots, or
-  files from `.monaddesign/`.
+- Never commit local project data, screenshots, or files from `.monaddesign/`.
 
 ## Development setup
 
