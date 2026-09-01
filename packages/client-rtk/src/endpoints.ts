@@ -1,12 +1,16 @@
 import type {
   AccessibilitySnapshotResponse,
   ActiveAgentSessionResponse,
+  AddCoreProjectRequest,
   AgentSessionSnapshot,
   AppearanceResponse,
+  ConfigureCoreProjectRequest,
   ConfirmAgentSelectionRequest,
   ConnectAgentSessionRequest,
   ConnectSimulatorRequest,
   CopiedResponse,
+  CoreProject,
+  CoreProjectListResponse,
   DisconnectedResponse,
   HealthResponse,
   IOSSimulator,
@@ -16,8 +20,12 @@ import type {
   ListProjectsResponse,
   ListSimulatorsResponse,
   PaginationQuery,
+  PairCoreRequest,
+  PairCoreResponse,
   ProjectIconsResponse,
+  ProjectTargetDetection,
   RemoteProject,
+  RemovedProjectResponse,
   ScreenshotResponse,
   SimulatorConnectionResponse,
   SubmitAgentRequest
@@ -52,6 +60,34 @@ export const coreEndpoints = coreApi.injectEndpoints({
       queryFn: (_arg, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.health.get()),
       providesTags: ['Health']
     }),
+    pairCore: builder.mutation<PairCoreResponse, PairCoreRequest>({
+      queryFn: (body, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.pair.post(body))
+    }),
+    listAdminProjects: builder.query<CoreProjectListResponse, void>({
+      queryFn: (_arg, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects.get()),
+      providesTags: ['AdminProjects']
+    }),
+    detectProjectTargets: builder.mutation<ProjectTargetDetection, string>({
+      queryFn: (path, api: { extra: unknown }) =>
+        runTreaty(() => clientOf(api).v1.admin.projects.detectTargets.post({ path }))
+    }),
+    addAdminProject: builder.mutation<CoreProject, AddCoreProjectRequest>({
+      queryFn: (body, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects.post(body)),
+      invalidatesTags: ['AdminProjects', 'Projects']
+    }),
+    configureAdminProject: builder.mutation<CoreProject, { id: string; body: ConfigureCoreProjectRequest }>({
+      queryFn: ({ body, id }, api: { extra: unknown }) =>
+        runTreaty(() => clientOf(api).v1.admin.projects({ id }).put(body)),
+      invalidatesTags: ['AdminProjects', 'Projects']
+    }),
+    openAdminProject: builder.mutation<CoreProject, string>({
+      queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects({ id }).open.post()),
+      invalidatesTags: ['AdminProjects', 'Projects']
+    }),
+    removeAdminProject: builder.mutation<RemovedProjectResponse, string>({
+      queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects({ id }).delete()),
+      invalidatesTags: ['AdminProjects', 'Projects']
+    }),
     getActiveAgentSession: builder.query<ActiveAgentSessionResponse, void>({
       queryFn: (_arg, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.agentSession.active.get()),
       providesTags: ['AgentSession']
@@ -69,6 +105,10 @@ export const coreEndpoints = coreApi.injectEndpoints({
     confirmAgentSelection: builder.mutation<AgentSessionSnapshot, { id: string; body: ConfirmAgentSelectionRequest }>({
       queryFn: ({ body, id }, api: { extra: unknown }) =>
         runTreaty(() => clientOf(api).v1.agentSession({ id }).confirmSelection.post(body)),
+      invalidatesTags: ['AgentSession']
+    }),
+    closeAgentSession: builder.mutation<AgentSessionSnapshot, string>({
+      queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.agentSession({ id }).close.post()),
       invalidatesTags: ['AgentSession']
     }),
     listProjects: builder.query<ListProjectsResult, PaginationQuery | undefined>({
@@ -147,6 +187,7 @@ export const coreEndpoints = coreApi.injectEndpoints({
 
 export const {
   useCaptureSimulatorScreenshotQuery,
+  useCloseAgentSessionMutation,
   useConfirmAgentSelectionMutation,
   useConnectAgentSessionMutation,
   useConnectSimulatorMutation,
@@ -162,6 +203,7 @@ export const {
   useListProjectsQuery,
   useListSimulatorsQuery,
   useOpenProjectMutation,
+  usePairCoreMutation,
   useSetSimulatorAppearanceMutation,
   useSetSimulatorPasteboardMutation,
   useSubmitAgentRequestMutation

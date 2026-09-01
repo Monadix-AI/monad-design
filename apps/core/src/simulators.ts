@@ -1,4 +1,7 @@
+import type { IOSSimulator } from '@monaddesign/client-contract';
 import type { SimulatorOrientation } from '@monaddesign/simulator';
+
+export type { IOSSimulator } from '@monaddesign/client-contract';
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -17,29 +20,7 @@ import {
 } from './simulator-variants';
 
 const execFileAsync = promisify(execFile);
-
-export interface IOSSimulator {
-  udid: string;
-  name: string;
-  runtime: string;
-  state: 'Booted' | 'Shutdown';
-  connected: boolean;
-  deviceTypeIdentifier?: string;
-  productFamily?: string;
-  modelIdentifier?: string;
-  chromeIdentifier?: string;
-  screen?: { width: number; height: number; scale: number };
-  framebufferMask?: string;
-  deviceChrome?: {
-    image: string;
-    frame: { width: number; height: number };
-    body: { x: number; y: number; width: number; height: number };
-    screen: { x: number; y: number; width: number; height: number };
-    insets: { top: number; right: number; bottom: number; left: number };
-  };
-}
-
-export type { SimulatorOrientation } from '@monaddesign/simulator';
+const simulatorMetadataCommandTimeout = 10_000;
 
 export const parseSimulatorOrientation = (value: string): SimulatorOrientation | null => {
   const storedValue = /GraphicsOrientation\s*=\s*([1-4])\s*;/.exec(value)?.[1] ?? value.trim();
@@ -60,14 +41,11 @@ export const parseSimulatorOrientation = (value: string): SimulatorOrientation |
 const loadSimulatorOrientation = createSharedOperation(
   async (udid: string): Promise<SimulatorOrientation> => {
     try {
-      const { stdout } = await execFileAsync('xcrun', [
-        'simctl',
-        'spawn',
-        udid,
-        'defaults',
-        'read',
-        'com.apple.backboardd'
-      ]);
+      const { stdout } = await execFileAsync(
+        'xcrun',
+        ['simctl', 'spawn', udid, 'defaults', 'read', 'com.apple.backboardd'],
+        { timeout: simulatorMetadataCommandTimeout }
+      );
       return parseSimulatorOrientation(stdout) ?? 'portrait';
     } catch {
       return 'portrait';
@@ -125,21 +103,13 @@ interface ResolvedDeviceType {
   productFamily?: string;
 }
 
-const profileCache = new Map<
-  string,
-  Promise<
-    Pick<
-      IOSSimulator,
-      'chromeIdentifier' | 'deviceChrome' | 'framebufferMask' | 'modelIdentifier' | 'productFamily' | 'screen'
-    >
-  >
->();
-
 const rasterizedPdf = async (sourcePath: string, prefix: string) => {
   const temporaryDirectory = await mkdtemp(join(tmpdir(), prefix));
   try {
     const outputPath = join(temporaryDirectory, 'asset.png');
-    await execFileAsync('/usr/bin/sips', ['-s', 'format', 'png', sourcePath, '--out', outputPath]);
+    await execFileAsync('/usr/bin/sips', ['-s', 'format', 'png', sourcePath, '--out', outputPath], {
+      timeout: simulatorMetadataCommandTimeout
+    });
     return `data:image/png;base64,${(await readFile(outputPath)).toString('base64')}`;
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
@@ -148,7 +118,8 @@ const rasterizedPdf = async (sourcePath: string, prefix: string) => {
 
 const pdfSize = async (sourcePath: string) => {
   const { stdout } = await execFileAsync('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', sourcePath], {
-    encoding: 'utf8'
+    encoding: 'utf8',
+    timeout: simulatorMetadataCommandTimeout
   });
   const width = Number(/pixelWidth:\s*([\d.]+)/.exec(stdout)?.[1]);
   const height = Number(/pixelHeight:\s*([\d.]+)/.exec(stdout)?.[1]);
@@ -299,54 +270,54 @@ const parseDeviceTypes = (output: string) => {
   );
 };
 
-const resolveDeviceProfile = (deviceType: ResolvedDeviceType) => {
-  const cached = profileCache.get(deviceType.identifier);
-  if (cached) return cached;
+export const createDeviceProfileLoader = <DeviceType extends { identifier: string }, Profile>(
+  load: (deviceType: DeviceType) => Promise<Profile>
+) =>
+  createSharedOperation(load, {
+    freshnessMilliseconds: Number.POSITIVE_INFINITY,
+    key: (deviceType) => deviceType.identifier
+  });
 
-  const resolution = (async () => {
-    const resourcesPath = join(deviceType.bundlePath, 'Contents', 'Resources');
-    const { stdout } = await execFileAsync(
-      '/usr/bin/plutil',
-      ['-convert', 'json', '-o', '-', join(resourcesPath, 'profile.plist')],
-      { encoding: 'utf8' }
-    );
-    const profile = JSON.parse(stdout) as SimulatorProfile;
-    let framebufferMask: string | undefined;
-    if (typeof profile.framebufferMask === 'string') {
-      try {
-        framebufferMask = await rasterizedPdf(
-          join(resourcesPath, `${profile.framebufferMask}.pdf`),
-          'monadesign-framebuffer-mask-'
-        );
-      } catch {
-        // Keep the exact screen metadata even if this Xcode cannot rasterize its mask.
-      }
+const resolveDeviceProfile = createDeviceProfileLoader(async (deviceType: ResolvedDeviceType) => {
+  const resourcesPath = join(deviceType.bundlePath, 'Contents', 'Resources');
+  const { stdout } = await execFileAsync(
+    '/usr/bin/plutil',
+    ['-convert', 'json', '-o', '-', join(resourcesPath, 'profile.plist')],
+    { encoding: 'utf8', timeout: simulatorMetadataCommandTimeout }
+  );
+  const profile = JSON.parse(stdout) as SimulatorProfile;
+  let framebufferMask: string | undefined;
+  if (typeof profile.framebufferMask === 'string') {
+    try {
+      framebufferMask = await rasterizedPdf(
+        join(resourcesPath, `${profile.framebufferMask}.pdf`),
+        'monadesign-framebuffer-mask-'
+      );
+    } catch {
+      // Keep the exact screen metadata even if this Xcode cannot rasterize its mask.
     }
-    const width = Number(profile.mainScreenWidth);
-    const height = Number(profile.mainScreenHeight);
-    const scale = Number(profile.mainScreenScale);
-    const screen = width > 0 && height > 0 && scale > 0 ? { width, height, scale } : undefined;
-    const chromeIdentifier = typeof profile.chromeIdentifier === 'string' ? profile.chromeIdentifier : undefined;
-    const deviceChrome =
-      chromeIdentifier && screen
-        ? await resolveDeviceChrome(chromeIdentifier, {
-            width: screen.width / screen.scale,
-            height: screen.height / screen.scale
-          }).catch(() => undefined)
-        : undefined;
-    return {
-      productFamily: deviceType.productFamily,
-      modelIdentifier:
-        typeof profile.modelIdentifier === 'string' ? profile.modelIdentifier : deviceType.modelIdentifier,
-      chromeIdentifier,
-      deviceChrome,
-      framebufferMask,
-      screen
-    };
-  })();
-  profileCache.set(deviceType.identifier, resolution);
-  return resolution;
-};
+  }
+  const width = Number(profile.mainScreenWidth);
+  const height = Number(profile.mainScreenHeight);
+  const scale = Number(profile.mainScreenScale);
+  const screen = width > 0 && height > 0 && scale > 0 ? { width, height, scale } : undefined;
+  const chromeIdentifier = typeof profile.chromeIdentifier === 'string' ? profile.chromeIdentifier : undefined;
+  const deviceChrome =
+    chromeIdentifier && screen
+      ? await resolveDeviceChrome(chromeIdentifier, {
+          width: screen.width / screen.scale,
+          height: screen.height / screen.scale
+        }).catch(() => undefined)
+      : undefined;
+  return {
+    productFamily: deviceType.productFamily,
+    modelIdentifier: typeof profile.modelIdentifier === 'string' ? profile.modelIdentifier : deviceType.modelIdentifier,
+    chromeIdentifier,
+    deviceChrome,
+    framebufferMask,
+    screen
+  };
+});
 
 export const createSimulatorListLoader = (
   load: () => Promise<IOSSimulator[]>,

@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-
-import { resolveCorePaths } from '../../src/core-paths';
+import { resolveCorePaths } from '@monaddesign/core-installation';
 
 describe('machine Core paths', () => {
   test('derives one bootstrap, executable, and session store from the canonical state directory', () => {
     expect(resolveCorePaths({ MONAD_DESIGN_CORE_STATE_DIR: '/tmp/monad-design-machine-core' })).toEqual({
       stateDirectory: '/tmp/monad-design-machine-core',
       bootstrapPath: '/tmp/monad-design-machine-core/bootstrap.json',
-      credentialsPath: '/tmp/monad-design-machine-core/credentials.json',
       executablePath: '/tmp/monad-design-machine-core/bin/monad-design',
       nativeAddonPath: '/tmp/monad-design-machine-core/bin/native/serve-sim-native.node',
       installManifestPath: '/tmp/monad-design-machine-core/install.json',

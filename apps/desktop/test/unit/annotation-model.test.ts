@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-
 import {
   buildCalloutLayout,
   calloutAnchor,
-  calloutConnectorPath,
+  calloutConnector,
   type DrawnAnnotation
-} from '../../src/components/annotation/annotation-model';
+} from '@monaddesign/simulator/annotation';
 
 const rectangle: DrawnAnnotation = {
   id: 'rectangle-1',
@@ -44,7 +43,7 @@ describe('numbered annotation layout', () => {
     if (!box) return;
 
     expect(calloutAnchor(rectangle)).toEqual({ x: 280, y: 240 });
-    const connector = calloutConnectorPath(rectangle, box);
+    const connector = calloutConnector(rectangle, box);
     expect(connector.start).toEqual({ x: 280, y: 240 });
     expect(connector.end.x).toBeGreaterThan(1206);
     expect(connector.d).toContain('C');

@@ -1,7 +1,5 @@
 import type { AgentTurnContext, LaunchVariantRequest } from '@monaddesign/client-contract';
 
-export * from './annotation';
-
 export interface CanvasSize {
   width: number;
   height: number;

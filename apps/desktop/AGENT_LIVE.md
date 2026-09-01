@@ -8,7 +8,7 @@ This is an MCP server, not an embedded agent runtime. Monad Design remains agent
 
 ## Trust boundary
 
-The desktop serves Streamable HTTP MCP at `http://127.0.0.1:41765/mcp`. The endpoint validates localhost Host and Origin headers before protocol handling, preventing DNS rebinding and browser-origin access. It is separate from the authenticated `/v1` mobile API; the six-digit mobile pairing code has no MCP role.
+The desktop serves Streamable HTTP MCP at `http://127.0.0.1:41765/mcp`. The endpoint validates localhost Host and Origin headers before protocol handling, preventing DNS rebinding and browser-origin access. The `/v1` API does not authenticate requests; the six-digit mobile pairing code only helps establish the intended Core connection and has no MCP role.
 
 ## Project and UI routing
 

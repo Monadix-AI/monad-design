@@ -2,7 +2,7 @@ import AiProgrammingIcon from '@hugeicons/core-free-icons/AiProgrammingIcon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import CheckmarkCircle01Icon from '@hugeicons/core-free-icons/CheckmarkCircle01Icon';
 import CursorRectangleSelection02Icon from '@hugeicons/core-free-icons/CursorRectangleSelection02Icon';
-import { LiveWorkspaceInspector } from '@monaddesign/ui';
+import { LiveWorkspaceInspector } from '@monaddesign/ui/business/live-session/workspace-inspector';
 
 import { ActionIcon } from '@/components/action-icon';
 import { useDesktopApp } from '@/desktop-app-provider';

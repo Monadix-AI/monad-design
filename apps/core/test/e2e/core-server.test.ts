@@ -98,8 +98,7 @@ const startServer = async () => {
   const server = new CoreServer(projectStore, {
     host: '127.0.0.1',
     port: 0,
-    pairingCode: '123456',
-    localAccessToken: 'local-test-token'
+    pairingCode: '123456'
   });
   servers.push(server);
   await server.start();
@@ -109,8 +108,7 @@ const startServer = async () => {
   };
 };
 
-const authorizedHeaders = {
-  Authorization: 'Bearer 123456',
+const jsonHeaders = {
   'Content-Type': 'application/json'
 };
 
@@ -126,7 +124,7 @@ describe('Core server', () => {
     }
   });
 
-  test('publishes v1 health but protects feature routes', async () => {
+  test('publishes v1 health and feature routes without authentication', async () => {
     const { origin } = await startServer();
 
     const health = await fetch(`${origin}/v1/health`);
@@ -137,22 +135,39 @@ describe('Core server', () => {
     });
 
     const projects = await fetch(`${origin}/v1/projects`);
-    expect(projects.status).toBe(401);
-    expect(await projects.json()).toMatchObject({
-      error: 'The pairing code is invalid.',
-      code: 'UNAUTHORIZED',
-      retryable: false
-    });
+    expect(projects.status).toBe(200);
 
     const simulator = await fetch(`${origin}/v1/simulator/appearance`);
-    expect(simulator.status).toBe(401);
+    expect(simulator.status).toBe(409);
+  });
+
+  test('uses the pairing code only to establish a client connection', async () => {
+    const { origin } = await startServer();
+
+    const mismatch = await fetch(`${origin}/v1/pair`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ pairingCode: '654321' })
+    });
+    expect(mismatch.status).toBe(409);
+    expect(await mismatch.json()).toMatchObject({ code: 'PAIRING_MISMATCH' });
+
+    const paired = await fetch(`${origin}/v1/pair`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ pairingCode: '123456' })
+    });
+    expect(paired.status).toBe(200);
+    expect(await paired.json()).toEqual({ paired: true });
+
+    expect((await fetch(`${origin}/v1/projects`)).status).toBe(200);
   });
 
   test('uses the standard offset pagination response', async () => {
     const { origin } = await startServer();
 
     const response = await fetch(`${origin}/v1/projects?limit=1&offset=1`, {
-      headers: authorizedHeaders
+      headers: jsonHeaders
     });
 
     expect(response.status).toBe(200);
@@ -175,7 +190,7 @@ describe('Core server', () => {
     const { origin } = await startServer();
 
     const response = await fetch(`${origin}/v1/projects/project-1/icons`, {
-      headers: authorizedHeaders
+      headers: jsonHeaders
     });
 
     expect(response.status).toBe(200);
@@ -184,51 +199,29 @@ describe('Core server', () => {
     });
   });
 
-  test('accepts the private localhost client token without exposing it in pairing status', async () => {
+  test('keeps pairing status as connection metadata without adding API credentials', async () => {
     const { origin, server } = await startServer();
 
-    expect(server.status).not.toHaveProperty('accessToken');
-    expect(server.localClient).toEqual({
-      origin,
-      accessToken: 'local-test-token'
-    });
-    const response = await fetch(`${origin}/v1/projects`, {
-      headers: { Authorization: 'Bearer local-test-token' }
-    });
-    expect(response.status).toBe(200);
-
-    const streamStyleResponse = await fetch(`${origin}/v1/projects?accessToken=local-test-token`);
-    expect(streamStyleResponse.status).toBe(200);
+    expect(server.status).toMatchObject({ pairingCode: '123456' });
+    expect(server.localClient).toEqual({ origin });
+    expect((await fetch(`${origin}/v1/projects`)).status).toBe(200);
   });
 
-  test('establishes a private browser session on direct localhost access', async () => {
+  test('serves the browser UI without creating an authentication cookie', async () => {
     const { origin } = await startServer();
     const root = await fetch(`${origin}/`);
-    const cookie = root.headers.get('set-cookie')?.split(';')[0];
 
     expect(new URL(root.url).search).toBe('');
-    expect(cookie).toBe('monad_design_local_session=local-test-token');
-    const active = await fetch(`${origin}/v1/agent-session/active`, {
-      headers: { cookie: cookie ?? '' }
-    });
+    expect(root.headers.get('set-cookie')).toBeNull();
+    const active = await fetch(`${origin}/v1/agent-session/active`);
     expect(active.status).toBe(200);
     expect(await active.json()).toEqual({ session: null });
-
-    const remoteHostRoot = await fetch(`${origin}/`, { headers: { host: '192.168.1.20' } });
-    expect(remoteHostRoot.headers.get('set-cookie')).toBeNull();
   });
 
-  test('keeps local project paths behind the Core admin token', async () => {
+  test('serves Core admin project data without authentication', async () => {
     const { origin } = await startServer();
 
-    const companionResponse = await fetch(`${origin}/v1/admin/projects/`, {
-      headers: authorizedHeaders
-    });
-    expect(companionResponse.status).toBe(401);
-
-    const adminResponse = await fetch(`${origin}/v1/admin/projects/`, {
-      headers: { Authorization: 'Bearer local-test-token' }
-    });
+    const adminResponse = await fetch(`${origin}/v1/admin/projects/`);
     expect(adminResponse.status).toBe(200);
     const adminProjects = (await adminResponse.json()) as { projects: Array<Record<string, unknown>> };
     expect(adminProjects.projects[0]).toMatchObject({
@@ -240,7 +233,7 @@ describe('Core server', () => {
 
   test('shares one live editing session between MCP and the paired companion', async () => {
     const { origin } = await startServer();
-    expect((await fetch(`${origin}/v1/agent-session/active`)).status).toBe(401);
+    expect((await fetch(`${origin}/v1/agent-session/active`)).status).toBe(200);
 
     const client = new Client({ name: 'monad-design-test', version: '1.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
@@ -279,11 +272,7 @@ describe('Core server', () => {
       });
       const startedSession = (started.structuredContent as { session: { id: string } }).session;
 
-      const root = await fetch(`${origin}/`);
-      const cookie = root.headers.get('set-cookie')?.split(';')[0];
-      const activeResponse = await fetch(`${origin}/v1/agent-session/active`, {
-        headers: { cookie: cookie ?? '' }
-      });
+      const activeResponse = await fetch(`${origin}/v1/agent-session/active`);
       expect(activeResponse.status).toBe(200);
       const active = (await activeResponse.json()) as { session: { id: string; project: Record<string, unknown> } };
       expect(active.session).toMatchObject({
@@ -295,14 +284,14 @@ describe('Core server', () => {
 
       const connectedResponse = await fetch(`${origin}/v1/agent-session/${active.session.id}/connected`, {
         method: 'POST',
-        headers: authorizedHeaders,
+        headers: jsonHeaders,
         body: JSON.stringify({ udid: 'simulator-1', bundleIdentifier: 'com.example.app' })
       });
       expect(connectedResponse.status).toBe(200);
 
       const requestResponse = await fetch(`${origin}/v1/agent-session/${active.session.id}/request`, {
         method: 'POST',
-        headers: authorizedHeaders,
+        headers: jsonHeaders,
         body: JSON.stringify({
           request: 'Increase the title contrast.',
           variantCount: 2,
@@ -323,16 +312,13 @@ describe('Core server', () => {
       expect(JSON.parse(projectsContent && 'text' in projectsContent ? projectsContent.text : '[]')).toHaveLength(2);
 
       const closeResponse = await fetch(`${origin}/v1/agent-session/${active.session.id}/close`, {
-        method: 'POST',
-        headers: { cookie: cookie ?? '' }
+        method: 'POST'
       });
       expect(closeResponse.status).toBe(200);
       expect(await closeResponse.json()).toMatchObject({ id: active.session.id, status: 'closed' });
-      expect(
-        await fetch(`${origin}/v1/agent-session/active`, { headers: { cookie: cookie ?? '' } }).then((response) =>
-          response.json()
-        )
-      ).toEqual({ session: null });
+      expect(await fetch(`${origin}/v1/agent-session/active`).then((response) => response.json())).toEqual({
+        session: null
+      });
     } finally {
       await client.close();
     }
@@ -469,7 +455,7 @@ describe('Core server', () => {
   test('standardizes validation and not-found errors', async () => {
     const { origin } = await startServer();
     const validation = await fetch(`${origin}/v1/projects?limit=0`, {
-      headers: authorizedHeaders
+      headers: jsonHeaders
     });
     expect(validation.status).toBe(400);
     expect(await validation.json()).toMatchObject({

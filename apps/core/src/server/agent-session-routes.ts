@@ -1,15 +1,13 @@
 import type { AgentSessionSnapshot, AgentSessionStore } from './agent-session-store';
 
-import { Elysia, t } from 'elysia';
-
 import {
   activeAgentSessionResponseSchema,
   agentSessionSnapshotSchema,
   confirmAgentSelectionRequestSchema,
   connectAgentSessionRequestSchema,
   submitAgentRequestSchema
-} from './api-contract';
-import { createPairingAuth } from './auth';
+} from '@monaddesign/client-contract';
+import { Elysia, t } from 'elysia';
 
 const publicSession = (session: AgentSessionSnapshot): typeof agentSessionSnapshotSchema._output => ({
   ...session,
@@ -25,9 +23,8 @@ const publicSession = (session: AgentSessionSnapshot): typeof agentSessionSnapsh
   }
 });
 
-export const createAgentSessionRoutes = (sessions: AgentSessionStore, accessTokens: string | readonly string[]) =>
+export const createAgentSessionRoutes = (sessions: AgentSessionStore) =>
   new Elysia({ name: 'core.agent-sessions', prefix: '/agent-session' })
-    .use(createPairingAuth(accessTokens))
     .get(
       '/active',
       () => {
@@ -41,12 +38,12 @@ export const createAgentSessionRoutes = (sessions: AgentSessionStore, accessToke
       body: connectAgentSessionRequestSchema,
       response: { 200: agentSessionSnapshotSchema }
     })
-    .post('/:id/request', ({ body, params: { id } }) => publicSession(sessions.request(id, body)), {
+    .post('/:id/request', async ({ body, params: { id } }) => publicSession(await sessions.request(id, body)), {
       params: t.Object({ id: t.String({ minLength: 1 }) }),
       body: submitAgentRequestSchema,
       response: { 200: agentSessionSnapshotSchema }
     })
-    .post('/:id/close', ({ params: { id } }) => publicSession(sessions.close(id)), {
+    .post('/:id/close', async ({ params: { id } }) => publicSession(await sessions.close(id)), {
       params: t.Object({ id: t.String({ minLength: 1 }) }),
       response: { 200: agentSessionSnapshotSchema }
     })

@@ -2,12 +2,16 @@ import type { Treaty } from '@elysiajs/eden';
 import type {
   AccessibilitySnapshotResponse,
   ActiveAgentSessionResponse,
+  AddCoreProjectRequest,
   AgentSessionSnapshot,
   AppearanceResponse,
+  ConfigureCoreProjectRequest,
   ConfirmAgentSelectionRequest,
   ConnectAgentSessionRequest,
   ConnectSimulatorRequest,
   CopiedResponse,
+  CoreProject,
+  CoreProjectListResponse,
   DisconnectedResponse,
   HealthResponse,
   LaunchAppResponse,
@@ -16,8 +20,12 @@ import type {
   ListProjectsResponse,
   ListSimulatorsResponse,
   PaginationQuery,
+  PairCoreRequest,
+  PairCoreResponse,
   ProjectIconsResponse,
+  ProjectTargetDetection,
   RemoteProject,
+  RemovedProjectResponse,
   ScreenshotResponse,
   SimulatorConnectionResponse,
   SubmitAgentRequest
@@ -34,15 +42,28 @@ type ProjectsTreaty = {
   open: { post(): TreatyResponse<RemoteProject> };
 });
 
+type AdminProjectsTreaty = {
+  get(): TreatyResponse<CoreProjectListResponse>;
+  post(body: AddCoreProjectRequest): TreatyResponse<CoreProject>;
+  detectTargets: { post(body: { path: string }): TreatyResponse<ProjectTargetDetection> };
+} & ((params: { id: string }) => {
+  delete(): TreatyResponse<RemovedProjectResponse>;
+  put(body: ConfigureCoreProjectRequest): TreatyResponse<CoreProject>;
+  open: { post(): TreatyResponse<CoreProject> };
+});
+
 export interface CoreTreaty {
   v1: {
     health: { get(): TreatyResponse<HealthResponse> };
+    pair: { post(body: PairCoreRequest): TreatyResponse<PairCoreResponse> };
+    admin: { projects: AdminProjectsTreaty };
     agentSession: {
       active: { get(): TreatyResponse<ActiveAgentSessionResponse> };
     } & ((params: { id: string }) => {
       connected: { post(body: ConnectAgentSessionRequest): TreatyResponse<AgentSessionSnapshot> };
       request: { post(body: SubmitAgentRequest): TreatyResponse<AgentSessionSnapshot> };
       confirmSelection: { post(body: ConfirmAgentSelectionRequest): TreatyResponse<AgentSessionSnapshot> };
+      close: { post(): TreatyResponse<AgentSessionSnapshot> };
     });
     projects: ProjectsTreaty;
     simulators: {
@@ -69,26 +90,12 @@ export type CoreTreatyConfig = Treaty.Config;
 
 export interface CreateCoreTreatyOptions {
   baseUrl: string;
-  pairingCode?: string;
-  clientId?: string;
-  clientKind?: 'agent' | 'companion' | 'desktop';
   config?: CoreTreatyConfig;
 }
 
-export const createCoreTreaty = ({
-  baseUrl,
-  pairingCode,
-  clientId,
-  clientKind,
-  config
-}: CreateCoreTreatyOptions): CoreTreaty => {
-  const headers: Record<string, string> = {};
-  if (pairingCode) headers.authorization = `Bearer ${pairingCode}`;
-  if (clientId) headers['x-monad-design-client-id'] = clientId;
-  if (clientKind) headers['x-monad-design-client-kind'] = clientKind;
+export const createCoreTreaty = ({ baseUrl, config }: CreateCoreTreatyOptions): CoreTreaty => {
   return treaty(baseUrl.replace(/\/$/, ''), {
     ...config,
-    parseDate: false,
-    headers: config?.headers ? [headers, config.headers] : headers
+    parseDate: false
   }) as unknown as CoreTreaty;
 };

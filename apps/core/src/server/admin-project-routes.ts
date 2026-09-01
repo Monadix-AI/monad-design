@@ -1,7 +1,5 @@
 import type { ProjectStore } from '../project-store';
 
-import { Elysia } from 'elysia';
-
 import {
   addCoreProjectRequestSchema,
   configureCoreProjectRequestSchema,
@@ -11,19 +9,17 @@ import {
   openProjectRequestSchema,
   projectTargetDetectionSchema,
   removedProjectResponseSchema
-} from './api-contract';
-import { createPairingAuth } from './auth';
+} from '@monaddesign/client-contract';
+import { Elysia } from 'elysia';
 
 type AdminProjectStore = Pick<ProjectStore, 'list' | 'open' | 'add'> &
   Partial<Pick<ProjectStore, 'configure' | 'remove'>>;
 
 export const createAdminProjectRoutes = (
   projectStore: AdminProjectStore,
-  accessToken: string,
   detectTargets: (path: string) => Promise<typeof projectTargetDetectionSchema._output>
 ) =>
   new Elysia({ name: 'core.admin-projects', prefix: '/admin/projects' })
-    .use(createPairingAuth(accessToken))
     .get('/', async () => ({ projects: await projectStore.list() }), {
       response: { 200: coreProjectListResponseSchema }
     })

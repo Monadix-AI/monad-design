@@ -1,84 +1,25 @@
+import type {
+  AgentSessionStatus,
+  AgentTurnContext,
+  ConfirmAgentSelectionRequest,
+  AgentSessionSnapshot as PublicAgentSessionSnapshot
+} from '@monaddesign/client-contract';
 import type { MonadDesignProject, ProjectStore } from '../project-store';
-import type { SimulatorVariantId } from '../simulator-variants';
 
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { realpath } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
+import { mkdir, readdir, realpath, rename, unlink, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 
 import { CoreApiError } from './api-error';
 
-export type AgentSessionStatus =
-  | 'configuring_project'
-  | 'selecting_simulator'
-  | 'awaiting_request'
-  | 'change_requested'
-  | 'working'
-  | 'variants_ready'
-  | 'selection_confirmed'
-  | 'closed';
+export type { AgentSessionStatus, AgentTurnContext } from '@monaddesign/client-contract';
 
-export interface AgentTurnContext {
-  simulator: {
-    udid: string;
-    bundleIdentifier: string;
-    name?: string;
-    runtime?: string;
-  };
-  currentScreen?: {
-    screen: { width: number; height: number };
-    elements: Array<Record<string, unknown>>;
-    accessibilityErrors?: string[];
-  };
-  selection?: {
-    screen: { width: number; height: number };
-    selectedElement: Record<string, unknown>;
-    ancestors: Array<Record<string, unknown>>;
-    nearbySiblings: Array<Record<string, unknown>>;
-    accessibilityErrors?: string[];
-  };
-  annotation?: {
-    screenshotPath: string;
-    mimeType: 'image/png';
-  };
-}
+export type AgentChangeRequest = NonNullable<PublicAgentSessionSnapshot['changeRequest']>;
+type SimulatorVariantId = ConfirmAgentSelectionRequest['variant'];
 
-export interface AgentChangeRequest {
-  id: string;
-  request: string;
-  variantCount: number;
-  context: AgentTurnContext;
-  createdAt: string;
-}
-
-export interface AgentSessionSnapshot {
-  id: string;
+export interface AgentSessionSnapshot extends Omit<PublicAgentSessionSnapshot, 'project'> {
   project: MonadDesignProject;
-  task?: string;
-  status: AgentSessionStatus;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  connection?: {
-    udid: string;
-    bundleIdentifier: string;
-  };
-  changeRequest?: AgentChangeRequest;
-  publishedVariants?: {
-    requestId: string;
-    summary: string;
-    publishedAt: string;
-  };
-  confirmedSelection?: {
-    requestId: string;
-    variant: SimulatorVariantId;
-    confirmedAt: string;
-  };
-  lastResult?: {
-    requestId: string;
-    summary: string;
-    completedAt: string;
-  };
 }
 
 type ProjectResolver = Pick<ProjectStore, 'list' | 'open' | 'configureLiveTargets'>;
@@ -92,6 +33,10 @@ export interface AgentSessionStoreOptions {
 
 const copySession = (session: AgentSessionSnapshot): AgentSessionSnapshot => structuredClone(session);
 const canonicalPath = async (path: string) => realpath(resolve(path)).catch(() => resolve(path));
+const annotationFileNamePattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.png$/iu;
+const annotationTemporaryFileNamePattern = /^[0-9a-f-]{36}\.png\.\d+\.[0-9a-f-]{36}\.tmp$/iu;
+const maximumAnnotationScreenshotBytes = 30_000_000;
+const retainedClosedSessionCount = 20;
 const sessionStatuses = new Set<AgentSessionStatus>([
   'configuring_project',
   'selecting_simulator',
@@ -169,7 +114,7 @@ export class AgentSessionStore {
       );
     }
 
-    if (this.#activeId) this.close(this.#activeId);
+    if (this.#activeId) await this.close(this.#activeId);
     const opened = await this.projectStore.open(project.id);
     const now = new Date().toISOString();
     const session: AgentSessionSnapshot = {
@@ -204,14 +149,18 @@ export class AgentSessionStore {
         this.#waiters.set(id, listeners);
       }
       let timer: ReturnType<typeof setTimeout>;
+      const removeListener = () => {
+        listeners?.delete(listener);
+        if (listeners?.size === 0) this.#waiters.delete(id);
+      };
       const listener = (session: AgentSessionSnapshot) => {
         clearTimeout(timer);
-        listeners?.delete(listener);
+        removeListener();
         resolveWait(copySession(session));
       };
       listeners.add(listener);
       timer = setTimeout(() => {
-        listeners?.delete(listener);
+        removeListener();
         resolveWait(this.get(id));
       }, waitMs);
     });
@@ -229,7 +178,7 @@ export class AgentSessionStore {
     });
   }
 
-  request(
+  async request(
     id: string,
     input: {
       request: string;
@@ -251,36 +200,34 @@ export class AgentSessionStore {
     }
     const now = new Date().toISOString();
     const requestId = randomUUID();
-    let context: AgentTurnContext = structuredClone(input.context);
-    if (input.annotationScreenshot) {
-      const encoded = input.annotationScreenshot.slice('data:image/png;base64,'.length);
-      const screenshot = Buffer.from(encoded, 'base64');
-      const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-      if (
-        screenshot.length < pngSignature.length ||
-        !screenshot.subarray(0, pngSignature.length).equals(pngSignature)
-      ) {
-        throw new CoreApiError(400, 'VALIDATION', 'The annotated screenshot is not a valid PNG.');
+    let screenshotPath: string | undefined;
+    try {
+      let context: AgentTurnContext = structuredClone(input.context);
+      if (input.annotationScreenshot) {
+        screenshotPath = await this.#persistAnnotation(session, requestId, input.annotationScreenshot);
+        context = {
+          ...context,
+          annotation: { screenshotPath, mimeType: 'image/png' }
+        };
       }
-      const annotationDirectory = join(session.project.path, '.monaddesign', 'tmp', 'annotations');
-      const screenshotPath = join(annotationDirectory, `${requestId}.png`);
-      mkdirSync(annotationDirectory, { recursive: true });
-      writeFileSync(screenshotPath, screenshot, { mode: 0o600 });
-      context = {
-        ...context,
-        annotation: { screenshotPath, mimeType: 'image/png' }
-      };
+      const current = this.#requireStatus(id, ['awaiting_request']);
+      if (current.revision !== session.revision) {
+        throw new CoreApiError(409, 'CONFLICT', 'This agent session changed while the request was being stored.');
+      }
+      return this.#update(current, {
+        status: 'change_requested',
+        changeRequest: {
+          id: requestId,
+          request: input.request.trim(),
+          variantCount: input.variantCount,
+          context,
+          createdAt: now
+        }
+      });
+    } catch (error) {
+      if (screenshotPath) await unlink(screenshotPath).catch(() => undefined);
+      throw error;
     }
-    return this.#update(session, {
-      status: 'change_requested',
-      changeRequest: {
-        id: requestId,
-        request: input.request.trim(),
-        variantCount: input.variantCount,
-        context,
-        createdAt: now
-      }
-    });
   }
 
   claim(id: string, requestId: string) {
@@ -321,7 +268,7 @@ export class AgentSessionStore {
     const session = this.#requireRequest(id, requestId, ['selection_confirmed']);
     await this.#restartConnectedApp(session);
     const completedAt = new Date().toISOString();
-    return this.#update(session, {
+    const updated = this.#update(session, {
       status: 'awaiting_request',
       changeRequest: undefined,
       publishedVariants: undefined,
@@ -332,6 +279,8 @@ export class AgentSessionStore {
         completedAt
       }
     });
+    await this.#removeAnnotation(session);
+    return updated;
   }
 
   async #restartConnectedApp(session: AgentSessionSnapshot) {
@@ -344,7 +293,7 @@ export class AgentSessionStore {
     await this.#restartApp(copySession(session));
   }
 
-  close(id: string) {
+  async close(id: string) {
     const session = this.#requireStatus(id, [
       'configuring_project',
       'selecting_simulator',
@@ -354,10 +303,71 @@ export class AgentSessionStore {
       'variants_ready',
       'selection_confirmed'
     ]);
-    const closed = this.#update(session, { status: 'closed', changeRequest: undefined });
     if (this.#activeId === id) this.#activeId = null;
-    this.#persist();
-    return closed;
+    const updated = this.#update(session, { status: 'closed', changeRequest: undefined });
+    await this.#removeAnnotation(session);
+    return updated;
+  }
+
+  async #persistAnnotation(session: AgentSessionSnapshot, requestId: string, dataUrl: string) {
+    const prefix = 'data:image/png;base64,';
+    if (!dataUrl.startsWith(prefix)) {
+      throw new CoreApiError(400, 'VALIDATION', 'The annotated screenshot is not a valid PNG.');
+    }
+    const screenshot = Buffer.from(dataUrl.slice(prefix.length), 'base64');
+    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    if (
+      screenshot.length < pngSignature.length ||
+      screenshot.length > maximumAnnotationScreenshotBytes ||
+      !screenshot.subarray(0, pngSignature.length).equals(pngSignature)
+    ) {
+      throw new CoreApiError(400, 'VALIDATION', 'The annotated screenshot is not a valid PNG.');
+    }
+
+    const annotationDirectory = join(session.project.path, '.monaddesign', 'tmp', 'annotations');
+    await mkdir(annotationDirectory, { recursive: true });
+    await this.#pruneAnnotations(annotationDirectory);
+    const screenshotPath = join(annotationDirectory, `${requestId}.png`);
+    const temporaryPath = `${screenshotPath}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporaryPath, screenshot, { mode: 0o600 });
+      await rename(temporaryPath, screenshotPath);
+      return screenshotPath;
+    } catch (error) {
+      await unlink(temporaryPath).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async #pruneAnnotations(annotationDirectory: string) {
+    const protectedPaths = new Set(
+      [...this.#sessions.values()].flatMap(({ changeRequest }) =>
+        changeRequest?.context.annotation?.screenshotPath
+          ? [resolve(changeRequest.context.annotation.screenshotPath)]
+          : []
+      )
+    );
+    const entries = await readdir(annotationDirectory, { withFileTypes: true }).catch(() => []);
+    await Promise.all(
+      entries.flatMap((entry) => {
+        if (
+          !entry.isFile() ||
+          (!annotationFileNamePattern.test(entry.name) && !annotationTemporaryFileNamePattern.test(entry.name))
+        ) {
+          return [];
+        }
+        const path = resolve(annotationDirectory, entry.name);
+        return protectedPaths.has(path) ? [] : [unlink(path).catch(() => undefined)];
+      })
+    );
+  }
+
+  async #removeAnnotation(session: AgentSessionSnapshot) {
+    const screenshotPath = session.changeRequest?.context.annotation?.screenshotPath;
+    if (!screenshotPath || !annotationFileNamePattern.test(basename(screenshotPath))) return;
+    const annotationDirectory = resolve(session.project.path, '.monaddesign', 'tmp', 'annotations');
+    if (dirname(resolve(screenshotPath)) !== annotationDirectory) return;
+    await unlink(screenshotPath).catch(() => undefined);
   }
 
   #requireStatus(id: string, expected: AgentSessionStatus[]) {
@@ -391,6 +401,7 @@ export class AgentSessionStore {
 
   #publish(session: AgentSessionSnapshot) {
     const snapshot = copySession(session);
+    this.#pruneClosedSessions();
     this.#persist();
     this.#onChanged?.(snapshot);
     for (const listener of this.#waiters.get(session.id) ?? []) listener(snapshot);
@@ -408,10 +419,22 @@ export class AgentSessionStore {
       if (typeof value.activeId === 'string' && this.#sessions.get(value.activeId)?.status !== 'closed') {
         this.#activeId = value.activeId;
       }
+      this.#pruneClosedSessions();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         // Invalid or partially written state is ignored; the next change replaces it atomically.
       }
+    }
+  }
+
+  #pruneClosedSessions() {
+    const expired = [...this.#sessions.values()]
+      .filter(({ status }) => status === 'closed')
+      .reverse()
+      .slice(retainedClosedSessionCount);
+    for (const session of expired) {
+      this.#sessions.delete(session.id);
+      this.#waiters.delete(session.id);
     }
   }
 

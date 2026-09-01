@@ -1,7 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect } from 'react';
 
-import { Workspace } from '../src/App';
+import { Workspace } from '../src/screens/Workspace';
 import { useSession } from '../src/session';
 
 export default function WorkspaceRoute() {

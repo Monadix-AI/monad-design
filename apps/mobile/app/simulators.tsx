@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 
-import { SimulatorPicker } from '../src/App';
+import { SimulatorPicker } from '../src/screens/SimulatorPicker';
 import { useSession } from '../src/session';
 
 export default function SimulatorsRoute() {

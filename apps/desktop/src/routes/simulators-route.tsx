@@ -11,16 +11,16 @@ import FolderOpenIcon from '@hugeicons/core-free-icons/FolderOpenIcon';
 import PlusSignIcon from '@hugeicons/core-free-icons/PlusSignIcon';
 import RefreshCwIcon from '@hugeicons/core-free-icons/RefreshCwIcon';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LiveSessionSimulatorPicker } from '@monaddesign/ui';
+import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
+import { Button } from '@monaddesign/ui/primitives/button';
+import { Input } from '@monaddesign/ui/primitives/input';
+import { Label } from '@monaddesign/ui/primitives/label';
 import { Navigate } from '@tanstack/react-router';
 import { Dialog } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 
 import { ActionIcon } from '@/components/action-icon';
 import { AppHeader } from '@/components/app-header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useDesktopApp } from '@/desktop-app-provider';
 
 type TargetSetup = ({ kind: 'new' } & ProjectDirectorySelection) | { kind: 'existing'; project: MonadDesignProject };
@@ -53,6 +53,7 @@ export function SimulatorsRoute() {
     isConnecting,
     isLoadingProjects,
     isOpeningProject,
+    isRuntimeReady,
     isScanning,
     projects,
     projectIcons,
@@ -95,6 +96,7 @@ export function SimulatorsRoute() {
     void detectTargetApps(setup);
   };
   const beginAddProject = async () => {
+    if (!isRuntimeReady) return;
     const selection = await chooseProject();
     if (!selection) return;
     openTargetSetup({ kind: 'new', ...selection });
@@ -167,12 +169,13 @@ export function SimulatorsRoute() {
             </div>
             <Button
               className="add-project-button"
+              disabled={!isRuntimeReady || isOpeningProject}
               onClick={() => void beginAddProject()}
               type="button"
             >
               <ActionIcon
                 icon={PlusSignIcon}
-                spinning={isOpeningProject}
+                spinning={isLoadingProjects || isOpeningProject}
               />
               Connect project
             </Button>
@@ -182,16 +185,26 @@ export function SimulatorsRoute() {
             aria-live="polite"
             className="project-registry"
           >
-            {isLoadingProjects && (
+            {isLoadingProjects && projects.length === 0 && (
               <div
-                className="project-loading"
+                className="project-list-skeleton"
                 role="status"
               >
-                <ActionIcon
-                  icon={RefreshCwIcon}
-                  spinning
-                />
-                Loading local projects…
+                <span className="sr-only">Loading local projects…</span>
+                {[0, 1, 2].map((item) => (
+                  <div
+                    aria-hidden="true"
+                    className="project-skeleton-row"
+                    key={item}
+                  >
+                    <span className="project-skeleton-icon" />
+                    <span className="project-skeleton-copy">
+                      <span className="project-skeleton-name" />
+                      <span className="project-skeleton-meta" />
+                    </span>
+                    <span className="project-skeleton-action" />
+                  </div>
+                ))}
               </div>
             )}
             {projects.map((project) => (
@@ -262,7 +275,7 @@ export function SimulatorsRoute() {
                 </p>
                 <Button
                   className="add-project-button"
-                  disabled={isOpeningProject}
+                  disabled={!isRuntimeReady || isOpeningProject}
                   onClick={() => void beginAddProject()}
                   type="button"
                 >

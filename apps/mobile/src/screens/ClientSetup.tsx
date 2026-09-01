@@ -1,13 +1,13 @@
 import type { ClientConnection } from '../types';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ClientApi } from '../api';
 import { Brand } from '../components/Brand';
 import { GlassControl } from '../components/GlassControl';
 import { PairingScanner } from '../components/PairingScanner';
@@ -20,7 +20,7 @@ export function ClientSetup({
   onConnected
 }: {
   initial: ClientConnection | null;
-  onConnected: (api: ClientApi) => void;
+  onConnected: (api: ClientApi<ClientConnection>) => void;
 }) {
   const { width } = useWindowDimensions();
   const compact = width < 900;
@@ -37,10 +37,10 @@ export function ClientSetup({
       setError(null);
       try {
         const api = new ClientApi(connection);
+        await api.pair();
         const health = await api.health();
         if (health.protocolVersion !== 1) throw new Error('This Client uses an unsupported protocol version.');
-        await api.simulators();
-        await AsyncStorage.setItem(savedClientKey, JSON.stringify(api.connection));
+        await Promise.all([api.simulators(), AsyncStorage.setItem(savedClientKey, JSON.stringify(api.connection))]);
         onConnected(api);
       } catch (reason) {
         setError(errorMessage(reason));

@@ -1,4 +1,4 @@
-import type { HttpError } from './api-contract';
+import type { HttpError } from '@monaddesign/client-contract';
 
 import { randomUUID } from 'node:crypto';
 

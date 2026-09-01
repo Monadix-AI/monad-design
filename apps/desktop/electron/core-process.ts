@@ -4,15 +4,16 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { constants } from 'node:fs';
 import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { resolveCorePaths } from '@monaddesign/core/paths';
-import { installCoreExecutable, stopLegacyCore } from '@monaddesign/core-installation';
+import { agentSessionVersion } from '@monaddesign/client-contract/agent-session-version';
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
+import { installCoreExecutable, resolveCorePaths, stopLegacyCore } from '@monaddesign/core-installation';
 import { app, shell } from 'electron';
 
 interface CoreBootstrap {
   schemaVersion: 1;
   pid: number;
   startedAt: string;
-  localClient: { origin: string; accessToken: string };
+  localClient: { origin: string; accessToken?: string };
   status: { port: number; pairingCode: string; addresses: string[] };
 }
 
@@ -24,7 +25,6 @@ const isBootstrap = (value: unknown): value is CoreBootstrap => {
     bootstrap?.schemaVersion === 1 &&
     typeof bootstrap.pid === 'number' &&
     typeof bootstrap.localClient?.origin === 'string' &&
-    typeof bootstrap.localClient.accessToken === 'string' &&
     typeof bootstrap.status?.port === 'number' &&
     typeof bootstrap.status.pairingCode === 'string' &&
     Array.isArray(bootstrap.status.addresses)
@@ -40,9 +40,11 @@ export class CoreProcess {
   #child: ChildProcess | null = null;
   #spawnError: Error | null = null;
   #lastExitCode: number | null = null;
-  #sessionTimer: ReturnType<typeof setInterval> | null = null;
-  #lastSessionRevision = 0;
+  #sessionTimer: ReturnType<typeof setTimeout> | null = null;
+  #sessionPollGeneration = 0;
+  #lastSessionVersion: string | null | undefined;
   #activeSession: AgentSessionSnapshot | null = null;
+  #client: ClientApi | null = null;
 
   constructor() {
     const paths = resolveCorePaths();
@@ -73,14 +75,8 @@ export class CoreProcess {
 
   async #isHealthy(bootstrap: CoreBootstrap) {
     try {
-      const response = await fetch(`${bootstrap.localClient.origin}/v1/admin/projects/`, {
-        headers: {
-          authorization: `Bearer ${bootstrap.localClient.accessToken}`,
-          'x-monad-design-client-kind': 'desktop'
-        },
-        signal: AbortSignal.timeout(1_000)
-      });
-      return response.ok;
+      await new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 }).adminProjects();
+      return true;
     } catch {
       return false;
     }
@@ -160,6 +156,7 @@ export class CoreProcess {
     const existing = await this.#readBootstrap();
     if (existing && (await this.#isHealthy(existing))) {
       this.#bootstrap = existing;
+      this.#client = new ClientApi(existing.localClient, { requestTimeoutMilliseconds: 2_000 });
       return existing;
     }
 
@@ -169,6 +166,7 @@ export class CoreProcess {
       const bootstrap = await this.#readBootstrap();
       if (bootstrap && (await this.#isHealthy(bootstrap))) {
         this.#bootstrap = bootstrap;
+        this.#client = new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 2_000 });
         return bootstrap;
       }
       await delay(100);
@@ -179,30 +177,33 @@ export class CoreProcess {
     throw new Error('Monad Design Core did not become ready within 10 seconds.');
   }
 
-  subscribeToAgentSession(listener: (session: AgentSessionSnapshot) => void) {
-    if (this.#sessionTimer) clearInterval(this.#sessionTimer);
+  subscribeToAgentSession(listener: (session: AgentSessionSnapshot | null) => void) {
+    this.stopPolling();
+    const generation = this.#sessionPollGeneration;
     const poll = async () => {
-      if (!this.#bootstrap) return;
+      if (!this.#client || generation !== this.#sessionPollGeneration) return;
       try {
-        const response = await fetch(`${this.#bootstrap.localClient.origin}/v1/agent-session/active`, {
-          headers: { authorization: `Bearer ${this.#bootstrap.localClient.accessToken}` }
-        });
-        if (!response.ok) return;
-        const { session } = (await response.json()) as { session: AgentSessionSnapshot | null };
+        const { session } = await this.#client.activeAgentSession();
+        if (generation !== this.#sessionPollGeneration) return;
         this.#activeSession = session;
-        if (!session || session.revision === this.#lastSessionRevision) return;
-        this.#lastSessionRevision = session.revision;
+        const version = agentSessionVersion(session);
+        if (version === this.#lastSessionVersion) return;
+        this.#lastSessionVersion = version;
         listener(session);
       } catch {
         // A transient Core restart is retried by the next polling interval.
+      } finally {
+        if (generation === this.#sessionPollGeneration) {
+          this.#sessionTimer = setTimeout(() => void poll(), 400);
+        }
       }
     };
     void poll();
-    this.#sessionTimer = setInterval(() => void poll(), 400);
   }
 
   stopPolling() {
-    if (this.#sessionTimer) clearInterval(this.#sessionTimer);
+    this.#sessionPollGeneration += 1;
+    if (this.#sessionTimer) clearTimeout(this.#sessionTimer);
     this.#sessionTimer = null;
   }
 

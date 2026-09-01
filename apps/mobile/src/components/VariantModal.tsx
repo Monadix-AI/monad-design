@@ -1,11 +1,12 @@
-import type { SimulatorVariantId } from '../types';
+import type { SimulatorVariantId } from '@monaddesign/simulator';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
 import {
   useLaunchSimulatorAppMutation,
   useLaunchSimulatorVariantMutation,
   useLazyCaptureSimulatorScreenshotQuery
-} from '@monaddesign/client-rtk';
+} from '@monaddesign/client-rtk/endpoints';
 import {
   canvasOffsetForZoom,
   canvasScaleStep,
@@ -22,12 +23,6 @@ import { GlassControl } from './GlassControl';
 
 const defaultVariants = simulatorVariantIdsForCount(3);
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const errorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error
-    ? error.message
-    : error && typeof error === 'object' && 'message' in error
-      ? String(error.message)
-      : fallback;
 const touchPoint = (touch: { locationX: number; locationY: number }) => ({
   x: touch.locationX,
   y: touch.locationY

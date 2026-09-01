@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
 import { resolveCorePaths } from '@monaddesign/core-installation';
 
 export interface CoreBootstrap {
   schemaVersion: 1;
   pid: number;
-  localClient: { origin: string; accessToken: string };
+  localClient: { origin: string; accessToken?: string };
 }
 
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -13,10 +14,7 @@ const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(reso
 const readBootstrap = async (): Promise<CoreBootstrap | null> => {
   try {
     const value = JSON.parse(await readFile(resolveCorePaths().bootstrapPath, 'utf8')) as Partial<CoreBootstrap>;
-    return value.schemaVersion === 1 &&
-      typeof value.pid === 'number' &&
-      typeof value.localClient?.origin === 'string' &&
-      typeof value.localClient.accessToken === 'string'
+    return value.schemaVersion === 1 && typeof value.pid === 'number' && typeof value.localClient?.origin === 'string'
       ? (value as CoreBootstrap)
       : null;
   } catch {
@@ -26,14 +24,8 @@ const readBootstrap = async (): Promise<CoreBootstrap | null> => {
 
 const isHealthy = async (bootstrap: CoreBootstrap) => {
   try {
-    const response = await fetch(`${bootstrap.localClient.origin}/v1/admin/projects/`, {
-      headers: {
-        authorization: `Bearer ${bootstrap.localClient.accessToken}`,
-        'x-monad-design-client-kind': 'desktop'
-      },
-      signal: AbortSignal.timeout(1_000)
-    });
-    return response.ok;
+    await new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 }).adminProjects();
+    return true;
   } catch {
     return false;
   }

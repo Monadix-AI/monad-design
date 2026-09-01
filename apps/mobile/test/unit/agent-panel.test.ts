@@ -1,4 +1,4 @@
-import type { AgentSessionSnapshot } from '@monaddesign/client-rtk';
+import type { AgentSessionSnapshot } from '@monaddesign/client-contract';
 
 import { describe, expect, test } from 'bun:test';
 

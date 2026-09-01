@@ -1,6 +1,6 @@
 import type { ClientConnection } from '../types';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { parsePairingPayload } from '@monaddesign/pairing';
 import { type BarcodeScanningResult, CameraView } from 'expo-camera';
 import { useEffect, useState } from 'react';

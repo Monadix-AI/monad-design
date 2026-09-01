@@ -325,6 +325,43 @@ export const styles = StyleSheet.create({
   projectIdentity: { flex: 1 },
   projectName: { color: colors.text, fontSize: 15, fontWeight: '700' },
   projectMeta: { color: colors.muted, fontSize: 10, marginTop: 5 },
+  projectSkeletonList: { paddingTop: 4 },
+  projectSkeletonItem: {
+    minHeight: 76,
+    marginVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: colors.panelRaised,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14
+  },
+  projectSkeletonIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: '#30333a'
+  },
+  projectSkeletonIdentity: { flex: 1, gap: 9 },
+  projectSkeletonName: {
+    width: '46%',
+    height: 13,
+    borderRadius: 5,
+    backgroundColor: '#3a3d45'
+  },
+  projectSkeletonMeta: {
+    width: '68%',
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#30333a'
+  },
+  projectSkeletonChevron: {
+    width: 8,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#30333a'
+  },
   projectStatus: {
     flex: 1,
     minHeight: 260,
@@ -332,7 +369,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10
   },
-  projectStatusText: { color: colors.muted, fontSize: 12 },
   pickerRoot: { flex: 1, backgroundColor: colors.background },
   pickerHeader: {
     height: 68,

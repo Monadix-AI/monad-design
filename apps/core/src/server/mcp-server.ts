@@ -304,7 +304,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
       inputSchema: z.object({ sessionId: sessionIdSchema }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    ({ sessionId }) => stateResult(sessions.close(sessionId))
+    async ({ sessionId }) => stateResult(await sessions.close(sessionId))
   );
 
   server.registerResource(

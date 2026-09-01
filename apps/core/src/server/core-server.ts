@@ -1,6 +1,6 @@
 import type { ProjectStore } from '../project-store';
 
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 
 import { detectProjectTargets } from '../project-target-detection';
@@ -17,7 +17,6 @@ export interface CoreServerStatus {
 
 export interface CoreLocalClient {
   origin: string;
-  accessToken: string;
 }
 
 interface NodeServerHandle {
@@ -42,7 +41,6 @@ export interface CoreServerOptions {
   port?: number;
   pairingCode?: string;
   pairingStatePath?: string;
-  localAccessToken?: string;
   addresses?: () => string[];
   agentSessions?: AgentSessionStore;
   ui?: (pathname: string) => Response | Promise<Response>;
@@ -61,7 +59,6 @@ const localAddresses = () => {
 export class CoreServer {
   readonly #configuredPort: number;
   readonly #pairingCode: string;
-  readonly #localAccessToken: string;
   readonly #app: CoreApp;
   readonly #mcp: ReturnType<typeof createMonadDesignMcpHandler>;
   readonly #host: string;
@@ -83,13 +80,11 @@ export class CoreServer {
       (options.pairingStatePath
         ? resolvePairingCode(options.pairingStatePath, addresses)
         : String(randomInt(100_000, 1_000_000)));
-    this.#localAccessToken = options.localAccessToken ?? randomBytes(32).toString('base64url');
     const agentSessions = options.agentSessions ?? new AgentSessionStore(projectStore);
     this.#mcp = createMonadDesignMcpHandler(projectStore, agentSessions, () => `${this.localClient.origin}/`);
     this.#app = createCoreApp(
       projectStore,
-      [this.#pairingCode, this.#localAccessToken],
-      this.#localAccessToken,
+      this.#pairingCode,
       this.#mcp,
       agentSessions,
       detectProjectTargets,
@@ -107,8 +102,7 @@ export class CoreServer {
 
   get localClient(): CoreLocalClient {
     return {
-      origin: `http://127.0.0.1:${this.#boundPort ?? this.#configuredPort}`,
-      accessToken: this.#localAccessToken
+      origin: `http://127.0.0.1:${this.#boundPort ?? this.#configuredPort}`
     };
   }
 

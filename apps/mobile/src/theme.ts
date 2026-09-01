@@ -9,9 +9,4 @@ export const colors = {
   danger: '#ff7388'
 };
 
-export const errorMessage = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : error && typeof error === 'object' && 'message' in error
-      ? String(error.message)
-      : 'Something went wrong.';
+export { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';

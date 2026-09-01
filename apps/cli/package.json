@@ -14,6 +14,7 @@
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core": "workspace:*",
     "@monaddesign/core-installation": "workspace:*",
     "@types/bun": "^1.4.0",

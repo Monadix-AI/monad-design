@@ -1,4 +1,4 @@
-import type { AgentSessionSnapshot } from '@monaddesign/client-rtk';
+import type { AgentSessionSnapshot } from '@monaddesign/client-contract';
 
 export const agentPanelStatus = (session: AgentSessionSnapshot | null) => {
   if (!session) return 'No responsive agent';

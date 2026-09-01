@@ -33,6 +33,14 @@ const errorSnapshot = (value: Error) => ({
   message: value.message
 });
 
+export const errorMessage = (error: unknown, fallback = 'Something went wrong.') => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const toError = (error: unknown): ClientApiError => {
   if (error && typeof error === 'object' && 'status' in error) {
     const treatyError = error as TreatyError;

@@ -1,42 +1,27 @@
 import FitToScreenIcon from '@hugeicons/core-free-icons/FitToScreenIcon';
 import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
 import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
-import { CanvasZoomControls, LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui';
+import { canvasScaleStep, maximumCanvasScale, minimumCanvasScale } from '@monaddesign/simulator';
+import { CanvasZoomControls } from '@monaddesign/ui/business/canvas-controls';
+import { LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
 import { Navigate } from '@tanstack/react-router';
 
+import {
+  CanvasViewportProvider,
+  useCanvasViewportActions,
+  useCanvasViewportDragging,
+  useCanvasViewportScale
+} from '@/canvas-viewport-provider';
 import { ActionIcon } from '@/components/action-icon';
 import { AppHeader } from '@/components/app-header';
 import { SimulatorCanvas } from '@/components/workspace/simulator-canvas';
 import { VariantPreview } from '@/components/workspace/variant-preview';
 import { WorkspaceInspector } from '@/components/workspace/workspace-inspector';
 import { useDesktopApp } from '@/desktop-app-provider';
+import { workspaceCanvasMode } from '@/desktop-model';
 
 export function WorkspaceRoute() {
-  const {
-    activePreviewVariant,
-    canvas,
-    canvasScale,
-    canvasScaleStep,
-    canvasViewChanged,
-    changeCanvasScale,
-    connected,
-    connection,
-    disconnect,
-    fitCanvas,
-    error,
-    finishCanvasDrag,
-    handleCanvasPointerDown,
-    handleCanvasPointerMove,
-    handleCanvasWheel,
-    isAnnotationMode,
-    isCanvasDragging,
-    isStreamReady,
-    isVariantPreviewOpen,
-    maximumCanvasScale,
-    minimumCanvasScale,
-    variantLabels
-  } = useDesktopApp();
-
+  const { connection } = useDesktopApp();
   if (!connection)
     return (
       <Navigate
@@ -46,17 +31,39 @@ export function WorkspaceRoute() {
     );
 
   return (
+    <CanvasViewportProvider>
+      <WorkspaceContent />
+    </CanvasViewportProvider>
+  );
+}
+
+function WorkspaceContent() {
+  const {
+    activePreviewVariant,
+    connected,
+    disconnect,
+    error,
+    isAnnotationMode,
+    isStreamReady,
+    isVariantPreviewOpen,
+    variantLabels
+  } = useDesktopApp();
+  const viewport = useCanvasViewportActions();
+  const isCanvasDragging = useCanvasViewportDragging();
+  const canvasMode = workspaceCanvasMode(isAnnotationMode, isVariantPreviewOpen);
+
+  return (
     <LiveWorkspaceFrame
       canvas={<SimulatorCanvas />}
       canvasProps={{
         className: isCanvasDragging ? 'dragging' : undefined,
-        onLostPointerCapture: finishCanvasDrag,
-        onPointerCancel: finishCanvasDrag,
-        onPointerDown: handleCanvasPointerDown,
-        onPointerMove: handleCanvasPointerMove,
-        onPointerUp: finishCanvasDrag,
-        onWheel: handleCanvasWheel,
-        ref: canvas
+        onLostPointerCapture: viewport.finishPointer,
+        onPointerCancel: viewport.finishPointer,
+        onPointerDown: viewport.handlePointerDown,
+        onPointerMove: viewport.handlePointerMove,
+        onPointerUp: viewport.finishPointer,
+        onWheel: viewport.handleWheel,
+        ref: viewport.canvas
       }}
       error={error}
       header={<AppHeader />}
@@ -72,24 +79,35 @@ export function WorkspaceRoute() {
         <>
           {isVariantPreviewOpen && <VariantPreview />}
           <WorkspaceInspector />
-          <CanvasZoomControls
-            fitIcon={<ActionIcon icon={FitToScreenIcon} />}
-            maximumScale={maximumCanvasScale}
-            minimumScale={minimumCanvasScale}
-            mode={isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact'}
-            onFit={() => {
-              canvasViewChanged.current = false;
-              fitCanvas();
-            }}
-            onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
-            onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
-            scale={canvasScale}
-            zoomInIcon={<ActionIcon icon={ZoomInIcon} />}
-            zoomOutIcon={<ActionIcon icon={ZoomOutIcon} />}
-          />
+          <WorkspaceCanvasControls />
         </>
       }
-      mode={isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact'}
+      mode={canvasMode}
+    />
+  );
+}
+
+function WorkspaceCanvasControls() {
+  const { isAnnotationMode, isVariantPreviewOpen } = useDesktopApp();
+  const viewport = useCanvasViewportActions();
+  const canvasScale = useCanvasViewportScale();
+  const canvasMode = workspaceCanvasMode(isAnnotationMode, isVariantPreviewOpen);
+
+  return (
+    <CanvasZoomControls
+      fitIcon={<ActionIcon icon={FitToScreenIcon} />}
+      maximumScale={maximumCanvasScale}
+      minimumScale={minimumCanvasScale}
+      mode={canvasMode}
+      onFit={() => {
+        viewport.markViewUnchanged();
+        viewport.fit();
+      }}
+      onZoomIn={() => viewport.changeScale(canvasScale + canvasScaleStep)}
+      onZoomOut={() => viewport.changeScale(canvasScale - canvasScaleStep)}
+      scale={canvasScale}
+      zoomInIcon={<ActionIcon icon={ZoomInIcon} />}
+      zoomOutIcon={<ActionIcon icon={ZoomOutIcon} />}
     />
   );
 }

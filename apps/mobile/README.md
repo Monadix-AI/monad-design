@@ -10,7 +10,7 @@ Navigation uses Expo Router file routes: `/` pairs a Client, `/simulators` selec
 2. Start the Expo development server with `bun --cwd apps/mobile dev`.
 3. Open the app on an iPad, then enter the Core address and pairing code shown by Electron.
 
-Core listens on TCP port `41765`. macOS may ask permission to accept local-network connections. After the first successful pairing, the app reconnects automatically while the Core host's LAN IP remains unchanged. A new IP rotates the pairing code and requires pairing again.
+Core listens on TCP port `41765`. macOS may ask permission to accept local-network connections. The pairing code establishes the intended Core connection through a one-time handshake but does not issue credentials or authorize later requests. After the first successful pairing, the app reconnects automatically while the Core host's LAN IP remains unchanged. A new IP rotates the pairing code and requires pairing again.
 
 ## iPad capabilities
 

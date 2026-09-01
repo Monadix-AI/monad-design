@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
-import { canvasOffsetForZoom, clampCanvasOffset } from '../../src/lib/canvas-position';
+import { canvasOffsetForZoom, clampCanvasOffset } from '@monaddesign/simulator';
 
 describe('canvas position boundaries', () => {
   test('preserves offsets that keep the device within the canvas boundary', () => {

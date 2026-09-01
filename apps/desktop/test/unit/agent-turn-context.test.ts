@@ -1,8 +1,7 @@
 import type { AXElement, AXSnapshot } from '../../src/electron';
 
 import { describe, expect, test } from 'bun:test';
-
-import { buildAgentTurnContext, serializeAgentTurn } from '../../src/agent-turn-context';
+import { buildAgentTurnContext, serializeAgentTurn } from '@monaddesign/simulator';
 
 const selected: AXElement = {
   id: 'message-title',

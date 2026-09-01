@@ -1,23 +1,23 @@
 import { describe, expect, test } from 'bun:test';
 
-import { runTreaty, toError } from '../../src/endpoint-helpers';
+import { errorMessage, runTreaty, toError } from '../../src/endpoint-helpers';
 
 describe('client RTK endpoint helpers', () => {
   test('maps the standardized Core error response', () => {
     expect(
       toError({
-        status: 401,
+        status: 409,
         value: {
-          error: 'The pairing code is invalid.',
-          code: 'UNAUTHORIZED',
+          error: 'The session state changed.',
+          code: 'CONFLICT',
           retryable: false,
           requestId: 'req_example'
         }
       })
     ).toMatchObject({
-      message: 'The pairing code is invalid.',
-      status: 401,
-      code: 'UNAUTHORIZED',
+      message: 'The session state changed.',
+      status: 409,
+      code: 'CONFLICT',
       retryable: false,
       requestId: 'req_example'
     });
@@ -46,5 +46,10 @@ describe('client RTK endpoint helpers', () => {
         (raw) => raw.value * 2
       )
     ).toEqual({ data: 4 });
+  });
+
+  test('uses one display-message fallback across clients', () => {
+    expect(errorMessage({ message: 'Disconnected' })).toBe('Disconnected');
+    expect(errorMessage(undefined, 'Unavailable')).toBe('Unavailable');
   });
 });

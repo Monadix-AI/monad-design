@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import { createCoreTreaty } from '../../src/treaty-client';
 
-test('Core treaty targets v1 and sends pairing metadata', async () => {
+test('Core treaty targets v1', async () => {
   let captured: Request | undefined;
   const fetcher = Object.assign(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -18,9 +18,6 @@ test('Core treaty targets v1 and sends pairing metadata', async () => {
   );
   const client = createCoreTreaty({
     baseUrl: 'http://core.test/',
-    pairingCode: '123456',
-    clientId: 'test-client',
-    clientKind: 'agent',
     config: {
       fetcher
     }
@@ -31,9 +28,6 @@ test('Core treaty targets v1 and sends pairing metadata', async () => {
   expect(result.error).toBeNull();
   expect(result.data).toMatchObject({ protocolVersion: 1, apiVersion: 'v1' });
   expect(captured?.url).toBe('http://core.test/v1/health');
-  expect(captured?.headers.get('authorization')).toBe('Bearer 123456');
-  expect(captured?.headers.get('x-monad-design-client-id')).toBe('test-client');
-  expect(captured?.headers.get('x-monad-design-client-kind')).toBe('agent');
 });
 
 test('Core treaty calls explicit simulator routes', async () => {
@@ -53,7 +47,6 @@ test('Core treaty calls explicit simulator routes', async () => {
   );
   const client = createCoreTreaty({
     baseUrl: 'http://core.test',
-    pairingCode: '123456',
     config: { fetcher }
   });
 

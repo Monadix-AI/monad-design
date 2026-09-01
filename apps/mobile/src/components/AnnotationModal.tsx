@@ -1,34 +1,34 @@
 import type { PointerEvent as NativePointerEvent } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import {
+  type Annotation,
+  type AnnotationTool,
+  annotationBounds,
+  annotationConnectorPath,
+  annotationContainsPoint,
+  annotationId,
+  annotationInk,
+  annotationIsVisible,
+  annotationArrowHead as arrowHead,
+  calloutBadgeGeometry,
+  containAnnotationFrame as containFrame,
+  type DrawnAnnotation,
+  type FreehandAnnotation,
+  freehandIsVisible,
+  annotationImagePoint as imagePoint,
+  isDrawnAnnotation,
+  isFreehandAnnotation,
+  type AnnotationPoint as Point,
+  type AnnotationSize as Size,
+  translateAnnotation,
+  wrapAnnotationText
+} from '@monaddesign/simulator/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Ellipse, Line, Path, Polyline, Rect, Text as SvgText, TSpan } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
 
-import {
-  type Annotation,
-  type AnnotationTool,
-  annotationBounds,
-  annotationContainsPoint,
-  annotationId,
-  annotationInk,
-  annotationIsVisible,
-  arrowHead,
-  calloutBadgeGeometry,
-  calloutConnectorPath,
-  containFrame,
-  type DrawnAnnotation,
-  type FreehandAnnotation,
-  freehandIsVisible,
-  imagePoint,
-  isDrawnAnnotation,
-  isFreehandAnnotation,
-  type Point,
-  type Size,
-  translateAnnotation,
-  wrapAnnotationText
-} from '../annotation-model';
 import { GlassControl } from './GlassControl';
 
 const tools: Array<{ id: AnnotationTool; icon: keyof typeof Ionicons.glyphMap; label: string }> = [
@@ -216,7 +216,7 @@ export function AnnotationModal({
       const end = { x: notesLeft - 8, y: 84 + index * 122 };
       return {
         id: callout.id,
-        d: calloutConnectorPath(start, end)
+        d: annotationConnectorPath(start, end, { minimumReach: 54, precision: 3 })
       };
     });
   }, [callouts, compositionSize, frame, imageSize]);

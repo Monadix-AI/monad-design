@@ -1,4 +1,4 @@
-import type { AXSnapshot } from '../../src/types';
+import type { AccessibilitySnapshotResponse as AXSnapshot } from '@monaddesign/client-contract';
 
 import { describe, expect, test } from 'bun:test';
 import {

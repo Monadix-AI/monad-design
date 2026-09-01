@@ -1,7 +1,7 @@
 import type { AgentSessionSnapshot } from '../../src/server/agent-session-store';
 
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -67,7 +67,7 @@ describe('agent session store', () => {
     });
     expect(connected.status).toBe('awaiting_request');
 
-    const requested = sessions.request(created.id, {
+    const requested = await sessions.request(created.id, {
       request: 'Increase the title contrast',
       variantCount: 2,
       context: {
@@ -160,7 +160,16 @@ describe('agent session store', () => {
       const created = await sessions.create(root);
       sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
       const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
-      const requested = sessions.request(created.id, {
+      const annotationDirectory = join(root, '.monaddesign', 'tmp', 'annotations');
+      const orphanPath = join(annotationDirectory, '00000000-0000-4000-8000-000000000000.png');
+      const orphanTemporaryPath = join(
+        annotationDirectory,
+        '00000000-0000-4000-8000-000000000000.png.123.00000000-0000-4000-8000-000000000001.tmp'
+      );
+      await mkdir(annotationDirectory, { recursive: true });
+      await writeFile(orphanPath, png);
+      await writeFile(orphanTemporaryPath, png);
+      const requested = await sessions.request(created.id, {
         request: 'Implement the annotated changes',
         variantCount: 1,
         context: { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } },
@@ -170,7 +179,11 @@ describe('agent session store', () => {
       const screenshotPath = requested.changeRequest?.context.annotation?.screenshotPath;
       expect(screenshotPath).toStartWith(join(root, '.monaddesign', 'tmp', 'annotations'));
       expect(await readFile(screenshotPath ?? '')).toEqual(png);
+      await expect(readFile(orphanPath)).rejects.toThrow();
+      await expect(readFile(orphanTemporaryPath)).rejects.toThrow();
       expect(requested.changeRequest?.context.annotation?.mimeType).toBe('image/png');
+      await sessions.close(created.id);
+      await expect(readFile(screenshotPath ?? '')).rejects.toThrow();
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -185,18 +198,25 @@ describe('agent session store', () => {
     expect((await waiting).status).toBe('awaiting_request');
   });
 
+  test('returns the current session after a long-poll timeout', async () => {
+    const sessions = new AgentSessionStore(projectStore);
+    const created = await sessions.create('/tmp/example');
+
+    expect(await sessions.wait(created.id, created.revision, 1)).toEqual(created);
+  });
+
   test('rejects turn context for a different Simulator target', async () => {
     const sessions = new AgentSessionStore(projectStore);
     const created = await sessions.create('/tmp/example');
     sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
 
-    expect(() =>
+    await expect(
       sessions.request(created.id, {
         request: 'Adjust the title',
         variantCount: 1,
         context: { simulator: { udid: 'simulator-2', bundleIdentifier: 'com.example.app' } }
       })
-    ).toThrow('does not match');
+    ).rejects.toThrow('does not match');
   });
 
   test('enforces the 1 to 5 variant request boundary and published selection set', async () => {
@@ -205,10 +225,10 @@ describe('agent session store', () => {
     sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
     const context = { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } };
 
-    expect(() => sessions.request(created.id, { request: 'Adjust title', variantCount: 0, context })).toThrow(
+    await expect(sessions.request(created.id, { request: 'Adjust title', variantCount: 0, context })).rejects.toThrow(
       'between 1 and 5'
     );
-    const requested = sessions.request(created.id, { request: 'Adjust title', variantCount: 1, context });
+    const requested = await sessions.request(created.id, { request: 'Adjust title', variantCount: 1, context });
     sessions.claim(created.id, requested.changeRequest?.id ?? 'missing');
     await sessions.publishVariants(created.id, requested.changeRequest?.id ?? 'missing', 'Built one variant.');
     expect(() => sessions.confirmSelection(created.id, requested.changeRequest?.id ?? 'missing', 'v2')).toThrow(
@@ -225,6 +245,18 @@ describe('agent session store', () => {
     expect(sessions.active()?.id).toBe(second.id);
   });
 
+  test('retains only the most recent closed sessions', async () => {
+    const sessions = new AgentSessionStore(projectStore);
+    const created = [];
+    for (let index = 0; index < 22; index += 1) {
+      created.push(await sessions.create('/tmp/example', `Session ${index}`));
+    }
+
+    expect(() => sessions.get(created[0]?.id ?? 'missing')).toThrow('not found');
+    expect(sessions.get(created[1]?.id ?? 'missing').status).toBe('closed');
+    expect(sessions.active()?.id).toBe(created.at(-1)?.id);
+  });
+
   test('restores the active session from the machine Core state', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'monad-design-agent-sessions-'));
     const persistencePath = join(directory, 'agent-sessions.json');
@@ -232,7 +264,7 @@ describe('agent session store', () => {
       const firstStore = new AgentSessionStore(projectStore, { persistencePath });
       const created = await firstStore.create('/tmp/example', 'Keep this generation alive');
       firstStore.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
-      const requested = firstStore.request(created.id, {
+      const requested = await firstStore.request(created.id, {
         request: 'Adjust the title',
         variantCount: 1,
         context: { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } }

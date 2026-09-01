@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { LiveWorkspaceInspector, type LiveWorkspaceInspectorProps } from '../../src';
+import {
+  LiveWorkspaceInspector,
+  type LiveWorkspaceInspectorProps
+} from '../../src/business/live-session/workspace-inspector';
 
 const props: LiveWorkspaceInspectorProps = {
   agentStatus: 'awaiting_request',

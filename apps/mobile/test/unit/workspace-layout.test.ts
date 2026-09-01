@@ -55,6 +55,32 @@ describe('Simulator workspace layout', () => {
     expect(frame.height).toBeCloseTo(600 / (2622 / 1206));
   });
 
+  test('keeps the landscape frame aligned when runtime dimensions are already rotated', () => {
+    const frame = simulatorFrameSize({
+      screen: { width: phoneScreen.height, height: phoneScreen.width },
+      deviceName: 'iPhone 17 Pro',
+      orientation: 'landscape_right',
+      viewport: { width: 900, height: 900 },
+      scale: 1
+    });
+
+    expect(frame.width).toBeCloseTo(600);
+    expect(frame.height).toBeCloseTo(600 * (1206 / 2622));
+  });
+
+  test('keeps the portrait frame aligned when runtime dimensions arrive in landscape order', () => {
+    const frame = simulatorFrameSize({
+      screen: { width: phoneScreen.height, height: phoneScreen.width },
+      deviceName: 'iPhone 17 Pro',
+      orientation: 'portrait',
+      viewport: { width: 900, height: 900 },
+      scale: 1
+    });
+
+    expect(frame.width).toBeCloseTo(600 * (1206 / 2622));
+    expect(frame.height).toBeCloseTo(600);
+  });
+
   test('fits small canvases before applying manual zoom', () => {
     const fitted = simulatorFrameSize({
       screen: phoneScreen,

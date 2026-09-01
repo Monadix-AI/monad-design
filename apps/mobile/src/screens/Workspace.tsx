@@ -1,22 +1,23 @@
 import type {
-  AXElement,
-  AXSnapshot,
+  AccessibilitySnapshotResponse as AXSnapshot,
   IOSSimulator,
-  SimulatorConnection,
-  SimulatorOrientation,
-  SimulatorVariantId
-} from '../types';
+  SimulatorConnectionResponse as SimulatorConnection
+} from '@monaddesign/client-contract';
+import type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
 
-import { Ionicons } from '@expo/vector-icons';
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
+
+type AXElement = AXSnapshot['elements'][number];
+
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
-  type AgentSessionSnapshot,
   useDisconnectSimulatorMutation,
   useGetAccessibilitySnapshotQuery,
   useGetSimulatorAppearanceQuery,
   useLazyCaptureSimulatorScreenshotQuery,
   useSetSimulatorAppearanceMutation,
   useSetSimulatorPasteboardMutation
-} from '@monaddesign/client-rtk';
+} from '@monaddesign/client-rtk/endpoints';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 import {
   accessibilityElementAtPoint as axElementAtPoint,
@@ -24,14 +25,13 @@ import {
   canvasOffsetForZoom,
   canvasScaleStep,
   clampCanvasOffset,
-  encodeSimulatorFrame as encodeFrame,
   maximumCanvasScale,
   minimumCanvasScale,
   rotatedSimulatorOrientation as rotatedOrientation,
   orientCanvasPoint as simulatorPoint,
   simulatorVariantIdsForCount
 } from '@monaddesign/simulator';
-import { workspaceStore } from '@monaddesign/state';
+import { workspaceStore } from '@monaddesign/state/workspace-store';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -40,12 +40,13 @@ import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import { WebView } from 'react-native-webview';
 import { useStore } from 'zustand';
 
-import { ClientApi } from '../api';
 import { AgentRequestPanel } from '../components/AgentRequestPanel';
 import { AnnotationModal } from '../components/AnnotationModal';
 import { GlassControl } from '../components/GlassControl';
 import { VariantModal } from '../components/VariantModal';
 import { CanvasControl, ModeButton } from '../components/WorkspaceControls';
+import { useLiveAgentSession } from '../hooks/use-live-agent-session';
+import { useSimulatorInput } from '../hooks/use-simulator-input';
 import { styles } from '../styles';
 import { colors, errorMessage } from '../theme';
 import { simulatorChromeLayout, simulatorFrameSize, simulatorMaskGeometry } from '../workspace-layout';
@@ -85,6 +86,7 @@ const displayFrame = (element: AXElement, snapshot: AXSnapshot, orientation: Sim
 };
 
 const deviceControlsReservedHeight = 68;
+
 const touchPoint = (touch: { locationX: number; locationY: number }) => ({
   x: touch.locationX,
   y: touch.locationY
@@ -137,14 +139,8 @@ export function Workspace({
   connection: SimulatorConnection;
   onExit: () => void;
 }) {
-  const socket = useRef<WebSocket | null>(null);
   const touchActive = useRef(false);
-  const [socketReady, setSocketReady] = useState(false);
   const [streamReady, setStreamReady] = useState(false);
-  const [orientation, setOrientation] = useState<SimulatorOrientation>(connection.orientation ?? 'portrait');
-  const [screenSize, setScreenSize] = useState(
-    simulator.screen ? { width: simulator.screen.width, height: simulator.screen.height } : { width: 390, height: 844 }
-  );
   const { data: appearanceData } = useGetSimulatorAppearanceQuery();
   const appearance = appearanceData?.appearance ?? null;
   const selectionMode = useStore(workspaceStore, (state) => state.selectionMode);
@@ -171,7 +167,7 @@ export function Workspace({
   const [annotationImage, setAnnotationImage] = useState<string | null>(null);
   const [variantVisible, setVariantVisible] = useState(false);
   const [activeVariant, setActiveVariant] = useState<SimulatorVariantId | null>(null);
-  const [agentSession, setAgentSession] = useState<AgentSessionSnapshot | null>(null);
+  const [agentSession, setAgentSession] = useLiveAgentSession(api, connection);
   const [agentSessionError, setAgentSessionError] = useState<string | null>(null);
   const [isSendingAgentRequest, setIsSendingAgentRequest] = useState(false);
   const [variantCount, setVariantCount] = useState(1);
@@ -184,6 +180,20 @@ export function Workspace({
   const [captureScreenshot, captureState] = useLazyCaptureSimulatorScreenshotQuery();
   const [disconnectSimulator] = useDisconnectSimulatorMutation();
   const [error, setError] = useState<string | null>(null);
+  const {
+    orientation,
+    ready: socketReady,
+    screenSize,
+    send,
+    setOrientation
+  } = useSimulatorInput({
+    initialOrientation: connection.orientation ?? 'portrait',
+    initialScreenSize: simulator.screen
+      ? { width: simulator.screen.width, height: simulator.screen.height }
+      : { width: 390, height: 844 },
+    inputUrl: api.inputUrl(connection.inputPath),
+    onError: setError
+  });
   const canvasScaleRef = useRef(canvasScale);
   const canvasOffsetRef = useRef(canvasOffset);
   const canvasGesture = useRef<
@@ -217,71 +227,6 @@ export function Workspace({
   }, [resetWorkspaceState]);
 
   useEffect(() => {
-    const ws = new WebSocket(api.inputUrl(connection.inputPath));
-    ws.binaryType = 'arraybuffer';
-    ws.onopen = () => {
-      setSocketReady(true);
-      setError(null);
-    };
-    ws.onerror = () => setError('The Simulator input channel could not be opened.');
-    ws.onclose = () => setSocketReady(false);
-    ws.onmessage = (event) => {
-      if (!(event.data instanceof ArrayBuffer)) return;
-      const frame = new Uint8Array(event.data);
-      if (frame[0] !== 130) return;
-      try {
-        const value = JSON.parse(new TextDecoder().decode(frame.subarray(1))) as {
-          width?: number;
-          height?: number;
-          orientation?: SimulatorOrientation;
-        };
-        if (value.width && value.height) setScreenSize({ width: value.width, height: value.height });
-        if (value.orientation) setOrientation(value.orientation);
-      } catch {
-        /* Ignore malformed configuration frames. */
-      }
-    };
-    socket.current = ws;
-    return () => {
-      socket.current = null;
-      ws.close();
-    };
-  }, [api, connection.inputPath]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let connecting = false;
-    const refresh = async () => {
-      try {
-        let { session } = await api.activeAgentSession();
-        if (
-          session?.status === 'selecting_simulator' &&
-          session.project.id === connection.projectId &&
-          session.project.targetApps.some(({ bundleIdentifier }) => bundleIdentifier === connection.bundleIdentifier) &&
-          !connecting
-        ) {
-          connecting = true;
-          session = await api.connectAgentSession(session.id, {
-            udid: connection.udid,
-            bundleIdentifier: connection.bundleIdentifier
-          });
-          connecting = false;
-        }
-        if (!cancelled) setAgentSession(session?.status === 'closed' ? null : session);
-      } catch {
-        connecting = false;
-        if (!cancelled) setAgentSession(null);
-      }
-    };
-    void refresh();
-    const timer = setInterval(() => void refresh(), 1_200);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [api, connection.bundleIdentifier, connection.projectId, connection.udid]);
-
-  useEffect(() => {
     if (agentSession?.status === 'selection_confirmed') {
       setSelectedAgentVariant(agentSession.confirmedSelection?.variant ?? null);
     } else if (agentSession?.status !== 'variants_ready') {
@@ -306,14 +251,6 @@ export function Workspace({
     if (snapshotError) setError(errorMessage(snapshotError));
   }, [snapshotError]);
 
-  const send = useCallback((tag: number, payload: object) => {
-    if (socket.current?.readyState !== WebSocket.OPEN) {
-      setError('Simulator input is still starting.');
-      return false;
-    }
-    socket.current.send(encodeFrame(tag, payload));
-    return true;
-  }, []);
   const onTouch = useCallback(
     (type: 'begin' | 'move' | 'end', point: { x: number; y: number }) => {
       const normalized = simulatorPoint(point, orientation);
@@ -403,13 +340,20 @@ export function Workspace({
       setError(errorMessage(reason));
     }
   };
-  const selected = snapshot?.elements.find(({ path }) => path === selectedPath);
-  const agentTurnContext = buildAgentTurnContext({
-    bundleIdentifier: connection.bundleIdentifier,
-    ...(selected ? { element: selected } : {}),
-    ...(snapshot ? { snapshot } : {}),
-    simulator
-  });
+  const selected = useMemo(
+    () => snapshot?.elements.find(({ path }) => path === selectedPath),
+    [selectedPath, snapshot]
+  );
+  const agentTurnContext = useMemo(
+    () =>
+      buildAgentTurnContext({
+        bundleIdentifier: connection.bundleIdentifier,
+        ...(selected ? { element: selected } : {}),
+        ...(snapshot ? { snapshot } : {}),
+        simulator
+      }),
+    [connection.bundleIdentifier, selected, simulator, snapshot]
+  );
   const sendAgentRequest = async () => {
     if (agentSession?.status !== 'awaiting_request' || !request.trim()) return;
     setIsSendingAgentRequest(true);
@@ -693,8 +637,10 @@ export function Workspace({
         : orientation === 'portrait_upside_down'
           ? 'rotate(180deg)'
           : '';
+  const portraitScreenAspectRatio =
+    Math.min(screenSize.width, screenSize.height) / Math.max(screenSize.width, screenSize.height);
   const maskGeometry = simulatorMaskGeometry({ frame: frameSize, orientation });
-  const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>html,body{margin:0;background:transparent;width:100%;height:100%;overflow:hidden}img{position:absolute;left:50%;top:50%;object-fit:fill;transform:translate(-50%,-50%) ${streamTransform};width:${landscape ? `${(screenSize.width / screenSize.height) * 100}%` : '100%'};height:${landscape ? `${(screenSize.height / screenSize.width) * 100}%` : '100%'}}</style><img src=${JSON.stringify(stream)} onload="window.ReactNativeWebView.postMessage('ready')">`;
+  const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>html,body{margin:0;background:transparent;width:100%;height:100%;overflow:hidden}img{position:absolute;left:50%;top:50%;object-fit:fill;transform:translate(-50%,-50%) ${streamTransform};width:${landscape ? `${portraitScreenAspectRatio * 100}%` : '100%'};height:${landscape ? `${(1 / portraitScreenAspectRatio) * 100}%` : '100%'}}</style><img src=${JSON.stringify(stream)} onload="window.ReactNativeWebView.postMessage('ready')">`;
 
   const exit = async () => {
     try {

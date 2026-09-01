@@ -1,12 +1,18 @@
-import type { IOSSimulator, RemoteProject, SimulatorConnection } from '../types';
+import type { IOSSimulator, RemoteProject, SimulatorConnectionResponse } from '@monaddesign/client-contract';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   simulatorSelectors,
   useConnectSimulatorMutation,
   useGetProjectIconsQuery,
   useListSimulatorsQuery
-} from '@monaddesign/client-rtk';
+} from '@monaddesign/client-rtk/endpoints';
+import {
+  parseSimulatorHistory,
+  recordUsedSimulator,
+  simulatorHistoryKey,
+  sortSimulatorsForProject
+} from '@monaddesign/simulator-history';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
@@ -16,12 +22,6 @@ import { Brand } from '../components/Brand';
 import { GlassControl } from '../components/GlassControl';
 import { SimulatorDeviceGlyph } from '../components/SimulatorDeviceGlyph';
 import { Action } from '../components/WorkspaceControls';
-import {
-  parseSimulatorHistory,
-  recordUsedSimulator,
-  simulatorHistoryKey,
-  sortSimulatorsForProject
-} from '../simulator-history';
 import { styles } from '../styles';
 import { colors, errorMessage } from '../theme';
 
@@ -31,7 +31,7 @@ export function SimulatorPicker({
   onBack
 }: {
   project: RemoteProject;
-  onConnected: (simulator: IOSSimulator, connection: SimulatorConnection) => void;
+  onConnected: (simulator: IOSSimulator, connection: SimulatorConnectionResponse) => void;
   onBack: () => void;
 }) {
   const { data, error: queryError, isFetching, isLoading, refetch } = useListSimulatorsQuery();

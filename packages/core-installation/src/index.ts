@@ -51,7 +51,6 @@ export const resolveCorePaths = (environment: CorePathsEnvironment = process.env
   return {
     stateDirectory,
     bootstrapPath: environment.MONAD_DESIGN_CORE_BOOTSTRAP_PATH ?? join(stateDirectory, 'bootstrap.json'),
-    credentialsPath: join(stateDirectory, 'credentials.json'),
     executablePath: environment.MONAD_DESIGN_CORE_EXECUTABLE_PATH ?? join(stateDirectory, 'bin', 'monad-design'),
     nativeAddonPath: join(
       dirname(environment.MONAD_DESIGN_CORE_EXECUTABLE_PATH ?? join(stateDirectory, 'bin', 'monad-design')),

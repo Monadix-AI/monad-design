@@ -1,12 +1,12 @@
 import type { AddressInfo, Socket } from 'node:net';
+import type { SimulatorOrientation } from '@monaddesign/simulator';
 
 import { execFile, spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
 
 import { createSharedOperation } from './shared-operation';
-import { listAvailableSimulators, readSimulatorOrientation, type SimulatorOrientation } from './simulators';
+import { listAvailableSimulators, readSimulatorOrientation } from './simulators';
 
 interface SimMiddleware {
   (request: IncomingMessage, response: ServerResponse, next?: (error?: unknown) => Promise<void>): Promise<void>;
@@ -17,7 +17,6 @@ type SimMiddlewareFactory = (options: {
   basePath: string;
   codec: string;
   device: string;
-  execToken: string;
   proxyHelpers: boolean;
 }) => SimMiddleware;
 
@@ -171,6 +170,10 @@ class SimulatorBridge {
       this.#connection.projectId === target.projectId &&
       this.#connection.bundleIdentifier === target.bundleIdentifier
     ) {
+      this.#connection = {
+        ...this.#connection,
+        orientation: await readSimulatorOrientation(udid)
+      };
       return this.#connection;
     }
 
@@ -180,7 +183,6 @@ class SimulatorBridge {
       basePath,
       codec: 'mjpeg',
       device: udid,
-      execToken: randomBytes(32).toString('base64url'),
       proxyHelpers: true
     });
     const server = createServer((request, response) => {

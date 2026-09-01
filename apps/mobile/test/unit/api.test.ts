@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-
-import { ClientApi } from '../../src/api';
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
 
 const originalFetch = globalThis.fetch;
 
@@ -9,6 +8,20 @@ afterEach(() => {
 });
 
 describe('ClientApi projects', () => {
+  test('establishes a connection with the pairing code without creating credentials', async () => {
+    let captured: Request | undefined;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      captured = new Request(input, init);
+      return Response.json({ paired: true });
+    }) as typeof fetch;
+    const api = new ClientApi({ origin: '192.168.1.20:41765', pairingCode: '123456' });
+
+    expect(await api.pair()).toEqual({ paired: true });
+    expect(captured?.url).toBe('http://192.168.1.20:41765/v1/pair');
+    expect(captured?.headers.has('authorization')).toBe(false);
+    expect(await captured?.json()).toEqual({ pairingCode: '123456' });
+  });
+
   test('lists and opens projects through the paired desktop', async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -52,17 +65,12 @@ describe('ClientApi projects', () => {
     });
 
     expect(api.connection.pairingCode).toBe('123456');
-    expect(api.streamUrl('/v1/simulator/stream')).toBe(
-      'http://192.168.1.20:41765/v1/simulator/stream?accessToken=123456'
-    );
+    expect(api.streamUrl('/v1/simulator/stream')).toBe('http://192.168.1.20:41765/v1/simulator/stream');
 
     expect(await api.projects()).toHaveLength(1);
     expect((await api.openProject('project-1')).name).toBe('Sample App');
     expect(requests[0]?.url).toBe('http://192.168.1.20:41765/v1/projects?limit=100&offset=0');
-    expect(requests[0]?.init?.headers).toMatchObject({
-      authorization: 'Bearer 123456',
-      'x-monad-design-client-kind': 'companion'
-    });
+    expect(new Headers(requests[0]?.init?.headers).has('authorization')).toBe(false);
     expect(requests[1]?.init?.method).toBe('POST');
     expect(requests[1]?.url).toBe('http://192.168.1.20:41765/v1/projects/project-1/open');
     expect(requests[1]?.init?.body).toBeUndefined();

@@ -9,7 +9,7 @@
     "typescript": "^7.0.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    "./workspace-store": "./src/workspace-store.ts"
   },
   "private": true,
   "scripts": {

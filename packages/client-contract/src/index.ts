@@ -136,6 +136,11 @@ export const healthResponseSchema = z.object({
 });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
+export const pairCoreRequestSchema = z.object({ pairingCode: z.string().regex(/^\d{6}$/u) });
+export type PairCoreRequest = z.infer<typeof pairCoreRequestSchema>;
+export const pairCoreResponseSchema = z.object({ paired: z.literal(true) });
+export type PairCoreResponse = z.infer<typeof pairCoreResponseSchema>;
+
 export const iosSimulatorSchema = z.object({
   udid: z.string(),
   name: z.string(),

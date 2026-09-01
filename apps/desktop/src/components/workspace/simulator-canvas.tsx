@@ -13,28 +13,43 @@ import TextIcon from '@hugeicons/core-free-icons/TextIcon';
 import Undo02Icon from '@hugeicons/core-free-icons/Undo02Icon';
 import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
 import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
+import { canvasScaleStep, maximumCanvasScale, minimumCanvasScale, normalizedCanvasPoint } from '@monaddesign/simulator';
+import { LiveAnnotationSurface } from '@monaddesign/ui/business/annotation/live-surface';
 import {
   CanvasZoomControls,
-  LiveAnnotationSurface,
   liveWorkspaceCanvasPlacement,
-  SimulatorCanvas as SharedSimulatorCanvas,
   SimulatorDeviceControls
-} from '@monaddesign/ui';
-import { useMemo } from 'react';
+} from '@monaddesign/ui/business/canvas-controls';
+import { SimulatorCanvas as SharedSimulatorCanvas } from '@monaddesign/ui/business/simulator-canvas';
+import { type PointerEvent, useMemo, useState } from 'react';
 
+import { useCanvasViewportActions, useCanvasViewportOffset, useCanvasViewportScale } from '@/canvas-viewport-provider';
 import { ActionIcon } from '@/components/action-icon';
 import { useDesktopApp } from '@/desktop-app-provider';
+import { workspaceCanvasMode } from '@/desktop-model';
 
 export function SimulatorCanvas() {
   const app = useDesktopApp();
+  const viewport = useCanvasViewportActions();
+  const canvasOffset = useCanvasViewportOffset();
+  const canvasScale = useCanvasViewportScale();
+  const [pointer, setPointer] = useState<{ x: number; y: number; pressed: boolean } | null>(null);
   const deviceChrome = app.connected?.deviceChrome;
   const axSnapshot = app.axSnapshot;
-  const canvasMode = app.isAnnotationMode ? 'annotate' : app.isVariantPreviewOpen ? 'variants' : 'interact';
+  const canvasMode = workspaceCanvasMode(app.isAnnotationMode, app.isVariantPreviewOpen);
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
   const annotationSize = useMemo(
     () => ({ width: app.deviceWidth, height: app.deviceHeight }),
     [app.deviceHeight, app.deviceWidth]
   );
+  const pointerFromEvent = (event: PointerEvent<HTMLButtonElement>) => {
+    const bounds = app.screenImage.current?.getBoundingClientRect();
+    return bounds ? normalizedCanvasPoint({ x: event.clientX, y: event.clientY }, bounds) : null;
+  };
+  const updatePointer = (event: PointerEvent<HTMLButtonElement>, pressed?: boolean) => {
+    const point = pointerFromEvent(event);
+    setPointer((current) => (point ? { ...point, pressed: pressed ?? current?.pressed ?? false } : null));
+  };
   const selectionOverlay = !app.isAnnotationMode ? (
     <>
       {app.isAXTreeOpen && axSnapshot && (
@@ -78,7 +93,7 @@ export function SimulatorCanvas() {
       onRotateRight={() => app.rotate('right')}
       rotateLeftIcon={<ActionIcon icon={RotateCcwIcon} />}
       rotateRightIcon={<ActionIcon icon={RotateCwIcon} />}
-      scale={app.canvasScale}
+      scale={canvasScale}
     />
   );
 
@@ -118,9 +133,9 @@ export function SimulatorCanvas() {
             className={`device-cluster canvas-mode-${canvasMode}`}
             data-canvas-ui
             style={{
-              left: `calc(${canvasPlacement.left} + ${app.canvasOffset.x}px)`,
-              top: `calc(50% + ${app.canvasOffset.y}px)`,
-              transform: `translate(-50%, -50%) scale(${app.canvasScale * canvasPlacement.scale})`
+              left: `calc(${canvasPlacement.left} + ${canvasOffset.x}px)`,
+              top: `calc(50% + ${canvasOffset.y}px)`,
+              transform: `translate(-50%, -50%) scale(${canvasScale * canvasPlacement.scale})`
             }}
           >
             <SharedSimulatorCanvas
@@ -134,20 +149,51 @@ export function SimulatorCanvas() {
               onKeyDown={app.isAnnotationMode ? undefined : (event) => app.handleKey(event, 'down')}
               onKeyUp={app.isAnnotationMode ? undefined : (event) => app.handleKey(event, 'up')}
               onPaste={app.isAnnotationMode ? undefined : app.handlePaste}
-              onPointerCancel={app.isAnnotationMode ? undefined : app.finishPointer}
-              onPointerDown={app.isAnnotationMode ? undefined : app.handlePointerDown}
-              onPointerLeave={app.isAnnotationMode ? undefined : app.leavePointer}
-              onPointerMove={app.isAnnotationMode ? undefined : app.handlePointerMove}
-              onPointerUp={app.isAnnotationMode ? undefined : app.finishPointer}
+              onPointerCancel={
+                app.isAnnotationMode
+                  ? undefined
+                  : (event) => {
+                      app.finishPointer(event);
+                      updatePointer(event, false);
+                    }
+              }
+              onPointerDown={
+                app.isAnnotationMode
+                  ? undefined
+                  : (event) => {
+                      app.handlePointerDown(event);
+                      updatePointer(event, !app.isAXTreeOpen && Boolean(app.connected));
+                    }
+              }
+              onPointerLeave={
+                app.isAnnotationMode
+                  ? undefined
+                  : () => {
+                      app.leavePointer();
+                      setPointer((current) => (current?.pressed ? current : null));
+                    }
+              }
+              onPointerMove={
+                app.isAnnotationMode
+                  ? undefined
+                  : (event) => {
+                      app.handlePointerMove(event);
+                      updatePointer(event);
+                    }
+              }
+              onPointerUp={
+                app.isAnnotationMode
+                  ? undefined
+                  : (event) => {
+                      app.finishPointer(event);
+                      updatePointer(event, false);
+                    }
+              }
               onStreamError={() => app.setError('The simulator video stream stopped.')}
               onStreamLoad={() => app.setIsStreamReady(true)}
               orientation={app.orientation}
               overlay={app.isAnnotationMode ? annotationOverlay : selectionOverlay}
-              pointer={
-                !app.isAnnotationMode && app.pointerPosition
-                  ? { ...app.pointerPosition, pressed: app.pointerActive.current }
-                  : null
-              }
+              pointer={!app.isAnnotationMode ? pointer : null}
               screenClassName={`phone-frame interactive canvas-phone device-${app.deviceFrame.kind} ${deviceChrome ? 'native-device-chrome' : ''}`}
               screenImageRef={app.screenImage}
               streamUrl={app.connection?.streamUrl ?? ''}
@@ -155,16 +201,16 @@ export function SimulatorCanvas() {
           </div>
           <CanvasZoomControls
             fitIcon={<ActionIcon icon={FitToScreenIcon} />}
-            maximumScale={app.maximumCanvasScale}
-            minimumScale={app.minimumCanvasScale}
+            maximumScale={maximumCanvasScale}
+            minimumScale={minimumCanvasScale}
             mode={canvasMode}
             onFit={() => {
-              app.canvasViewChanged.current = false;
-              app.fitCanvas();
+              viewport.markViewUnchanged();
+              viewport.fit();
             }}
-            onZoomIn={() => app.changeCanvasScale(app.canvasScale + app.canvasScaleStep)}
-            onZoomOut={() => app.changeCanvasScale(app.canvasScale - app.canvasScaleStep)}
-            scale={app.canvasScale}
+            onZoomIn={() => viewport.changeScale(canvasScale + canvasScaleStep)}
+            onZoomOut={() => viewport.changeScale(canvasScale - canvasScaleStep)}
+            scale={canvasScale}
             zoomInIcon={<ActionIcon icon={ZoomInIcon} />}
             zoomOutIcon={<ActionIcon icon={ZoomOutIcon} />}
           />

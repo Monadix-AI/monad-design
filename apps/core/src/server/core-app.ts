@@ -1,45 +1,27 @@
+import type { ProjectTargetDetection } from '@monaddesign/client-contract';
 import type { ProjectStore } from '../project-store';
 import type { AgentSessionStore } from './agent-session-store';
 import type { createMonadDesignMcpHandler } from './mcp-server';
 
 import { node } from '@elysia/node';
+import { healthResponseSchema, pairCoreRequestSchema, pairCoreResponseSchema } from '@monaddesign/client-contract';
 import { Elysia } from 'elysia';
 
 import { createAdminProjectRoutes } from './admin-project-routes';
 import { createAgentSessionRoutes } from './agent-session-routes';
-import { healthResponseSchema } from './api-contract';
 import { CoreApiError, projectHttpError, requestCorrelationId } from './api-error';
-import { localSessionCookieName } from './auth';
 import { createProjectRoutes } from './project-routes';
 import { createSimulatorRoutes } from './simulator-routes';
 
 type CoreProjectStore = Pick<ProjectStore, 'list' | 'open' | 'add' | 'configureLiveTargets'> &
   Partial<Pick<ProjectStore, 'icons' | 'configure' | 'remove'>>;
 
-const localUiHostnames = new Set(['127.0.0.1', 'localhost', '[::1]']);
-
-const localUiResponse = async (
-  request: Request,
-  token: string,
-  ui: ((pathname: string) => Response | Promise<Response>) | undefined
-) => {
-  const response = ui ? await ui('/') : new Response('not found', { status: 404 });
-  if (!localUiHostnames.has(new URL(request.url).hostname)) return response;
-  const headers = new Headers(response.headers);
-  headers.append(
-    'set-cookie',
-    `${localSessionCookieName}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/`
-  );
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
-};
-
 export const createCoreApp = (
   projectStore: CoreProjectStore,
-  accessTokens: string | readonly string[],
-  adminAccessToken: string,
+  pairingCode: string,
   mcp: ReturnType<typeof createMonadDesignMcpHandler>,
   agentSessions: AgentSessionStore,
-  detectTargets: (path: string) => Promise<import('./api-contract').ProjectTargetDetection>,
+  detectTargets: (path: string) => Promise<ProjectTargetDetection>,
   ui: ((pathname: string) => Response | Promise<Response>) | undefined
 ) => {
   const adapter = node();
@@ -47,8 +29,7 @@ export const createCoreApp = (
   return new Elysia({ adapter, name: 'core.app' })
     .onRequest(({ set }) => {
       set.headers['access-control-allow-origin'] = '*';
-      set.headers['access-control-allow-headers'] =
-        'authorization, content-type, x-monad-design-client-id, x-monad-design-client-kind';
+      set.headers['access-control-allow-headers'] = 'content-type';
       set.headers['access-control-allow-methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
     })
     .onError(({ code, error, set, status }) => {
@@ -64,7 +45,7 @@ export const createCoreApp = (
       return status(mapped.status, mapped.body);
     })
     .options('/*', ({ status }) => status(204))
-    .get('/', ({ request }) => localUiResponse(request, adminAccessToken, ui))
+    .get('/', () => (ui ? ui('/') : new Response('not found', { status: 404 })))
     .get('/assets/*', ({ request }) =>
       ui ? ui(new URL(request.url).pathname) : new Response('not found', { status: 404 })
     )
@@ -81,10 +62,20 @@ export const createCoreApp = (
           }),
           { response: { 200: healthResponseSchema } }
         )
-        .use(createAgentSessionRoutes(agentSessions, accessTokens))
-        .use(createProjectRoutes(projectStore, accessTokens))
-        .use(createAdminProjectRoutes(projectStore, adminAccessToken, detectTargets))
-        .use(createSimulatorRoutes(projectStore, accessTokens, adapter))
+        .post(
+          '/pair',
+          ({ body }) => {
+            if (body.pairingCode !== pairingCode) {
+              throw new CoreApiError(409, 'PAIRING_MISMATCH', 'The pairing code does not match this Core.');
+            }
+            return { paired: true as const };
+          },
+          { body: pairCoreRequestSchema, response: { 200: pairCoreResponseSchema } }
+        )
+        .use(createAgentSessionRoutes(agentSessions))
+        .use(createProjectRoutes(projectStore))
+        .use(createAdminProjectRoutes(projectStore, detectTargets))
+        .use(createSimulatorRoutes(projectStore, adapter))
     );
 };
 

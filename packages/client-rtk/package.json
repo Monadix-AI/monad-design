@@ -14,7 +14,12 @@
     "typescript": "^7.0.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    "./api-slice": "./src/api-slice.ts",
+    "./client-api": "./src/client-api.ts",
+    "./endpoint-helpers": "./src/endpoint-helpers.ts",
+    "./endpoints": "./src/endpoints.ts",
+    "./store": "./src/store.ts",
+    "./treaty-client": "./src/treaty-client.ts"
   },
   "peerDependencies": {
     "react": "^19.2.8",

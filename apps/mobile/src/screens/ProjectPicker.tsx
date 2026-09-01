@@ -1,9 +1,9 @@
-import type { RemoteProject } from '../types';
+import type { RemoteProject } from '@monaddesign/client-contract';
 
-import { Ionicons } from '@expo/vector-icons';
-import { projectSelectors, useListProjectsQuery, useOpenProjectMutation } from '@monaddesign/client-rtk';
-import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { projectSelectors, useListProjectsQuery, useOpenProjectMutation } from '@monaddesign/client-rtk/endpoints';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '../components/Brand';
@@ -11,6 +11,47 @@ import { GlassControl } from '../components/GlassControl';
 import { Action } from '../components/WorkspaceControls';
 import { styles } from '../styles';
 import { colors, errorMessage } from '../theme';
+
+const skeletonRows = ['first', 'second', 'third'];
+
+function ProjectListSkeleton() {
+  const opacity = useRef(new Animated.Value(0.46)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { duration: 720, toValue: 0.82, useNativeDriver: true }),
+        Animated.timing(opacity, { duration: 720, toValue: 0.46, useNativeDriver: true })
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      accessibilityLabel="Loading desktop projects"
+      accessibilityRole="progressbar"
+      style={[styles.projectSkeletonList, { opacity }]}
+    >
+      {skeletonRows.map((row) => (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          key={row}
+          style={styles.projectSkeletonItem}
+        >
+          <View style={styles.projectSkeletonIcon} />
+          <View style={styles.projectSkeletonIdentity}>
+            <View style={styles.projectSkeletonName} />
+            <View style={styles.projectSkeletonMeta} />
+          </View>
+          <View style={styles.projectSkeletonChevron} />
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
 
 export function ProjectPicker({
   onForget,
@@ -110,12 +151,7 @@ export function ProjectPicker({
               )}
             </GlassControl>
           ))}
-          {busy && projects.length === 0 && (
-            <View style={styles.projectStatus}>
-              <ActivityIndicator color={colors.accent} />
-              <Text style={styles.projectStatusText}>Loading desktop projects…</Text>
-            </View>
-          )}
+          {busy && projects.length === 0 && <ProjectListSkeleton />}
           {!busy && projects.length === 0 && !error && (
             <View style={styles.projectStatus}>
               <Ionicons

@@ -1,8 +1,7 @@
-import type { IOSSimulator } from '../../src/types';
+import type { IOSSimulator } from '@monaddesign/client-contract';
 
 import { describe, expect, test } from 'bun:test';
-
-import { parseSimulatorHistory, recordUsedSimulator, sortSimulatorsForProject } from '../../src/simulator-history';
+import { parseSimulatorHistory, recordUsedSimulator, sortSimulatorsForProject } from '@monaddesign/simulator-history';
 
 const simulator = (udid: string, state: IOSSimulator['state']): IOSSimulator => ({
   udid,

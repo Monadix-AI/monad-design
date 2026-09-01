@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  createDeviceProfileLoader,
   createSimulatorListLoader,
   deviceChromeGeometry,
   markConnectedSimulator,
@@ -109,6 +110,26 @@ describe('simulator discovery', () => {
 
     await expect(load()).rejects.toThrow('simctl unavailable');
     expect(await load()).toEqual([simulator('RECOVERED')]);
+    expect(lookups).toBe(2);
+  });
+
+  test('retries failed device profiles but permanently reuses successful metadata', async () => {
+    let lookups = 0;
+    const load = createDeviceProfileLoader(async ({ identifier }: { identifier: string }) => {
+      lookups += 1;
+      if (lookups === 1) throw new Error('Xcode metadata unavailable');
+      return { identifier, screen: { width: 390, height: 844 } };
+    });
+
+    await expect(load({ identifier: 'iphone' })).rejects.toThrow('Xcode metadata unavailable');
+    expect(await load({ identifier: 'iphone' })).toEqual({
+      identifier: 'iphone',
+      screen: { width: 390, height: 844 }
+    });
+    expect(await load({ identifier: 'iphone' })).toEqual({
+      identifier: 'iphone',
+      screen: { width: 390, height: 844 }
+    });
     expect(lookups).toBe(2);
   });
 });

@@ -4,7 +4,8 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { ProjectStore } from './project-store';
-import { AgentSessionStore, createCoreServer } from './server';
+import { AgentSessionStore } from './server/agent-session-store';
+import { CoreServer } from './server/core-server';
 import { simulatorBridge } from './simulator-bridge';
 import { launchSimulatorApp } from './simulators';
 
@@ -12,19 +13,11 @@ export interface CoreRuntimeOptions {
   stateDirectory: string;
   host?: string;
   port?: number;
-  localAccessToken?: string;
   onSessionChanged?: (session: AgentSessionSnapshot) => void;
   ui?: (pathname: string) => Response | Promise<Response>;
 }
 
-export const createCoreRuntime = async ({
-  stateDirectory,
-  host,
-  port,
-  localAccessToken,
-  onSessionChanged,
-  ui
-}: CoreRuntimeOptions) => {
+export const createCoreRuntime = async ({ stateDirectory, host, port, onSessionChanged, ui }: CoreRuntimeOptions) => {
   await mkdir(stateDirectory, { recursive: true });
   const projectStore = new ProjectStore(join(stateDirectory, 'projects.json'));
   const agentSessions = new AgentSessionStore(projectStore, {
@@ -43,10 +36,9 @@ export const createCoreRuntime = async ({
       await launchSimulatorApp(connection.udid, connection.bundleIdentifier);
     }
   });
-  const server = createCoreServer(projectStore, {
+  const server = new CoreServer(projectStore, {
     host,
     port,
-    localAccessToken,
     pairingStatePath: join(stateDirectory, 'pairing.json'),
     agentSessions,
     ui

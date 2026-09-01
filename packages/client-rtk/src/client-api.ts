@@ -3,25 +3,25 @@ import type {
   ConfigureCoreProjectRequest,
   ConfirmAgentSelectionRequest,
   ConnectAgentSessionRequest,
-  CoreProject,
-  CoreProjectListResponse,
-  ProjectTargetDetection,
-  RemovedProjectResponse,
-  SimulatorVariantId,
+  LaunchVariantRequest,
   SubmitAgentRequest
-} from './client-types';
+} from '@monaddesign/client-contract';
 
 import { coreEndpoints, projectSelectors, simulatorSelectors } from './endpoints';
 import { type ClientStore, createClientStore } from './store';
 import { createCoreTreaty } from './treaty-client';
 
+type SimulatorVariantId = LaunchVariantRequest['variant'];
+
 export interface ClientConnection {
   origin: string;
-  accessToken: string;
+  accessToken?: string;
   pairingCode?: string;
 }
 
-export type ClientKind = 'agent' | 'companion' | 'desktop';
+export interface ClientApiOptions {
+  requestTimeoutMilliseconds?: number;
+}
 
 const normalizeOrigin = (value: string) => {
   const withProtocol = /^https?:\/\//i.test(value.trim()) ? value.trim() : `http://${value.trim()}`;
@@ -32,18 +32,37 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   readonly connection: TConnection;
   readonly store: ClientStore;
 
-  constructor(connection: TConnection, clientKind: ClientKind = 'companion') {
+  constructor(connection: TConnection, options: ClientApiOptions = {}) {
+    const accessToken = connection.accessToken?.trim();
+    const requestTimeoutMilliseconds = options.requestTimeoutMilliseconds;
     this.connection = {
       ...connection,
       origin: normalizeOrigin(connection.origin),
-      accessToken: connection.accessToken.trim(),
+      ...(accessToken ? { accessToken } : {}),
       ...(connection.pairingCode ? { pairingCode: connection.pairingCode.trim() } : {})
     } as TConnection;
     this.store = createClientStore(
       createCoreTreaty({
         baseUrl: this.connection.origin,
-        pairingCode: this.connection.accessToken,
-        clientKind
+        ...(accessToken || requestTimeoutMilliseconds
+          ? {
+              config: {
+                ...(requestTimeoutMilliseconds
+                  ? {
+                      onRequest: () => ({ signal: AbortSignal.timeout(requestTimeoutMilliseconds) })
+                    }
+                  : {}),
+                ...(accessToken
+                  ? {
+                      headers: {
+                        authorization: `Bearer ${accessToken}`,
+                        'x-monad-design-client-kind': 'desktop'
+                      }
+                    }
+                  : {})
+              }
+            }
+          : {})
       })
     );
   }
@@ -53,66 +72,46 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   }
 
   streamUrl(path: string) {
-    return `${this.url(path)}?accessToken=${encodeURIComponent(this.connection.accessToken)}`;
+    const url = this.url(path);
+    return this.connection.accessToken
+      ? `${url}${url.includes('?') ? '&' : '?'}accessToken=${encodeURIComponent(this.connection.accessToken)}`
+      : url;
   }
 
   inputUrl(path: string) {
     return this.streamUrl(path).replace(/^http/, 'ws');
   }
 
-  async #adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(this.url(path), {
-      ...init,
-      headers: {
-        authorization: `Bearer ${this.connection.accessToken}`,
-        'content-type': 'application/json',
-        'x-monad-design-client-kind': 'desktop',
-        ...init?.headers
-      }
-    });
-    const body = (await response.json()) as T | { error?: string };
-    if (!response.ok) {
-      const error = (body as { error?: unknown }).error;
-      throw new Error(typeof error === 'string' ? error : 'Core request failed.');
-    }
-    return body as T;
-  }
-
   async adminProjects() {
-    return (await this.#adminRequest<CoreProjectListResponse>('/v1/admin/projects/')).projects;
+    const response = await this.store
+      .dispatch(
+        coreEndpoints.endpoints.listAdminProjects.initiate(undefined, {
+          forceRefetch: true,
+          subscribe: false
+        })
+      )
+      .unwrap();
+    return response.projects;
   }
 
   openAdminProject(id: string) {
-    return this.#adminRequest<CoreProject>(`/v1/admin/projects/${encodeURIComponent(id)}/open`, {
-      method: 'POST'
-    });
+    return this.store.dispatch(coreEndpoints.endpoints.openAdminProject.initiate(id)).unwrap();
   }
 
   detectProjectTargets(path: string) {
-    return this.#adminRequest<ProjectTargetDetection>('/v1/admin/projects/detect-targets', {
-      method: 'POST',
-      body: JSON.stringify({ path })
-    });
+    return this.store.dispatch(coreEndpoints.endpoints.detectProjectTargets.initiate(path)).unwrap();
   }
 
   addAdminProject(body: AddCoreProjectRequest) {
-    return this.#adminRequest<CoreProject>('/v1/admin/projects/', {
-      method: 'POST',
-      body: JSON.stringify(body)
-    });
+    return this.store.dispatch(coreEndpoints.endpoints.addAdminProject.initiate(body)).unwrap();
   }
 
   configureAdminProject(id: string, body: ConfigureCoreProjectRequest) {
-    return this.#adminRequest<CoreProject>(`/v1/admin/projects/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: JSON.stringify(body)
-    });
+    return this.store.dispatch(coreEndpoints.endpoints.configureAdminProject.initiate({ id, body })).unwrap();
   }
 
   removeAdminProject(id: string) {
-    return this.#adminRequest<RemovedProjectResponse>(`/v1/admin/projects/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
-    });
+    return this.store.dispatch(coreEndpoints.endpoints.removeAdminProject.initiate(id)).unwrap();
   }
 
   health() {
@@ -122,6 +121,13 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
           subscribe: false
         })
       )
+      .unwrap();
+  }
+
+  pair() {
+    if (!this.connection.pairingCode) throw new Error('A pairing code is required to establish this connection.');
+    return this.store
+      .dispatch(coreEndpoints.endpoints.pairCore.initiate({ pairingCode: this.connection.pairingCode }))
       .unwrap();
   }
 
@@ -146,6 +152,10 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
 
   confirmAgentSelection(id: string, body: ConfirmAgentSelectionRequest) {
     return this.store.dispatch(coreEndpoints.endpoints.confirmAgentSelection.initiate({ id, body })).unwrap();
+  }
+
+  closeAgentSession(id: string) {
+    return this.store.dispatch(coreEndpoints.endpoints.closeAgentSession.initiate(id)).unwrap();
   }
 
   async projects() {

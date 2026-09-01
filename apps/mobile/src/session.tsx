@@ -1,5 +1,6 @@
-import type { ClientApi } from './api';
-import type { ClientConnection, IOSSimulator, RemoteProject, SimulatorConnection } from './types';
+import type { IOSSimulator, RemoteProject, SimulatorConnectionResponse } from '@monaddesign/client-contract';
+import type { ClientApi } from '@monaddesign/client-rtk/client-api';
+import type { ClientConnection } from './types';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
@@ -9,16 +10,16 @@ export const savedClientKey = 'monaddesign.remote-client.v1';
 
 interface SimulatorSession {
   simulator: IOSSimulator;
-  connection: SimulatorConnection;
+  connection: SimulatorConnectionResponse;
 }
 
 interface SessionContextValue {
-  api: ClientApi | null;
+  api: ClientApi<ClientConnection> | null;
   hydrated: boolean;
   savedClient: ClientConnection | null;
   project: RemoteProject | null;
   session: SimulatorSession | null;
-  connectClient: (api: ClientApi) => void;
+  connectClient: (api: ClientApi<ClientConnection>) => void;
   forgetClient: () => Promise<void>;
   openProject: (project: RemoteProject) => void;
   closeProject: () => void;
@@ -31,7 +32,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
   const [savedClient, setSavedClient] = useState<ClientConnection | null>(null);
-  const [api, setApi] = useState<ClientApi | null>(null);
+  const [api, setApi] = useState<ClientApi<ClientConnection> | null>(null);
   const [project, setProject] = useState<RemoteProject | null>(null);
   const [session, setSession] = useState<SimulatorSession | null>(null);
 

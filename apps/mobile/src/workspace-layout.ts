@@ -1,6 +1,7 @@
-import type { SimulatorOrientation } from './types';
+import type { IOSSimulator } from '@monaddesign/client-contract';
+import type { SimulatorOrientation } from '@monaddesign/simulator';
 
-type DeviceChrome = NonNullable<import('./types').IOSSimulator['deviceChrome']>;
+type DeviceChrome = NonNullable<IOSSimulator['deviceChrome']>;
 
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 
@@ -124,10 +125,12 @@ export const simulatorFrameSize = ({
   deviceChrome?: DeviceChrome;
 }) => {
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
-  const aspectRatio = landscape ? screen.height / screen.width : screen.width / screen.height;
+  const shortEdge = Math.max(1, Math.min(screen.width, screen.height));
+  const longEdge = Math.max(screen.width, screen.height);
+  const portraitAspectRatio = shortEdge / longEdge;
   const preferredSize = landscape
-    ? { width: preferredLongEdge, height: preferredLongEdge / aspectRatio }
-    : { width: preferredLongEdge * aspectRatio, height: preferredLongEdge };
+    ? { width: preferredLongEdge, height: preferredLongEdge * portraitAspectRatio }
+    : { width: preferredLongEdge * portraitAspectRatio, height: preferredLongEdge };
   const preferredFrame = deviceChrome
     ? simulatorChromeLayout({ chrome: deviceChrome, screenFrame: preferredSize, orientation })
     : deviceFrameMetrics({

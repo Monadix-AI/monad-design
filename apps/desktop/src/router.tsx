@@ -1,8 +1,12 @@
-import { createHashHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import {
+  createHashHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent
+} from '@tanstack/react-router';
 
 import { RootRoute } from './routes/root-route';
-import { SimulatorsRoute } from './routes/simulators-route';
-import { WorkspaceRoute } from './routes/workspace-route';
 
 const rootRoute = createRootRoute({
   component: RootRoute
@@ -11,13 +15,13 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: SimulatorsRoute
+  component: lazyRouteComponent(() => import('./routes/simulators-route'), 'SimulatorsRoute')
 });
 
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/workspace',
-  component: WorkspaceRoute
+  component: lazyRouteComponent(() => import('./routes/workspace-route'), 'WorkspaceRoute')
 });
 
 const routeTree = rootRoute.addChildren([indexRoute, workspaceRoute]);

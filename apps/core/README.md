@@ -39,8 +39,8 @@ Every local client discovers the same machine Core under
 `~/Library/Application Support/Monad Design`. The npm CLI and Electron install
 or update the bundled executable at `bin/monad-design`, then connect through
 the shared `bootstrap.json`; neither owns a private Core instance. A process lock
-prevents duplicate Core instances, while projects, pairing state, credentials,
-and agent sessions use the same persistent directory.
+prevents duplicate Core instances, while projects, pairing state, and agent
+sessions use the same persistent directory.
 
 The installed Core is detached from Electron and remains available after the
 desktop window quits. If a live session is active, Electron hands the flow to

@@ -3,13 +3,16 @@ import QrCodeIcon from '@hugeicons/core-free-icons/QrCodeIcon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import { createPairingPayload } from '@monaddesign/pairing';
-import { AppHeaderFrame, useClientTheme } from '@monaddesign/ui';
-import { QRCodeSVG } from 'qrcode.react';
+import { AppHeaderFrame } from '@monaddesign/ui/business/live-session/app-frame';
+import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
 import { Popover } from 'radix-ui';
-import { type ReactNode, useEffect, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react';
 
 import { useDesktopApp } from '@/desktop-app-provider';
 import { ActionIcon } from './action-icon';
+
+const loadPairingQrCode = () => import('./pairing-qr-code');
+const PairingQrCode = lazy(loadPairingQrCode);
 
 export function AppHeader({ center }: { center?: ReactNode }) {
   const { remoteClient } = useDesktopApp();
@@ -51,6 +54,8 @@ export function AppHeader({ center }: { center?: ReactNode }) {
               <button
                 className="header-action"
                 disabled={!remoteClient}
+                onFocus={() => void loadPairingQrCode()}
+                onPointerEnter={() => void loadPairingQrCode()}
                 type="button"
               >
                 <ActionIcon icon={QrCodeIcon} />
@@ -78,14 +83,16 @@ export function AppHeader({ center }: { center?: ReactNode }) {
                     className="pairing-qr"
                     role="img"
                   >
-                    <QRCodeSVG
-                      bgColor="#ffffff"
-                      fgColor="#0d0d0d"
-                      level="M"
-                      marginSize={2}
-                      size={156}
-                      value={pairingPayload}
-                    />
+                    <Suspense
+                      fallback={
+                        <span
+                          aria-hidden="true"
+                          style={{ display: 'block', height: 156, width: 156 }}
+                        />
+                      }
+                    >
+                      <PairingQrCode value={pairingPayload} />
+                    </Suspense>
                   </div>
                 )}
                 <div className="pairing-code-block">

@@ -28,6 +28,7 @@ type GlassControlProps = Omit<PressableProps, 'children' | 'style'> & {
   contentStyle?: StyleProp<ViewStyle>;
   tone?: GlassTone;
   glassStyle?: 'clear' | 'regular';
+  solid?: boolean;
 };
 
 export function GlassControl({
@@ -36,6 +37,7 @@ export function GlassControl({
   contentStyle,
   tone = 'neutral',
   glassStyle = 'regular',
+  solid = false,
   disabled,
   ...pressableProps
 }: GlassControlProps) {
@@ -54,7 +56,7 @@ export function GlassControl({
     </Pressable>
   );
 
-  if (nativeLiquidGlassAvailable) {
+  if (nativeLiquidGlassAvailable && !solid) {
     return (
       <GlassView
         glassEffectStyle={glassStyle}

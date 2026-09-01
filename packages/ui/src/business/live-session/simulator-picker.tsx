@@ -54,7 +54,6 @@ export function LiveSessionSimulatorPicker({
   targets: SimulatorPickerTarget[];
 }) {
   const selectedSimulator = simulators.find(({ udid }) => udid === selectedSimulatorUdid);
-  const selectedTarget = targets.find(({ bundleIdentifier }) => bundleIdentifier === selectedTargetBundleIdentifier);
   return (
     <div className="simulator-list-page">
       <section className="simulator-list-panel live-split">
@@ -171,11 +170,6 @@ export function LiveSessionSimulatorPicker({
         </section>
         {error}
         <footer className="simulator-action-bar">
-          <p aria-live="polite">
-            {selectedTarget && selectedSimulator
-              ? `${selectedTarget.name} · ${selectedSimulator.name}`
-              : 'Choose a target app and Simulator to continue.'}
-          </p>
           <Button
             className="connect-button"
             disabled={!selectedSimulatorUdid || !selectedTargetBundleIdentifier || isConnecting}

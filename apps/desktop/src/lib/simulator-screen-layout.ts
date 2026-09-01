@@ -1,4 +1,4 @@
-import type { SimulatorOrientation } from '../desktop-model';
+import type { SimulatorOrientation } from '@monaddesign/simulator';
 
 export const simulatorScreenLayer = ({
   height,

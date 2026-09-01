@@ -1,4 +1,10 @@
-import type { AnnotationTool, DrawnAnnotation, ShapeAnnotation, SimulatorOrientation } from '@monaddesign/simulator';
+import type { SimulatorOrientation } from '@monaddesign/simulator';
+import type {
+  AnnotationPoint,
+  AnnotationTool,
+  DrawnAnnotation,
+  ShapeAnnotation
+} from '@monaddesign/simulator/annotation';
 import type { PointerEvent, ReactNode } from 'react';
 
 import ArrowUpRight01Icon from '@hugeicons/core-free-icons/ArrowUpRight01Icon';
@@ -8,12 +14,7 @@ import EllipseIcon from '@hugeicons/core-free-icons/EllipseIcon';
 import SquareIcon from '@hugeicons/core-free-icons/SquareIcon';
 import TextIcon from '@hugeicons/core-free-icons/TextIcon';
 import Undo02Icon from '@hugeicons/core-free-icons/Undo02Icon';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-
-import { Button } from '../../primitives/button';
-import { ActionIcon } from '../action-icon';
 import {
-  AnnotationShape,
   annotationBounds,
   annotationContainsPoint,
   annotationId,
@@ -21,9 +22,15 @@ import {
   annotationIsVisible,
   calloutBadgeGeometry,
   isDrawnAnnotation,
-  type Point,
   translateAnnotation
-} from './model';
+} from '@monaddesign/simulator/annotation';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+
+import { Button } from '../../primitives/button';
+import { ActionIcon } from '../action-icon';
+import { AnnotationShape } from './model';
+
+type Point = AnnotationPoint;
 
 const annotationTools = [
   { id: 'rectangle', label: 'Rectangle' },

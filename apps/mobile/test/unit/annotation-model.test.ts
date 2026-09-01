@@ -1,14 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-
 import {
+  annotationConnectorPath,
   annotationIsVisible,
   calloutAnchor,
-  calloutConnectorPath,
-  containFrame,
+  containAnnotationFrame as containFrame,
   freehandIsVisible,
-  imagePoint,
+  annotationImagePoint as imagePoint,
   isDrawnAnnotation
-} from '../../src/annotation-model';
+} from '@monaddesign/simulator/annotation';
 
 describe('mobile annotation geometry', () => {
   test('maps a contained preview back into source-image coordinates', () => {
@@ -32,7 +31,9 @@ describe('mobile annotation geometry', () => {
   });
 
   test('connects a numbered target to its implementation note with the desktop curve', () => {
-    expect(calloutConnectorPath({ x: 240, y: 180 }, { x: 680, y: 84 })).toBe('M 240 180 C 424.8 180, 495.2 84, 680 84');
+    expect(annotationConnectorPath({ x: 240, y: 180 }, { x: 680, y: 84 }, { minimumReach: 54, precision: 3 })).toBe(
+      'M 240 180 C 424.8 180, 495.2 84, 680 84'
+    );
   });
 
   test('keeps Pencil freehand marks separate from numbered shape callouts', () => {

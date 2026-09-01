@@ -1,19 +1,13 @@
-import { randomBytes } from 'node:crypto';
-import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { resolveCorePaths } from '@monaddesign/core-installation';
 
-import { resolveCorePaths } from './core-paths';
 import { createCoreRuntime } from './core-runtime';
 import { acquireCoreInstance } from './single-instance';
 import { embeddedUiPath, requestedUiPath } from './ui-assets';
 import { launchPreferredUi } from './ui-launcher';
 
-interface PersistedCredentials {
-  schemaVersion: 1;
-  localAccessToken: string;
-}
-
-const { stateDirectory, bootstrapPath, credentialsPath, lockPath } = resolveCorePaths();
+const { stateDirectory, bootstrapPath, lockPath } = resolveCorePaths();
 const configuredPort = Number(process.env.MONAD_DESIGN_CORE_PORT ?? 41_765);
 let uiOrigin: string | null = null;
 const openedSessions = new Set<string>();
@@ -52,25 +46,6 @@ const ui = async (pathname: string) => {
   return new Response('not found', { status: 404 });
 };
 
-const readOrCreateCredentials = async (): Promise<PersistedCredentials> => {
-  try {
-    const current = JSON.parse(await readFile(credentialsPath, 'utf8')) as Partial<PersistedCredentials>;
-    if (current.schemaVersion === 1 && typeof current.localAccessToken === 'string' && current.localAccessToken) {
-      return current as PersistedCredentials;
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  const credentials: PersistedCredentials = {
-    schemaVersion: 1,
-    localAccessToken: randomBytes(32).toString('base64url')
-  };
-  await mkdir(stateDirectory, { recursive: true });
-  await writeFile(credentialsPath, `${JSON.stringify(credentials, null, 2)}\n`, { mode: 0o600 });
-  await chmod(credentialsPath, 0o600);
-  return credentials;
-};
-
 const writeBootstrap = async (value: unknown) => {
   await mkdir(dirname(bootstrapPath), { recursive: true });
   const temporaryPath = `${bootstrapPath}.${process.pid}.tmp`;
@@ -86,14 +61,12 @@ if (!instance.acquired) {
   process.exit(0);
 }
 
-const credentials = await readOrCreateCredentials();
 let runtime: Awaited<ReturnType<typeof createCoreRuntime>>;
 try {
   runtime = await createCoreRuntime({
     stateDirectory,
     host: process.env.MONAD_DESIGN_CORE_HOST ?? '0.0.0.0',
     port: Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 41_765,
-    localAccessToken: credentials.localAccessToken,
     onSessionChanged: (session) => {
       if (session.status !== 'selecting_simulator' || openedSessions.has(session.id) || !uiOrigin) return;
       openedSessions.add(session.id);

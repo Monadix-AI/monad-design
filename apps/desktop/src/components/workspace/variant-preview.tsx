@@ -1,15 +1,14 @@
 import type { SimulatorVariantId } from '@/electron';
 
-import { VariantComparison } from '@monaddesign/ui';
+import { VariantComparison } from '@monaddesign/ui/business/variant-comparison';
 
+import { useCanvasViewportOffset, useCanvasViewportScale } from '@/canvas-viewport-provider';
 import { useDesktopApp } from '@/desktop-app-provider';
 
 export function VariantPreview() {
   const {
     capturingVariant,
     connected,
-    canvasOffset,
-    canvasScale,
     deviceFrame,
     deviceHeight,
     deviceWidth,
@@ -20,6 +19,8 @@ export function VariantPreview() {
     variantIds,
     variantLabels
   } = useDesktopApp();
+  const canvasOffset = useCanvasViewportOffset();
+  const canvasScale = useCanvasViewportScale();
   const previewVariants = variantIds.filter((variant) => variant !== 'original');
 
   return (

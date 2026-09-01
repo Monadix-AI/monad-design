@@ -9,7 +9,9 @@
     "typescript": "^7.0.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./accessibility-target": "./src/accessibility-target.ts",
+    "./annotation": "./src/annotation.ts"
   },
   "private": true,
   "scripts": {

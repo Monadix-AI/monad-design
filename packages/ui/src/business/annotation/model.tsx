@@ -1,37 +1,11 @@
 import {
-  type AnnotationPoint,
   type AnnotationSize,
   annotationArrowHead,
   annotationInk,
   type ShapeAnnotation
-} from '@monaddesign/simulator';
+} from '@monaddesign/simulator/annotation';
 
-export type Annotation = ShapeAnnotation;
-export type Point = AnnotationPoint;
-export type ImageSize = AnnotationSize;
-export type {
-  AnnotationTool,
-  CalloutBox,
-  CalloutLayout,
-  DrawnAnnotation,
-  TextAnnotation
-} from '@monaddesign/simulator';
-
-export {
-  annotationBounds,
-  annotationContainsPoint,
-  annotationId,
-  annotationInk,
-  annotationIsVisible,
-  buildCalloutLayout,
-  calloutAnchor,
-  calloutBadgeGeometry,
-  calloutConnector as calloutConnectorPath,
-  isDrawnAnnotation,
-  translateAnnotation
-} from '@monaddesign/simulator';
-
-export function AnnotationShape({ annotation, imageSize }: { annotation: Annotation; imageSize: ImageSize }) {
+export function AnnotationShape({ annotation, imageSize }: { annotation: ShapeAnnotation; imageSize: AnnotationSize }) {
   const strokeWidth = Math.max(4, imageSize.width * 0.006);
   if (annotation.type === 'text') {
     return (

@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  annotationContainsPoint,
-  calloutBadgeGeometry,
   canvasOffsetForZoom,
   clampCanvasOffset,
   encodeSimulatorFrame,
@@ -10,9 +8,9 @@ import {
   normalizedCanvasPoint,
   orientCanvasPoint,
   rotatedSimulatorOrientation,
-  simulatorKeyUsage,
-  translateAnnotation
+  simulatorKeyUsage
 } from '../../src';
+import { annotationContainsPoint, calloutBadgeGeometry, translateAnnotation } from '../../src/annotation';
 
 describe('shared canvas positioning', () => {
   test('keeps dragged content recoverable', () => {

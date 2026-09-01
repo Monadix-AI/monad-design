@@ -1,10 +1,6 @@
 import type { ProjectStore } from '../project-store';
 
 import { node } from '@elysia/node';
-import { Elysia } from 'elysia';
-
-import { simulatorBridge } from '../simulator-bridge';
-import { captureSimulatorScreen, listAvailableSimulators } from '../simulators';
 import {
   accessibilitySnapshotSchema,
   appearanceResponseSchema,
@@ -19,9 +15,12 @@ import {
   setAppearanceRequestSchema,
   setPasteboardRequestSchema,
   simulatorConnectionSchema
-} from './api-contract';
+} from '@monaddesign/client-contract';
+import { Elysia } from 'elysia';
+
+import { simulatorBridge } from '../simulator-bridge';
+import { captureSimulatorScreen, listAvailableSimulators } from '../simulators';
 import { CoreApiError } from './api-error';
-import { createPairingAuth } from './auth';
 import { createSimulatorService } from './simulator-service';
 
 type ProjectResolver = Pick<ProjectStore, 'open'>;
@@ -35,15 +34,10 @@ const conflict = async <T>(operation: () => Promise<T>): Promise<T> => {
   }
 };
 
-export const createSimulatorRoutes = (
-  projectStore: ProjectResolver,
-  accessTokens: string | readonly string[],
-  adapter = node()
-) => {
+export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = node()) => {
   const upstreamSockets = new WeakMap<object, WebSocket>();
   const simulatorService = createSimulatorService(projectStore);
   return new Elysia({ adapter, name: 'core.simulators' })
-    .use(createPairingAuth(accessTokens))
     .get(
       '/simulators',
       async () => ({ simulators: await listAvailableSimulators(simulatorBridge.connection?.udid ?? null) }),

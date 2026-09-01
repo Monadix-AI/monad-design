@@ -1,5 +1,7 @@
-import type { AgentSessionSnapshot, IOSSimulator } from '@monaddesign/client-contract';
+import type { VariantComparisonCapture } from '@monaddesign/ui/business/variant-comparison';
 
+import { ClientApi } from '@monaddesign/client-rtk/client-api';
+import { errorMessage as formatErrorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
 import {
   type AccessibilityElement,
   type AccessibilitySnapshot,
@@ -18,76 +20,41 @@ import {
   simulatorVariantIdsForCount,
   simulatorVariantLabels
 } from '@monaddesign/simulator';
+import { LiveAnnotationSurface } from '@monaddesign/ui/business/annotation/live-surface';
 import {
   CanvasZoomControls,
   canvasModeShowsSelectionOverlay,
-  LiveAnnotationSurface,
-  LiveSessionSimulatorPicker,
-  LiveWorkspaceFrame,
-  LiveWorkspaceHeading,
-  LiveWorkspaceInspector,
   liveSimulatorDeviceFrame,
   liveWorkspaceCanvasPlacement,
-  SimulatorCanvas,
-  SimulatorDeviceControls,
-  useCanvasViewport,
-  useClientTheme,
-  VariantComparison,
-  type VariantComparisonCapture
-} from '@monaddesign/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+  SimulatorDeviceControls
+} from '@monaddesign/ui/business/canvas-controls';
+import { useCanvasViewport } from '@monaddesign/ui/business/canvas-viewport';
+import { LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
+import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
+import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
+import { LiveWorkspaceInspector } from '@monaddesign/ui/business/live-session/workspace-inspector';
+import { SimulatorCanvas } from '@monaddesign/ui/business/simulator-canvas';
+import { captureStableSimulatorScreen } from '@monaddesign/ui/business/variant-capture';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  captureTargetFramesAreStable,
-  captureTargetFromContext,
-  captureTargetIsVisible,
-  findCaptureTarget
-} from './variant-capture-target';
+import { useCoreLiveSession } from './use-core-live-session';
+import { captureTargetFromContext } from './variant-capture-target';
 
-type ActiveSessionResponse = { session: AgentSessionSnapshot | null };
-type SimulatorsResponse = { simulators: IOSSimulator[] };
-type ScreenshotResponse = { image: string };
 type AXSnapshot = AccessibilitySnapshot;
 
-const wait = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
-
-const loadCaptureImage = (source: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Could not inspect the captured frame.'));
-    image.src = source;
-  });
-
-const capturesAreVisuallyStable = async (left: string, right: string) => {
-  const [leftImage, rightImage] = await Promise.all([loadCaptureImage(left), loadCaptureImage(right)]);
-  const canvas = document.createElement('canvas');
-  canvas.width = 48;
-  canvas.height = 96;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Could not compare the captured frames.');
-
-  context.drawImage(leftImage, 0, 0, canvas.width, canvas.height);
-  const leftPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(rightImage, 0, 0, canvas.width, canvas.height);
-  const rightPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-
-  let difference = 0;
-  for (let index = 0; index < leftPixels.length; index += 4) {
-    difference += Math.abs((leftPixels[index] ?? 0) - (rightPixels[index] ?? 0));
-    difference += Math.abs((leftPixels[index + 1] ?? 0) - (rightPixels[index + 1] ?? 0));
-    difference += Math.abs((leftPixels[index + 2] ?? 0) - (rightPixels[index + 2] ?? 0));
-  }
-
-  return difference / (canvas.width * canvas.height * 3) < 1.5;
-};
+const coreClient = new ClientApi({ origin: window.location.origin });
+const loadVariantComparison = () => import('@monaddesign/ui/business/variant-comparison');
+const VariantComparison = lazy(async () => ({
+  default: (await loadVariantComparison()).VariantComparison
+}));
 
 export function App() {
   useClientTheme();
-  const [session, setSession] = useState<AgentSessionSnapshot | null>(null);
-  const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
-  const [isScanning, setIsScanning] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const { isScanning, refreshSession, session, setSession, simulators } = useCoreLiveSession(
+    coreClient,
+    setErrorMessage
+  );
   const [isChoosingSimulator, setIsChoosingSimulator] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isStreamReady, setIsStreamReady] = useState(false);
@@ -111,7 +78,6 @@ export function App() {
   const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
   const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
   const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const socket = useRef<WebSocket | null>(null);
   const screenImage = useRef<HTMLImageElement | null>(null);
   const orientationRef = useRef<SimulatorOrientation>('portrait');
@@ -162,50 +128,13 @@ export function App() {
     viewChanged: canvasViewChanged
   } = canvasViewport;
 
-  const request = useCallback(async <T,>(path: string, options: RequestInit = {}) => {
-    const response = await fetch(path, {
-      ...options,
-      headers: { 'content-type': 'application/json', ...options.headers }
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.error ?? `Core request failed (${response.status}).`);
-    return body as T;
-  }, []);
-
-  const refreshSession = useCallback(async () => {
-    try {
-      const response = await request<ActiveSessionResponse>('/v1/agent-session/active');
-      setSession(response.session);
-      if (response.session) {
-        const simulatorResponse = await request<SimulatorsResponse>('/v1/simulators');
-        setSimulators(simulatorResponse.simulators);
-        setIsScanning(false);
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-    }
-  }, [request]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let timeout: number | undefined;
-    const poll = async () => {
-      await refreshSession();
-      if (!cancelled) timeout = window.setTimeout(() => void poll(), 800);
-    };
-    void poll();
-    return () => {
-      cancelled = true;
-      if (timeout !== undefined) window.clearTimeout(timeout);
-    };
-  }, [refreshSession]);
-
   useEffect(() => {
     if (!connectionUdid) return;
-    void request<{ appearance: 'light' | 'dark' }>('/v1/simulator/appearance')
+    void coreClient
+      .appearance()
       .then(({ appearance: nextAppearance }) => setAppearance(nextAppearance))
       .catch(() => undefined);
-  }, [connectionUdid, request]);
+  }, [connectionUdid]);
 
   useEffect(() => {
     if (!session?.project.targetApps.length) return;
@@ -242,22 +171,16 @@ export function App() {
     setIsRestoringConnection(true);
     setSelectedUdid(session.connection.udid);
     setSelectedBundleIdentifier(session.connection.bundleIdentifier);
-    void request('/v1/simulators/connect', {
-      method: 'POST',
-      body: JSON.stringify({
-        projectId: session.project.id,
-        udid: session.connection.udid,
-        bundleIdentifier: session.connection.bundleIdentifier
-      })
-    })
+    void coreClient
+      .connect(session.project.id, session.connection.udid, session.connection.bundleIdentifier)
       .then(() => {
         setIsStreamReady(false);
         setErrorMessage('');
         return refreshSession();
       })
-      .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
+      .catch((error) => setErrorMessage(formatErrorMessage(error)))
       .finally(() => setIsRestoringConnection(false));
-  }, [isChoosingSimulator, refreshSession, request, session, simulators]);
+  }, [isChoosingSimulator, refreshSession, session, simulators]);
 
   useEffect(
     () => () => {
@@ -292,26 +215,16 @@ export function App() {
     setIsConnecting(true);
     try {
       setErrorMessage('');
-      await request('/v1/simulators/connect', {
-        method: 'POST',
-        body: JSON.stringify({
-          projectId: session.project.id,
-          udid: selectedUdid,
-          bundleIdentifier: selectedBundleIdentifier
-        })
+      await coreClient.connect(session.project.id, selectedUdid, selectedBundleIdentifier);
+      const nextSession = await coreClient.connectAgentSession(session.id, {
+        udid: selectedUdid,
+        bundleIdentifier: selectedBundleIdentifier
       });
-      const nextSession = await request<AgentSessionSnapshot>(
-        `/v1/agent-session/${encodeURIComponent(session.id)}/connected`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ udid: selectedUdid, bundleIdentifier: selectedBundleIdentifier })
-        }
-      );
       setSession(nextSession);
       setIsChoosingSimulator(false);
       setIsStreamReady(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     } finally {
       connectingSimulator.current = false;
       setIsConnecting(false);
@@ -321,12 +234,12 @@ export function App() {
   const disconnectSimulator = async () => {
     try {
       socket.current?.close();
-      await request('/v1/simulator/connection', { method: 'DELETE' });
+      await coreClient.disconnect();
       setIsStreamReady(false);
       setIsChoosingSimulator(true);
       setErrorMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     }
   };
 
@@ -334,15 +247,13 @@ export function App() {
     if (!session || isEndingLive) return;
     setIsEndingLive(true);
     try {
-      await request<AgentSessionSnapshot>(`/v1/agent-session/${encodeURIComponent(session.id)}/close`, {
-        method: 'POST'
-      });
+      await coreClient.closeAgentSession(session.id);
       socket.current?.close();
       setIsStreamReady(false);
       setSession(null);
       setErrorMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     } finally {
       setIsEndingLive(false);
     }
@@ -353,26 +264,20 @@ export function App() {
     const selectedElement = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
     setIsSendingAgentRequest(true);
     try {
-      const nextSession = await request<AgentSessionSnapshot>(
-        `/v1/agent-session/${encodeURIComponent(session.id)}/request`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            request: agentRequest.trim(),
-            variantCount,
-            context: buildAgentTurnContext({
-              bundleIdentifier: session.connection.bundleIdentifier,
-              element: selectedElement,
-              snapshot: axSnapshot ?? undefined,
-              simulator: selectedSimulator ?? { udid: session.connection.udid }
-            })
-          })
-        }
-      );
+      const nextSession = await coreClient.submitAgentRequest(session.id, {
+        request: agentRequest.trim(),
+        variantCount,
+        context: buildAgentTurnContext({
+          bundleIdentifier: session.connection.bundleIdentifier,
+          element: selectedElement,
+          snapshot: axSnapshot ?? undefined,
+          simulator: selectedSimulator ?? { udid: session.connection.udid }
+        })
+      });
       setSession(nextSession);
       setAgentRequest('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     } finally {
       setIsSendingAgentRequest(false);
     }
@@ -382,64 +287,26 @@ export function App() {
     if (!session?.changeRequest || variantTransition) return;
     setVariantTransition(transition);
     try {
-      const nextSession = await request<AgentSessionSnapshot>(
-        `/v1/agent-session/${encodeURIComponent(session.id)}/confirm-selection`,
-        { method: 'POST', body: JSON.stringify({ requestId: session.changeRequest.id, variant }) }
-      );
+      const nextSession = await coreClient.confirmAgentSelection(session.id, {
+        requestId: session.changeRequest.id,
+        variant: variant as SimulatorVariantId
+      });
       setSession(nextSession);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     } finally {
       setVariantTransition(null);
     }
   };
 
-  const waitForVisibleCaptureTarget = useCallback(
-    async (variant: SimulatorVariantId, target: AccessibilityElement) => {
-      let previous: AccessibilityElement | undefined;
-      let lastError: unknown;
-      for (let attempt = 0; attempt < 32; attempt += 1) {
-        try {
-          const snapshot = await request<AXSnapshot>('/v1/simulator/accessibility');
-          const current = findCaptureTarget(snapshot, target);
-          if (
-            current &&
-            captureTargetIsVisible(snapshot, current) &&
-            previous &&
-            captureTargetFramesAreStable(previous, current)
-          ) {
-            return;
-          }
-          previous = current && captureTargetIsVisible(snapshot, current) ? current : undefined;
-          lastError = undefined;
-        } catch (reason) {
-          previous = undefined;
-          lastError = reason;
-        }
-        await wait(250);
-      }
-      const detail = lastError instanceof Error ? ` ${lastError.message}` : '';
-      throw new Error(
-        `${simulatorVariantLabels[variant]} did not restore the selected page and scroll target in the visible viewport.${detail}`
-      );
-    },
-    [request]
-  );
-
   const captureStableSimulatorImage = useCallback(
-    async (variant: SimulatorVariantId, target?: AccessibilityElement) => {
-      if (target) await waitForVisibleCaptureTarget(variant, target);
-      else await wait(700);
-      let previous = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        await wait(450);
-        const current = (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
-        if (await capturesAreVisuallyStable(previous, current)) return current;
-        previous = current;
-      }
-      throw new Error('The Simulator did not reach a stable frame for variant comparison.');
-    },
-    [request, waitForVisibleCaptureTarget]
+    (variant: SimulatorVariantId, target?: AccessibilityElement) =>
+      captureStableSimulatorScreen(coreClient, variant, target, {
+        targetVisibilityError: (currentVariant, detail) =>
+          `${simulatorVariantLabels[currentVariant]} did not restore the selected page and scroll target in the visible viewport.${detail}`,
+        stableFrameError: () => 'The Simulator did not reach a stable frame for variant comparison.'
+      }),
+    []
   );
 
   useEffect(() => {
@@ -466,10 +333,7 @@ export function App() {
       try {
         for (const variant of simulatorVariantIdsForCount(changeRequest.variantCount)) {
           setCapturingVariant(variant);
-          await request('/v1/simulator/variant', {
-            method: 'POST',
-            body: JSON.stringify({ variant })
-          });
+          await coreClient.launchVariant(variant);
           previewLaunchStarted = true;
           captures.push({
             id: variant,
@@ -479,14 +343,14 @@ export function App() {
           setVariantCaptures([...captures]);
         }
       } catch (error) {
-        setVariantError(error instanceof Error ? error.message : String(error));
+        setVariantError(formatErrorMessage(error));
       } finally {
         if (previewLaunchStarted) {
           try {
-            await request('/v1/simulator/app', { method: 'POST' });
+            await coreClient.launchApp();
           } catch (error) {
             setVariantError((current) => {
-              const message = `Could not restart the app normally: ${error instanceof Error ? error.message : String(error)}`;
+              const message = `Could not restart the app normally: ${formatErrorMessage(error)}`;
               return current ? `${current} ${message}` : message;
             });
           }
@@ -494,7 +358,7 @@ export function App() {
         setCapturingVariant(null);
       }
     })();
-  }, [captureStableSimulatorImage, isRestoringConnection, request, session, simulators]);
+  }, [captureStableSimulatorImage, isRestoringConnection, session, simulators]);
 
   useEffect(() => {
     if (session?.status !== 'awaiting_request') return;
@@ -519,27 +383,21 @@ export function App() {
     restoreAnnotationCanvasView();
   };
 
-  const captureSimulatorImage = async () => (await request<ScreenshotResponse>('/v1/simulator/screenshot')).image;
+  const captureSimulatorImage = async () => (await coreClient.screenshot()).image;
 
   const sendAnnotation = async (annotationScreenshot: string) => {
     if (!session?.connection) throw new Error('The active Simulator session is unavailable.');
-    const snapshot = axSnapshot ?? (await request<AXSnapshot>('/v1/simulator/accessibility'));
-    const nextSession = await request<AgentSessionSnapshot>(
-      `/v1/agent-session/${encodeURIComponent(session.id)}/request`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          request: 'Implement the changes shown in the attached annotated screenshot.',
-          variantCount: 1,
-          context: buildAgentTurnContext({
-            bundleIdentifier: session.connection.bundleIdentifier,
-            snapshot,
-            simulator: selectedSimulator ?? { udid: session.connection.udid }
-          }),
-          annotationScreenshot
-        })
-      }
-    );
+    const snapshot = axSnapshot ?? (await coreClient.accessibility());
+    const nextSession = await coreClient.submitAgentRequest(session.id, {
+      request: 'Implement the changes shown in the attached annotated screenshot.',
+      variantCount: 1,
+      context: buildAgentTurnContext({
+        bundleIdentifier: session.connection.bundleIdentifier,
+        snapshot,
+        simulator: selectedSimulator ?? { udid: session.connection.udid }
+      }),
+      annotationScreenshot
+    });
     setAXSnapshot(snapshot);
     setSession(nextSession);
     closeAnnotation();
@@ -551,9 +409,9 @@ export function App() {
     if (!next) return;
     try {
       setErrorMessage('');
-      setAXSnapshot(await request<AXSnapshot>('/v1/simulator/accessibility'));
+      setAXSnapshot(await coreClient.accessibility());
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
       setIsSelectionMode(false);
     }
   };
@@ -593,14 +451,11 @@ export function App() {
     const nextAppearance = appearance === 'dark' ? 'light' : 'dark';
     setIsAppearanceChanging(true);
     try {
-      await request('/v1/simulator/appearance', {
-        method: 'PUT',
-        body: JSON.stringify({ appearance: nextAppearance })
-      });
+      await coreClient.setAppearance(nextAppearance);
       setAppearance(nextAppearance);
       setErrorMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     } finally {
       setIsAppearanceChanging(false);
     }
@@ -619,13 +474,13 @@ export function App() {
     const text = event.clipboardData.getData('text');
     if (!text) return;
     try {
-      await request('/v1/simulator/pasteboard', { method: 'POST', body: JSON.stringify({ text }) });
+      await coreClient.setPasteboard(text);
       sendInputFrame(0x06, { type: 'down', usage: 227 });
       sendInputFrame(0x06, { type: 'down', usage: 25 });
       sendInputFrame(0x06, { type: 'up', usage: 25 });
       sendInputFrame(0x06, { type: 'up', usage: 227 });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(formatErrorMessage(error));
     }
   };
 
@@ -671,21 +526,23 @@ export function App() {
           <LiveWorkspaceFrame
             canvas={
               isReviewingVariants ? (
-                <VariantComparison
-                  captures={variantCaptures}
-                  capturingVariant={capturingVariant}
-                  deviceChrome={selectedSimulator?.deviceChrome}
-                  deviceFrame={deviceFrame}
-                  deviceHeight={screen.height}
-                  deviceWidth={screen.width}
-                  framebufferMask={selectedSimulator?.framebufferMask}
-                  labels={simulatorVariantLabels}
-                  offset={canvasOffset}
-                  onSelect={setSelectedVariant}
-                  scale={canvasScale}
-                  selectedVariant={selectedVariant}
-                  variants={reviewVariantIds}
-                />
+                <Suspense fallback={null}>
+                  <VariantComparison
+                    captures={variantCaptures}
+                    capturingVariant={capturingVariant}
+                    deviceChrome={selectedSimulator?.deviceChrome}
+                    deviceFrame={deviceFrame}
+                    deviceHeight={screen.height}
+                    deviceWidth={screen.width}
+                    framebufferMask={selectedSimulator?.framebufferMask}
+                    labels={simulatorVariantLabels}
+                    offset={canvasOffset}
+                    onSelect={setSelectedVariant}
+                    scale={canvasScale}
+                    selectedVariant={selectedVariant}
+                    variants={reviewVariantIds}
+                  />
+                </Suspense>
               ) : (
                 <LiveAnnotationSurface
                   active={isAnnotationMode}

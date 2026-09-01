@@ -1,7 +1,9 @@
-import type { AgentSessionSnapshot } from '@monaddesign/client-rtk';
-import type { AXElement, AXSnapshot, SimulatorVariantId } from '../types';
+import type { AgentSessionSnapshot, AccessibilitySnapshotResponse as AXSnapshot } from '@monaddesign/client-contract';
+import type { SimulatorVariantId } from '@monaddesign/simulator';
 
-import { Ionicons } from '@expo/vector-icons';
+type AXElement = AXSnapshot['elements'][number];
+
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { simulatorVariantLabels } from '@monaddesign/simulator';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -274,6 +276,7 @@ export function AgentRequestPanel({
             contentStyle={styles.sendContent}
             disabled={!canRequest || !request.trim() || isSending}
             onPress={onSend}
+            solid
             style={styles.send}
             tone="accent"
           >

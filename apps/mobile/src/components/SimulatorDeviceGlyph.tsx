@@ -1,5 +1,5 @@
+import type { IOSSimulator } from '@monaddesign/client-contract';
 import type { SimulatorDeviceGlyphMetrics } from '@monaddesign/device-frame';
-import type { IOSSimulator } from '../types';
 
 import { simulatorDeviceGlyphMetrics } from '@monaddesign/device-frame';
 import MaskedView from '@react-native-masked-view/masked-view';

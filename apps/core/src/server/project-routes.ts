@@ -1,16 +1,15 @@
 import type { MonadDesignProject, ProjectStore } from '../project-store';
 
-import { Elysia } from 'elysia';
-
 import {
   listProjectsResponseSchema,
   openProjectRequestSchema,
   paginationQuerySchema,
   projectIconsResponseSchema,
   remoteProjectSchema
-} from './api-contract';
+} from '@monaddesign/client-contract';
+import { Elysia } from 'elysia';
+
 import { CoreApiError } from './api-error';
-import { createPairingAuth } from './auth';
 
 type ProjectResolver = Pick<ProjectStore, 'list' | 'open'> & Partial<Pick<ProjectStore, 'icons'>>;
 
@@ -21,9 +20,8 @@ const projectResponse = ({ id, name, lastOpenedAt, targetApps }: MonadDesignProj
   targetApps
 });
 
-export const createProjectRoutes = (projectStore: ProjectResolver, accessTokens: string | readonly string[]) =>
+export const createProjectRoutes = (projectStore: ProjectResolver) =>
   new Elysia({ name: 'core.projects', prefix: '/projects' })
-    .use(createPairingAuth(accessTokens))
     .get(
       '/',
       async ({ query: { limit, offset } }) => {

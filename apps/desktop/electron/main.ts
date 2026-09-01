@@ -66,7 +66,7 @@ void app
     await replacePreviousDevelopmentInstance();
     await core.start();
     core.subscribeToAgentSession((session) => {
-      if (session.status === 'selecting_simulator' || session.status === 'variants_ready') {
+      if (session?.status === 'selecting_simulator' || session?.status === 'variants_ready') {
         mainWindow?.show();
         mainWindow?.focus();
       }

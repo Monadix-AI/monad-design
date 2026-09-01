@@ -5,7 +5,7 @@ import { restartCore, waitForCoreRunning } from '../../src/core-runtime';
 const bootstrap = (pid: number) => ({
   schemaVersion: 1 as const,
   pid,
-  localClient: { origin: 'http://127.0.0.1:41765', accessToken: 'local-token' }
+  localClient: { origin: 'http://127.0.0.1:41765' }
 });
 
 describe('Core restart', () => {

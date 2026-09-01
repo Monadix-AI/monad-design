@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 
-import { ClientSetup, LoadingScreen, ProjectPicker } from '../src/App';
+import { ClientSetup } from '../src/screens/ClientSetup';
+import { LoadingScreen } from '../src/screens/LoadingScreen';
+import { ProjectPicker } from '../src/screens/ProjectPicker';
 import { useSession } from '../src/session';
 
 export default function ConnectRoute() {

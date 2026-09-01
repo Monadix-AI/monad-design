@@ -19,8 +19,25 @@
     "typescript": "^7.0.0"
   },
   "exports": {
-    ".": "./src/index.ts",
+    "./business/action-icon": "./src/business/action-icon.tsx",
+    "./business/annotation/live-surface": "./src/business/annotation/live-surface.tsx",
+    "./business/annotation/model": "./src/business/annotation/model.tsx",
+    "./business/canvas-controls": "./src/business/canvas-controls.tsx",
+    "./business/canvas-viewport": "./src/business/canvas-viewport.ts",
+    "./business/live-session/app-frame": "./src/business/live-session/app-frame.tsx",
+    "./business/live-session/simulator-device-glyph": "./src/business/live-session/simulator-device-glyph.tsx",
+    "./business/live-session/simulator-picker": "./src/business/live-session/simulator-picker.tsx",
+    "./business/live-session/theme": "./src/business/live-session/theme.ts",
+    "./business/live-session/workspace-inspector": "./src/business/live-session/workspace-inspector.tsx",
+    "./business/simulator-canvas": "./src/business/simulator-canvas.tsx",
+    "./business/variant-capture": "./src/business/variant-capture.ts",
+    "./business/variant-comparison": "./src/business/variant-comparison.tsx",
     "./client.css": "./src/client.css",
+    "./primitives/button": "./src/primitives/button.tsx",
+    "./primitives/input": "./src/primitives/input.tsx",
+    "./primitives/label": "./src/primitives/label.tsx",
+    "./primitives/textarea": "./src/primitives/textarea.tsx",
+    "./primitives/utils": "./src/primitives/utils.ts",
     "./styles.css": "./src/styles.css"
   },
   "peerDependencies": {

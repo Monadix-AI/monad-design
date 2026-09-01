@@ -1,4 +1,4 @@
-import { canvasOffsetForZoom, clampCanvasOffset, maximumCanvasScale, minimumCanvasScale } from '@monaddesign/simulator';
+import { clampCanvasOffset, maximumCanvasScale, minimumCanvasScale } from '@monaddesign/simulator';
 import { type PointerEvent, useCallback, useEffect, useRef, useState, type WheelEvent } from 'react';
 
 import { type CanvasMode, fitLiveWorkspaceCanvas, webDeviceControlsReservedHeight } from './canvas-controls';
@@ -33,6 +33,8 @@ export function useCanvasViewport({
   const canvas = useRef<HTMLDivElement | null>(null);
   const scaleRef = useRef(scale);
   const offsetRef = useRef(offset);
+  const pendingView = useRef<Pick<CanvasViewportSnapshot, 'offset' | 'scale'> | null>(null);
+  const viewFrame = useRef<number | null>(null);
   const viewChanged = useRef(false);
   const temporaryView = useRef<CanvasViewportSnapshot | null>(null);
   const previousMode = useRef(mode);
@@ -47,8 +49,44 @@ export function useCanvasViewport({
   const constrainOffsetRef = useRef<
     (nextOffset: { x: number; y: number }, nextScale: number) => { x: number; y: number }
   >((nextOffset) => nextOffset);
-  scaleRef.current = scale;
-  offsetRef.current = offset;
+  if (!pendingView.current) {
+    scaleRef.current = scale;
+    offsetRef.current = offset;
+  }
+
+  const cancelScheduledView = useCallback(() => {
+    if (viewFrame.current !== null) window.cancelAnimationFrame(viewFrame.current);
+    viewFrame.current = null;
+    pendingView.current = null;
+  }, []);
+
+  const commitView = useCallback(
+    (nextScale: number, nextOffset: { x: number; y: number }) => {
+      cancelScheduledView();
+      scaleRef.current = nextScale;
+      offsetRef.current = nextOffset;
+      setScale(nextScale);
+      setOffset(nextOffset);
+    },
+    [cancelScheduledView]
+  );
+
+  const scheduleView = useCallback((nextScale: number, nextOffset: { x: number; y: number }) => {
+    scaleRef.current = nextScale;
+    offsetRef.current = nextOffset;
+    pendingView.current = { scale: nextScale, offset: nextOffset };
+    if (viewFrame.current !== null) return;
+    viewFrame.current = window.requestAnimationFrame(() => {
+      const next = pendingView.current;
+      viewFrame.current = null;
+      pendingView.current = null;
+      if (!next) return;
+      setScale(next.scale);
+      setOffset(next.offset);
+    });
+  }, []);
+
+  useEffect(() => cancelScheduledView, [cancelScheduledView]);
 
   const constrainOffset = useCallback(
     (nextOffset: { x: number; y: number }, nextScale: number) => {
@@ -70,21 +108,15 @@ export function useCanvasViewport({
     const viewport = canvas.current;
     if (!viewport) return;
     if (mode === 'variants') {
-      scaleRef.current = 1;
-      offsetRef.current = { x: 0, y: 0 };
-      setScale(1);
-      setOffset({ x: 0, y: 0 });
+      commitView(1, { x: 0, y: 0 });
       return;
     }
     const nextView = fitLiveWorkspaceCanvas(
       { width: viewport.clientWidth, height: viewport.clientHeight },
       { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
     );
-    scaleRef.current = nextView.scale;
-    offsetRef.current = nextView.offset;
-    setScale(nextView.scale);
-    setOffset(nextView.offset);
-  }, [deviceFrame.frameHeight, deviceFrame.frameWidth, mode]);
+    commitView(nextView.scale, nextView.offset);
+  }, [commitView, deviceFrame.frameHeight, deviceFrame.frameWidth, mode]);
   fitRef.current = fitCanvas;
   constrainOffsetRef.current = constrainOffset;
 
@@ -111,13 +143,14 @@ export function useCanvasViewport({
     const lastMode = previousMode.current;
     previousMode.current = mode;
     if (lastMode === mode || (lastMode !== 'variants' && mode !== 'variants')) return;
+    cancelScheduledView();
     drag.current = null;
     setIsDragging(false);
     viewChanged.current = false;
     temporaryView.current = null;
     const frame = window.requestAnimationFrame(() => fitRef.current());
     return () => window.cancelAnimationFrame(frame);
-  }, [mode]);
+  }, [cancelScheduledView, mode]);
 
   useEffect(() => {
     if (!resetKey) return;
@@ -127,23 +160,21 @@ export function useCanvasViewport({
   const changeScale = (nextScale: number) => {
     viewChanged.current = true;
     const boundedScale = Math.min(maximumCanvasScale, Math.max(minimumCanvasScale, nextScale));
-    scaleRef.current = boundedScale;
-    setScale(boundedScale);
-    setOffset((current) => constrainOffset(current, boundedScale));
+    commitView(boundedScale, constrainOffset(offsetRef.current, boundedScale));
   };
 
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (!canvasModeAllowsViewportNavigation(mode)) return;
     event.preventDefault();
     viewChanged.current = true;
-    const bounds = canvas.current?.getBoundingClientRect();
-    if (!bounds) return;
+    const viewport = canvas.current;
+    if (!viewport) return;
     const deltaPixels =
       event.deltaY *
       (event.deltaMode === globalThis.WheelEvent.DOM_DELTA_LINE
         ? 16
         : event.deltaMode === globalThis.WheelEvent.DOM_DELTA_PAGE
-          ? bounds.height
+          ? viewport.clientHeight
           : 1);
     const currentScale = scaleRef.current;
     const nextScale = Math.min(
@@ -151,20 +182,7 @@ export function useCanvasViewport({
       Math.max(minimumCanvasScale, currentScale * Math.exp(-deltaPixels * 0.0025))
     );
     if (nextScale === currentScale) return;
-    scaleRef.current = nextScale;
-    setScale(nextScale);
-    setOffset((current) =>
-      constrainOffset(
-        canvasOffsetForZoom(
-          current,
-          { width: bounds.width, height: bounds.height },
-          { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
-          currentScale,
-          nextScale
-        ),
-        nextScale
-      )
-    );
+    scheduleView(nextScale, constrainOffset(offsetRef.current, nextScale));
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -184,7 +202,8 @@ export function useCanvasViewport({
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const currentDrag = drag.current;
     if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
-    setOffset(
+    scheduleView(
+      scaleRef.current,
       constrainOffset(
         {
           x: currentDrag.offsetX + event.clientX - currentDrag.startX,
@@ -222,11 +241,8 @@ export function useCanvasViewport({
       fitCanvas();
       return;
     }
-    scaleRef.current = previous.scale;
-    offsetRef.current = previous.offset;
     viewChanged.current = previous.viewChanged;
-    setScale(previous.scale);
-    setOffset(previous.offset);
+    commitView(previous.scale, previous.offset);
   };
 
   return {
