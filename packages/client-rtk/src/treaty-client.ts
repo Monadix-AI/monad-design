@@ -45,7 +45,7 @@ type ProjectsTreaty = {
 type AdminProjectsTreaty = {
   get(): TreatyResponse<CoreProjectListResponse>;
   post(body: AddCoreProjectRequest): TreatyResponse<CoreProject>;
-  detectTargets: { post(body: { path: string }): TreatyResponse<ProjectTargetDetection> };
+  'detect-targets': { post(body: { path: string }): TreatyResponse<ProjectTargetDetection> };
 } & ((params: { id: string }) => {
   delete(): TreatyResponse<RemovedProjectResponse>;
   put(body: ConfigureCoreProjectRequest): TreatyResponse<CoreProject>;
@@ -57,12 +57,12 @@ export interface CoreTreaty {
     health: { get(): TreatyResponse<HealthResponse> };
     pair: { post(body: PairCoreRequest): TreatyResponse<PairCoreResponse> };
     admin: { projects: AdminProjectsTreaty };
-    agentSession: {
+    'agent-session': {
       active: { get(): TreatyResponse<ActiveAgentSessionResponse> };
     } & ((params: { id: string }) => {
       connected: { post(body: ConnectAgentSessionRequest): TreatyResponse<AgentSessionSnapshot> };
       request: { post(body: SubmitAgentRequest): TreatyResponse<AgentSessionSnapshot> };
-      confirmSelection: { post(body: ConfirmAgentSelectionRequest): TreatyResponse<AgentSessionSnapshot> };
+      'confirm-selection': { post(body: ConfirmAgentSelectionRequest): TreatyResponse<AgentSessionSnapshot> };
       close: { post(): TreatyResponse<AgentSessionSnapshot> };
     });
     projects: ProjectsTreaty;

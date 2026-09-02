@@ -65,3 +65,31 @@ test('Core treaty calls explicit simulator routes', async () => {
     bundleIdentifier: 'com.example.sample'
   });
 });
+
+test('Core treaty preserves hyphenated route segments', async () => {
+  const captured: Request[] = [];
+  const fetcher = Object.assign(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      captured.push(new Request(input, init));
+      return Response.json({ session: null });
+    },
+    { preconnect: fetch.preconnect }
+  );
+  const client = createCoreTreaty({
+    baseUrl: 'http://core.test',
+    config: { fetcher }
+  });
+
+  await client.v1['agent-session'].active.get();
+  await client.v1['agent-session']({ id: 'session-1' })['confirm-selection'].post({
+    requestId: 'request-1',
+    variant: 'v1'
+  });
+  await client.v1.admin.projects['detect-targets'].post({ path: '/tmp/project' });
+
+  expect(captured.map(({ url }) => url)).toEqual([
+    'http://core.test/v1/agent-session/active',
+    'http://core.test/v1/agent-session/session-1/confirm-selection',
+    'http://core.test/v1/admin/projects/detect-targets'
+  ]);
+});

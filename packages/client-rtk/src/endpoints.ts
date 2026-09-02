@@ -69,7 +69,7 @@ export const coreEndpoints = coreApi.injectEndpoints({
     }),
     detectProjectTargets: builder.mutation<ProjectTargetDetection, string>({
       queryFn: (path, api: { extra: unknown }) =>
-        runTreaty(() => clientOf(api).v1.admin.projects.detectTargets.post({ path }))
+        runTreaty(() => clientOf(api).v1.admin.projects['detect-targets'].post({ path }))
     }),
     addAdminProject: builder.mutation<CoreProject, AddCoreProjectRequest>({
       queryFn: (body, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects.post(body)),
@@ -89,26 +89,26 @@ export const coreEndpoints = coreApi.injectEndpoints({
       invalidatesTags: ['AdminProjects', 'Projects']
     }),
     getActiveAgentSession: builder.query<ActiveAgentSessionResponse, void>({
-      queryFn: (_arg, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.agentSession.active.get()),
+      queryFn: (_arg, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1['agent-session'].active.get()),
       providesTags: ['AgentSession']
     }),
     connectAgentSession: builder.mutation<AgentSessionSnapshot, { id: string; body: ConnectAgentSessionRequest }>({
       queryFn: ({ body, id }, api: { extra: unknown }) =>
-        runTreaty(() => clientOf(api).v1.agentSession({ id }).connected.post(body)),
+        runTreaty(() => clientOf(api).v1['agent-session']({ id }).connected.post(body)),
       invalidatesTags: ['AgentSession']
     }),
     submitAgentRequest: builder.mutation<AgentSessionSnapshot, { id: string; body: SubmitAgentRequest }>({
       queryFn: ({ body, id }, api: { extra: unknown }) =>
-        runTreaty(() => clientOf(api).v1.agentSession({ id }).request.post(body)),
+        runTreaty(() => clientOf(api).v1['agent-session']({ id }).request.post(body)),
       invalidatesTags: ['AgentSession']
     }),
     confirmAgentSelection: builder.mutation<AgentSessionSnapshot, { id: string; body: ConfirmAgentSelectionRequest }>({
       queryFn: ({ body, id }, api: { extra: unknown }) =>
-        runTreaty(() => clientOf(api).v1.agentSession({ id }).confirmSelection.post(body)),
+        runTreaty(() => clientOf(api).v1['agent-session']({ id })['confirm-selection'].post(body)),
       invalidatesTags: ['AgentSession']
     }),
     closeAgentSession: builder.mutation<AgentSessionSnapshot, string>({
-      queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.agentSession({ id }).close.post()),
+      queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1['agent-session']({ id }).close.post()),
       invalidatesTags: ['AgentSession']
     }),
     listProjects: builder.query<ListProjectsResult, PaginationQuery | undefined>({
