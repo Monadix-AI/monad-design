@@ -44,9 +44,7 @@ type AXSnapshot = AccessibilitySnapshot;
 
 const coreClient = new ClientApi({ origin: window.location.origin });
 const loadVariantComparison = () => import('@monaddesign/ui/business/variant-comparison');
-const VariantComparison = lazy(async () => ({
-  default: (await loadVariantComparison()).VariantComparison
-}));
+const VariantComparison = lazy(async () => ({ default: (await loadVariantComparison()).VariantComparison }));
 
 export function App() {
   useClientTheme();
@@ -329,9 +327,11 @@ export function App() {
     void (async () => {
       const captures: VariantComparisonCapture[] = [];
       let previewLaunchStarted = false;
+      let failedVariant: SimulatorVariantId | undefined;
       const captureTarget = captureTargetFromContext(changeRequest.context);
       try {
         for (const variant of simulatorVariantIdsForCount(changeRequest.variantCount)) {
+          failedVariant = variant;
           setCapturingVariant(variant);
           await coreClient.launchVariant(variant);
           previewLaunchStarted = true;
@@ -341,9 +341,21 @@ export function App() {
             orientation: orientationRef.current
           });
           setVariantCaptures([...captures]);
+          failedVariant = undefined;
         }
       } catch (error) {
-        setVariantError(formatErrorMessage(error));
+        const message = formatErrorMessage(error);
+        setVariantError(message);
+        if (failedVariant) {
+          try {
+            setSession(
+              await coreClient.reportVariantCaptureFailure(session.id, { requestId, variant: failedVariant, message })
+            );
+            capturedRequest.current = null;
+          } catch (reportError) {
+            setVariantError(`${message} Could not notify the coding agent: ${formatErrorMessage(reportError)}`);
+          }
+        }
       } finally {
         if (previewLaunchStarted) {
           try {
@@ -358,7 +370,7 @@ export function App() {
         setCapturingVariant(null);
       }
     })();
-  }, [captureStableSimulatorImage, isRestoringConnection, session, simulators]);
+  }, [captureStableSimulatorImage, isRestoringConnection, session, setSession, simulators]);
 
   useEffect(() => {
     if (session?.status !== 'awaiting_request') return;

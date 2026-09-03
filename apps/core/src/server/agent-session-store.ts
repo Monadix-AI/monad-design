@@ -13,7 +13,10 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 
 import { CoreApiError } from './api-error';
 
-export type { AgentSessionStatus, AgentTurnContext } from '@monaddesign/client-contract';
+export type {
+  AgentSessionStatus,
+  AgentTurnContext
+} from '@monaddesign/client-contract';
 
 export type AgentChangeRequest = NonNullable<PublicAgentSessionSnapshot['changeRequest']>;
 type SimulatorVariantId = ConfirmAgentSelectionRequest['variant'];
@@ -98,10 +101,7 @@ export class AgentSessionStore {
   async create(workspacePath: string, task?: string) {
     const requestedPath = await canonicalPath(workspacePath);
     const projectPaths = await Promise.all(
-      (await this.projectStore.list()).map(async (project) => ({
-        project,
-        path: await canonicalPath(project.path)
-      }))
+      (await this.projectStore.list()).map(async (project) => ({ project, path: await canonicalPath(project.path) }))
     );
     const project = projectPaths
       .filter(({ path }) => requestedPath === path || requestedPath.startsWith(`${path}${sep}`))
@@ -171,11 +171,7 @@ export class AgentSessionStore {
     if (!session.project.targetApps.some(({ bundleIdentifier }) => bundleIdentifier === connection.bundleIdentifier)) {
       throw new CoreApiError(409, 'CONFLICT', 'The connected app does not belong to this agent session project.');
     }
-    return this.#update(session, {
-      status: 'awaiting_request',
-      connection,
-      changeRequest: undefined
-    });
+    return this.#update(session, { status: 'awaiting_request', connection, changeRequest: undefined });
   }
 
   async request(
@@ -205,10 +201,7 @@ export class AgentSessionStore {
       let context: AgentTurnContext = structuredClone(input.context);
       if (input.annotationScreenshot) {
         screenshotPath = await this.#persistAnnotation(session, requestId, input.annotationScreenshot);
-        context = {
-          ...context,
-          annotation: { screenshotPath, mimeType: 'image/png' }
-        };
+        context = { ...context, annotation: { screenshotPath, mimeType: 'image/png' } };
       }
       const current = this.#requireStatus(id, ['awaiting_request']);
       if (current.revision !== session.revision) {
@@ -240,12 +233,24 @@ export class AgentSessionStore {
     await this.#restartConnectedApp(session);
     return this.#update(session, {
       status: 'variants_ready',
-      publishedVariants: {
-        requestId,
-        summary: summary.trim(),
-        publishedAt: new Date().toISOString()
-      },
+      publishedVariants: { requestId, summary: summary.trim(), publishedAt: new Date().toISOString() },
+      captureFailure: undefined,
       confirmedSelection: undefined
+    });
+  }
+
+  reportCaptureFailure(id: string, requestId: string, variant: SimulatorVariantId, message: string) {
+    const session = this.#requireRequest(id, requestId, ['variants_ready']);
+    const allowed = [
+      'original',
+      ...Array.from({ length: session.changeRequest?.variantCount ?? 0 }, (_, index) => `v${index + 1}`)
+    ];
+    if (!allowed.includes(variant)) {
+      throw new CoreApiError(400, 'VALIDATION', 'The failed variant was not published for this request.');
+    }
+    return this.#update(session, {
+      status: 'working',
+      captureFailure: { requestId, variant, message: message.trim(), failedAt: new Date().toISOString() }
     });
   }
 
@@ -272,12 +277,9 @@ export class AgentSessionStore {
       status: 'awaiting_request',
       changeRequest: undefined,
       publishedVariants: undefined,
+      captureFailure: undefined,
       confirmedSelection: undefined,
-      lastResult: {
-        requestId,
-        summary: summary.trim(),
-        completedAt
-      }
+      lastResult: { requestId, summary: summary.trim(), completedAt }
     });
     await this.#removeAnnotation(session);
     return updated;

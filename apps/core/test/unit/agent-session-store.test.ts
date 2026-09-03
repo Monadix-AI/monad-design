@@ -24,10 +24,7 @@ const live = {
     containerPath: 'Example.xcodeproj',
     scheme: 'Example'
   },
-  navigation: {
-    strategy: 'debug-bootstrap' as const,
-    bootstrapPath: 'Example/MonadDesignPreviewRouter.swift'
-  }
+  navigation: { strategy: 'debug-bootstrap' as const, bootstrapPath: 'Example/MonadDesignPreviewRouter.swift' }
 };
 
 const project = {
@@ -61,18 +58,13 @@ describe('agent session store', () => {
     expect(created.project.id).toBe(project.id);
     expect(sessions.active()?.id).toBe(created.id);
 
-    const connected = sessions.connected(created.id, {
-      udid: 'simulator-1',
-      bundleIdentifier: 'com.example.app'
-    });
+    const connected = sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
     expect(connected.status).toBe('awaiting_request');
 
     const requested = await sessions.request(created.id, {
       request: 'Increase the title contrast',
       variantCount: 2,
-      context: {
-        simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' }
-      }
+      context: { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } }
     });
     expect(requested.status).toBe('change_requested');
     expect(requested.changeRequest?.request).toBe('Increase the title contrast');
@@ -117,10 +109,7 @@ describe('agent session store', () => {
   });
 
   test('requires and persists framework adapters before opening the Simulator picker', async () => {
-    const unconfigured = {
-      ...project,
-      targetApps: [{ bundleIdentifier: 'com.example.app', name: 'Example App' }]
-    };
+    const unconfigured = { ...project, targetApps: [{ bundleIdentifier: 'com.example.app', name: 'Example App' }] };
     let configured = false;
     const sessions = new AgentSessionStore({
       list: async () => [unconfigured],
@@ -144,14 +133,44 @@ describe('agent session store', () => {
     expect(ready.project.targetApps[0]?.live?.framework).toBe('swiftui');
   });
 
+  test('returns capture failures to the agent and allows the same request to be republished', async () => {
+    const sessions = new AgentSessionStore(projectStore, { restartApp: async () => undefined });
+    const created = await sessions.create('/tmp/example');
+    sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
+    const requested = await sessions.request(created.id, {
+      request: 'Adjust the profile layout',
+      variantCount: 2,
+      context: { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } }
+    });
+    const requestId = requested.changeRequest?.id ?? 'missing';
+    sessions.claim(created.id, requestId);
+    const published = await sessions.publishVariants(created.id, requestId, 'Built the variants.');
+
+    const waiting = sessions.wait(created.id, published.revision, 1_000);
+    const failed = sessions.reportCaptureFailure(
+      created.id,
+      requestId,
+      'original',
+      'Original did not restore the selected page.'
+    );
+
+    expect(failed.status).toBe('working');
+    expect(failed.captureFailure).toMatchObject({
+      requestId,
+      variant: 'original',
+      message: 'Original did not restore the selected page.'
+    });
+    expect((await waiting).revision).toBe(failed.revision);
+
+    const republished = await sessions.publishVariants(created.id, requestId, 'Fixed original and rebuilt.');
+    expect(republished.status).toBe('variants_ready');
+    expect(republished.captureFailure).toBeUndefined();
+  });
+
   test('stores an annotated screenshot in the bound project temp directory and exposes its path to the agent', async () => {
     const root = await mkdtemp(join(tmpdir(), 'monad-design-annotation-request-'));
     try {
-      const boundProject = {
-        ...project,
-        path: root,
-        configPath: join(root, '.monaddesign', 'project.json')
-      };
+      const boundProject = { ...project, path: root, configPath: join(root, '.monaddesign', 'project.json') };
       const sessions = new AgentSessionStore({
         list: async () => [boundProject],
         open: async () => boundProject,

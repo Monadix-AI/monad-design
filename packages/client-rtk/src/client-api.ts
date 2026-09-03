@@ -4,6 +4,7 @@ import type {
   ConfirmAgentSelectionRequest,
   ConnectAgentSessionRequest,
   LaunchVariantRequest,
+  ReportVariantCaptureFailureRequest,
   SubmitAgentRequest
 } from '@monaddesign/client-contract';
 
@@ -48,17 +49,10 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
           ? {
               config: {
                 ...(requestTimeoutMilliseconds
-                  ? {
-                      onRequest: () => ({ signal: AbortSignal.timeout(requestTimeoutMilliseconds) })
-                    }
+                  ? { onRequest: () => ({ signal: AbortSignal.timeout(requestTimeoutMilliseconds) }) }
                   : {}),
                 ...(accessToken
-                  ? {
-                      headers: {
-                        authorization: `Bearer ${accessToken}`,
-                        'x-monad-design-client-kind': 'desktop'
-                      }
-                    }
+                  ? { headers: { authorization: `Bearer ${accessToken}`, 'x-monad-design-client-kind': 'desktop' } }
                   : {})
               }
             }
@@ -84,12 +78,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
 
   async adminProjects() {
     const response = await this.store
-      .dispatch(
-        coreEndpoints.endpoints.listAdminProjects.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
-      )
+      .dispatch(coreEndpoints.endpoints.listAdminProjects.initiate(undefined, { forceRefetch: true, subscribe: false }))
       .unwrap();
     return response.projects;
   }
@@ -115,13 +104,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   }
 
   health() {
-    return this.store
-      .dispatch(
-        coreEndpoints.endpoints.getHealth.initiate(undefined, {
-          subscribe: false
-        })
-      )
-      .unwrap();
+    return this.store.dispatch(coreEndpoints.endpoints.getHealth.initiate(undefined, { subscribe: false })).unwrap();
   }
 
   pair() {
@@ -134,10 +117,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   activeAgentSession() {
     return this.store
       .dispatch(
-        coreEndpoints.endpoints.getActiveAgentSession.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
+        coreEndpoints.endpoints.getActiveAgentSession.initiate(undefined, { forceRefetch: true, subscribe: false })
       )
       .unwrap();
   }
@@ -152,6 +132,10 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
 
   confirmAgentSelection(id: string, body: ConfirmAgentSelectionRequest) {
     return this.store.dispatch(coreEndpoints.endpoints.confirmAgentSelection.initiate({ id, body })).unwrap();
+  }
+
+  reportVariantCaptureFailure(id: string, body: ReportVariantCaptureFailureRequest) {
+    return this.store.dispatch(coreEndpoints.endpoints.reportVariantCaptureFailure.initiate({ id, body })).unwrap();
   }
 
   closeAgentSession(id: string) {
@@ -182,37 +166,21 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
 
   async projectIcons(id: string) {
     const response = await this.store
-      .dispatch(
-        coreEndpoints.endpoints.getProjectIcons.initiate(id, {
-          forceRefetch: true,
-          subscribe: false
-        })
-      )
+      .dispatch(coreEndpoints.endpoints.getProjectIcons.initiate(id, { forceRefetch: true, subscribe: false }))
       .unwrap();
     return response.icons;
   }
 
   async simulators() {
     const page = await this.store
-      .dispatch(
-        coreEndpoints.endpoints.listSimulators.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
-      )
+      .dispatch(coreEndpoints.endpoints.listSimulators.initiate(undefined, { forceRefetch: true, subscribe: false }))
       .unwrap();
     return simulatorSelectors.selectAll(page.simulators);
   }
 
   connect(projectId: string, udid: string, bundleIdentifier: string) {
     return this.store
-      .dispatch(
-        coreEndpoints.endpoints.connectSimulator.initiate({
-          projectId,
-          udid,
-          bundleIdentifier
-        })
-      )
+      .dispatch(coreEndpoints.endpoints.connectSimulator.initiate({ projectId, udid, bundleIdentifier }))
       .unwrap();
   }
 
@@ -223,10 +191,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   accessibility() {
     return this.store
       .dispatch(
-        coreEndpoints.endpoints.getAccessibilitySnapshot.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
+        coreEndpoints.endpoints.getAccessibilitySnapshot.initiate(undefined, { forceRefetch: true, subscribe: false })
       )
       .unwrap();
   }
@@ -234,22 +199,13 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   appearance() {
     return this.store
       .dispatch(
-        coreEndpoints.endpoints.getSimulatorAppearance.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
+        coreEndpoints.endpoints.getSimulatorAppearance.initiate(undefined, { forceRefetch: true, subscribe: false })
       )
       .unwrap();
   }
 
   setAppearance(appearance: 'light' | 'dark') {
-    return this.store
-      .dispatch(
-        coreEndpoints.endpoints.setSimulatorAppearance.initiate({
-          appearance
-        })
-      )
-      .unwrap();
+    return this.store.dispatch(coreEndpoints.endpoints.setSimulatorAppearance.initiate({ appearance })).unwrap();
   }
 
   setPasteboard(text: string) {
@@ -259,10 +215,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   screenshot() {
     return this.store
       .dispatch(
-        coreEndpoints.endpoints.captureSimulatorScreenshot.initiate(undefined, {
-          forceRefetch: true,
-          subscribe: false
-        })
+        coreEndpoints.endpoints.captureSimulatorScreenshot.initiate(undefined, { forceRefetch: true, subscribe: false })
       )
       .unwrap();
   }

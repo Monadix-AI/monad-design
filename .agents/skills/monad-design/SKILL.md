@@ -63,6 +63,11 @@ As soon as the variants are implemented, installed, and those focused checks pas
 
 When state becomes `selection_confirmed`, permanently apply the selected variant, or preserve the original when discarded. In either case, remove all temporary variant code, rebuild and install the final Debug app, run focused source/build checks, then call `complete_change` without independently relaunching or screenshotting the app. Core relaunches the connected app as part of completion; Monad Design owns subsequent runtime observation. Then immediately resume `wait_for_change` with the returned revision.
 
+When a wait returns `working` with `captureFailure` for the active request, treat it as runtime feedback from Core:
+inspect the reported variant and message, fix the temporary preview implementation, rebuild and install the same Debug
+target, and call `publish_variants` again for the same request. Do not claim the request again. Resume the listening loop
+after republishing.
+
 Do not call `close_live_session` because one request completed, a variant was discarded, one polling request timed out, or the 10-minute inactivity window expired. Only the user's explicit End Live action closes the normal loop.
 
 ## Boundaries

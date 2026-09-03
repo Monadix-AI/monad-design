@@ -26,6 +26,7 @@ import type {
   ProjectTargetDetection,
   RemoteProject,
   RemovedProjectResponse,
+  ReportVariantCaptureFailureRequest,
   ScreenshotResponse,
   SimulatorConnectionResponse,
   SubmitAgentRequest
@@ -36,14 +37,10 @@ import { createEntityAdapter } from '@reduxjs/toolkit';
 import { coreApi } from './api-slice';
 import { clientOf, runTreaty } from './endpoint-helpers';
 
-export const projectAdapter = createEntityAdapter<RemoteProject, string>({
-  selectId: (project) => project.id
-});
+export const projectAdapter = createEntityAdapter<RemoteProject, string>({ selectId: (project) => project.id });
 export const projectSelectors = projectAdapter.getSelectors();
 
-export const simulatorAdapter = createEntityAdapter<IOSSimulator, string>({
-  selectId: (simulator) => simulator.udid
-});
+export const simulatorAdapter = createEntityAdapter<IOSSimulator, string>({ selectId: (simulator) => simulator.udid });
 export const simulatorSelectors = simulatorAdapter.getSelectors();
 
 export type ListProjectsResult = Omit<ListProjectsResponse, 'projects'> & {
@@ -107,6 +104,14 @@ export const coreEndpoints = coreApi.injectEndpoints({
         runTreaty(() => clientOf(api).v1['agent-session']({ id })['confirm-selection'].post(body)),
       invalidatesTags: ['AgentSession']
     }),
+    reportVariantCaptureFailure: builder.mutation<
+      AgentSessionSnapshot,
+      { id: string; body: ReportVariantCaptureFailureRequest }
+    >({
+      queryFn: ({ body, id }, api: { extra: unknown }) =>
+        runTreaty(() => clientOf(api).v1['agent-session']({ id })['capture-failure'].post(body)),
+      invalidatesTags: ['AgentSession']
+    }),
     closeAgentSession: builder.mutation<AgentSessionSnapshot, string>({
       queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1['agent-session']({ id }).close.post()),
       invalidatesTags: ['AgentSession']
@@ -114,21 +119,12 @@ export const coreEndpoints = coreApi.injectEndpoints({
     listProjects: builder.query<ListProjectsResult, PaginationQuery | undefined>({
       queryFn: (query, api: { extra: unknown }) =>
         runTreaty(
-          () =>
-            clientOf(api).v1.projects.get({
-              query: query ?? { limit: 50, offset: 0 }
-            }),
-          (raw) => ({
-            ...raw,
-            projects: projectAdapter.setAll(projectAdapter.getInitialState(), raw.projects)
-          })
+          () => clientOf(api).v1.projects.get({ query: query ?? { limit: 50, offset: 0 } }),
+          (raw) => ({ ...raw, projects: projectAdapter.setAll(projectAdapter.getInitialState(), raw.projects) })
         ),
       providesTags: (result) => [
         'Projects',
-        ...(result?.projects.ids.map((id) => ({
-          type: 'Projects' as const,
-          id
-        })) ?? [])
+        ...(result?.projects.ids.map((id) => ({ type: 'Projects' as const, id })) ?? [])
       ]
     }),
     openProject: builder.mutation<RemoteProject, string>({
@@ -143,10 +139,7 @@ export const coreEndpoints = coreApi.injectEndpoints({
       queryFn: (_arg, api: { extra: unknown }) =>
         runTreaty(
           () => clientOf(api).v1.simulators.get(),
-          (raw) => ({
-            ...raw,
-            simulators: simulatorAdapter.setAll(simulatorAdapter.getInitialState(), raw.simulators)
-          })
+          (raw) => ({ ...raw, simulators: simulatorAdapter.setAll(simulatorAdapter.getInitialState(), raw.simulators) })
         ),
       providesTags: ['Simulators']
     }),

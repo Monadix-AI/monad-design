@@ -26,6 +26,7 @@ import type {
   ProjectTargetDetection,
   RemoteProject,
   RemovedProjectResponse,
+  ReportVariantCaptureFailureRequest,
   ScreenshotResponse,
   SimulatorConnectionResponse,
   SubmitAgentRequest
@@ -35,12 +36,9 @@ import { treaty } from '@elysiajs/eden';
 
 type TreatyResponse<T> = Promise<{ data: T | null; error: unknown }>;
 
-type ProjectsTreaty = {
-  get(options: { query: PaginationQuery }): TreatyResponse<ListProjectsResponse>;
-} & ((params: { id: string }) => {
-  icons: { get(): TreatyResponse<ProjectIconsResponse> };
-  open: { post(): TreatyResponse<RemoteProject> };
-});
+type ProjectsTreaty = { get(options: { query: PaginationQuery }): TreatyResponse<ListProjectsResponse> } & ((params: {
+  id: string;
+}) => { icons: { get(): TreatyResponse<ProjectIconsResponse> }; open: { post(): TreatyResponse<RemoteProject> } });
 
 type AdminProjectsTreaty = {
   get(): TreatyResponse<CoreProjectListResponse>;
@@ -57,20 +55,17 @@ export interface CoreTreaty {
     health: { get(): TreatyResponse<HealthResponse> };
     pair: { post(body: PairCoreRequest): TreatyResponse<PairCoreResponse> };
     admin: { projects: AdminProjectsTreaty };
-    'agent-session': {
-      active: { get(): TreatyResponse<ActiveAgentSessionResponse> };
-    } & ((params: { id: string }) => {
+    'agent-session': { active: { get(): TreatyResponse<ActiveAgentSessionResponse> } } & ((params: { id: string }) => {
       connected: { post(body: ConnectAgentSessionRequest): TreatyResponse<AgentSessionSnapshot> };
       request: { post(body: SubmitAgentRequest): TreatyResponse<AgentSessionSnapshot> };
+      'capture-failure': { post(body: ReportVariantCaptureFailureRequest): TreatyResponse<AgentSessionSnapshot> };
       'confirm-selection': { post(body: ConfirmAgentSelectionRequest): TreatyResponse<AgentSessionSnapshot> };
       close: { post(): TreatyResponse<AgentSessionSnapshot> };
     });
     projects: ProjectsTreaty;
     simulators: {
       get(): TreatyResponse<ListSimulatorsResponse>;
-      connect: {
-        post(body: ConnectSimulatorRequest): TreatyResponse<SimulatorConnectionResponse>;
-      };
+      connect: { post(body: ConnectSimulatorRequest): TreatyResponse<SimulatorConnectionResponse> };
     };
     simulator: {
       connection: { delete(): TreatyResponse<DisconnectedResponse> };
@@ -94,8 +89,5 @@ export interface CreateCoreTreatyOptions {
 }
 
 export const createCoreTreaty = ({ baseUrl, config }: CreateCoreTreatyOptions): CoreTreaty => {
-  return treaty(baseUrl.replace(/\/$/, ''), {
-    ...config,
-    parseDate: false
-  }) as unknown as CoreTreaty;
+  return treaty(baseUrl.replace(/\/$/, ''), { ...config, parseDate: false }) as unknown as CoreTreaty;
 };

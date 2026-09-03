@@ -43,6 +43,7 @@ const stateResult = (session: AgentSessionSnapshot) =>
       ...(session.connection ? { connection: session.connection } : {}),
       ...(session.changeRequest ? { changeRequest: session.changeRequest } : {}),
       ...(session.publishedVariants ? { publishedVariants: session.publishedVariants } : {}),
+      ...(session.captureFailure ? { captureFailure: session.captureFailure } : {}),
       ...(session.confirmedSelection ? { confirmedSelection: session.confirmedSelection } : {}),
       ...(session.lastResult ? { lastResult: session.lastResult } : {})
     }
@@ -159,14 +160,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
         'Persist framework, variant bridge, build, and navigation facts for every target app on the first live connection. This unlocks the Simulator picker.',
       inputSchema: z.object({
         sessionId: sessionIdSchema,
-        targets: z
-          .array(
-            z.object({
-              bundleIdentifier: z.string().trim().min(1),
-              live: frameworkAdapterSchema
-            })
-          )
-          .min(1)
+        targets: z.array(z.object({ bundleIdentifier: z.string().trim().min(1), live: frameworkAdapterSchema })).min(1)
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
@@ -174,10 +168,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
       sessionResult(
         await sessions.configureProject(
           sessionId,
-          targets as Array<{
-            bundleIdentifier: string;
-            live: ProjectFrameworkAdapter;
-          }>
+          targets as Array<{ bundleIdentifier: string; live: ProjectFrameworkAdapter }>
         )
       )
   );

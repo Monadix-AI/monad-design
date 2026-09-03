@@ -1,6 +1,6 @@
 ---
 name: monad-design
-description: Start and maintain a Monad Design visual editing session for the current local project, opening the Core browser UI and keeping its local link available in the agent conversation. Use for iterative Simulator-backed change requests; not for generic one-shot builds or screenshot-only review.
+description: Use Monad Design to iteratively refine a local native mobile app in its running Simulator, including source edits, rebuilds, variant comparison, and approval. Use when the user asks for Monad Design or Simulator-backed visual UI iteration; not for generic builds, standalone code edits, or screenshot-only critique.
 ---
 
 # Monad Design

@@ -20,13 +20,7 @@ export const remoteProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
   lastOpenedAt: z.string(),
-  targetApps: z.array(
-    z.object({
-      bundleIdentifier: z.string(),
-      name: z.string(),
-      sourcePath: z.string().optional()
-    })
-  )
+  targetApps: z.array(z.object({ bundleIdentifier: z.string(), name: z.string(), sourcePath: z.string().optional() }))
 });
 export type RemoteProject = z.infer<typeof remoteProjectSchema>;
 export const listProjectsResponseSchema = z.object({
@@ -36,9 +30,7 @@ export const listProjectsResponseSchema = z.object({
   total: z.number().int().nonnegative()
 });
 export type ListProjectsResponse = z.infer<typeof listProjectsResponseSchema>;
-export const projectIconsResponseSchema = z.object({
-  icons: z.record(z.string(), z.string())
-});
+export const projectIconsResponseSchema = z.object({ icons: z.record(z.string(), z.string()) });
 export type ProjectIconsResponse = z.infer<typeof projectIconsResponseSchema>;
 export const openProjectRequestSchema = z.object({ id: z.string().min(1) });
 export type OpenProjectRequest = z.infer<typeof openProjectRequestSchema>;
@@ -107,9 +99,7 @@ export const addCoreProjectRequestSchema = z.object({
   targetApps: z.array(projectTargetInputSchema).min(1)
 });
 export type AddCoreProjectRequest = z.infer<typeof addCoreProjectRequestSchema>;
-export const configureCoreProjectRequestSchema = z.object({
-  targetApps: z.array(projectTargetInputSchema).min(1)
-});
+export const configureCoreProjectRequestSchema = z.object({ targetApps: z.array(projectTargetInputSchema).min(1) });
 export type ConfigureCoreProjectRequest = z.infer<typeof configureCoreProjectRequestSchema>;
 export const detectProjectTargetsRequestSchema = z.object({ path: z.string().min(1) });
 export type DetectProjectTargetsRequest = z.infer<typeof detectProjectTargetsRequestSchema>;
@@ -185,12 +175,7 @@ export type SimulatorConnectionResponse = z.infer<typeof simulatorConnectionSche
 export const disconnectedResponseSchema = z.object({ connected: z.literal(false) });
 export type DisconnectedResponse = z.infer<typeof disconnectedResponseSchema>;
 
-const frameSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number()
-});
+const frameSchema = z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() });
 export const accessibilitySnapshotSchema = z.object({
   screen: z.object({ width: z.number(), height: z.number() }),
   elements: z.array(
@@ -223,10 +208,7 @@ export type ScreenshotResponse = z.infer<typeof screenshotResponseSchema>;
 export const simulatorVariantSchema = z.enum(['original', 'v1', 'v2', 'v3', 'v4', 'v5']);
 export const launchVariantRequestSchema = z.object({ variant: simulatorVariantSchema });
 export type LaunchVariantRequest = z.infer<typeof launchVariantRequestSchema>;
-export const launchAppResponseSchema = z.object({
-  bundleId: z.string(),
-  process: z.string().nullable()
-});
+export const launchAppResponseSchema = z.object({ bundleId: z.string(), process: z.string().nullable() });
 export type LaunchAppResponse = z.infer<typeof launchAppResponseSchema>;
 export const launchVariantResponseSchema = launchAppResponseSchema.extend({ variant: simulatorVariantSchema });
 export type LaunchVariantResponse = z.infer<typeof launchVariantResponseSchema>;
@@ -269,12 +251,7 @@ const agentTurnInputContextSchema = z.object({
     .optional()
 });
 export const agentTurnContextSchema = agentTurnInputContextSchema.extend({
-  annotation: z
-    .object({
-      screenshotPath: z.string().min(1),
-      mimeType: z.literal('image/png')
-    })
-    .optional()
+  annotation: z.object({ screenshotPath: z.string().min(1), mimeType: z.literal('image/png') }).optional()
 });
 export type AgentTurnContext = z.infer<typeof agentTurnContextSchema>;
 
@@ -296,6 +273,9 @@ export const agentSessionSnapshotSchema = z.object({
   connection: z.object({ udid: z.string(), bundleIdentifier: z.string() }).optional(),
   changeRequest: agentChangeRequestSchema.optional(),
   publishedVariants: z.object({ requestId: z.string(), summary: z.string(), publishedAt: z.string() }).optional(),
+  captureFailure: z
+    .object({ requestId: z.string(), variant: simulatorVariantSchema, message: z.string(), failedAt: z.string() })
+    .optional(),
   confirmedSelection: z
     .object({ requestId: z.string(), variant: simulatorVariantSchema, confirmedAt: z.string() })
     .optional(),
@@ -325,3 +305,9 @@ export const confirmAgentSelectionRequestSchema = z.object({
   variant: simulatorVariantSchema
 });
 export type ConfirmAgentSelectionRequest = z.infer<typeof confirmAgentSelectionRequestSchema>;
+export const reportVariantCaptureFailureRequestSchema = z.object({
+  requestId: z.string().min(1),
+  variant: simulatorVariantSchema,
+  message: z.string().trim().min(1).max(2_000)
+});
+export type ReportVariantCaptureFailureRequest = z.infer<typeof reportVariantCaptureFailureRequestSchema>;

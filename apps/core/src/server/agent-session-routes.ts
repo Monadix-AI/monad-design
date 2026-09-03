@@ -5,6 +5,7 @@ import {
   agentSessionSnapshotSchema,
   confirmAgentSelectionRequestSchema,
   connectAgentSessionRequestSchema,
+  reportVariantCaptureFailureRequestSchema,
   submitAgentRequestSchema
 } from '@monaddesign/client-contract';
 import { Elysia, t } from 'elysia';
@@ -47,6 +48,16 @@ export const createAgentSessionRoutes = (sessions: AgentSessionStore) =>
       params: t.Object({ id: t.String({ minLength: 1 }) }),
       response: { 200: agentSessionSnapshotSchema }
     })
+    .post(
+      '/:id/capture-failure',
+      ({ body: { message, requestId, variant }, params: { id } }) =>
+        publicSession(sessions.reportCaptureFailure(id, requestId, variant, message)),
+      {
+        params: t.Object({ id: t.String({ minLength: 1 }) }),
+        body: reportVariantCaptureFailureRequestSchema,
+        response: { 200: agentSessionSnapshotSchema }
+      }
+    )
     .post(
       '/:id/confirm-selection',
       ({ body: { requestId, variant }, params: { id } }) =>

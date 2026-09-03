@@ -49,4 +49,24 @@ describe('shared variant comparison', () => {
     expect(markup).toContain('<strong>Capturing…</strong>');
     expect(markup).toContain('disabled=""');
   });
+
+  test('clips the capture loading state to the native framebuffer shape', () => {
+    const markup = renderToStaticMarkup(
+      <VariantComparison
+        captures={[]}
+        capturingVariant="original"
+        deviceFrame={deviceFrame}
+        deviceHeight={844}
+        deviceWidth={390}
+        framebufferMask="data:image/png;base64,mask"
+        labels={{ original: 'Original' }}
+        onSelect={() => undefined}
+        variants={['original']}
+      />
+    );
+
+    expect(markup).toContain('class="variant-capture-loading"');
+    expect(markup).toContain('mask-image:url(data:image/png;base64,mask)');
+    expect(markup).toContain('-webkit-mask-image:url(data:image/png;base64,mask)');
+  });
 });

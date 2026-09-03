@@ -10,12 +10,18 @@ selecting_simulator --user connects-----------> awaiting_request
 awaiting_request --user sends-----------------> change_requested
 change_requested --claim_change---------------> working
 working --publish_variants--------------------> variants_ready
+variants_ready --capture fails----------------> working (captureFailure, agent wakes)
 variants_ready --user confirms---------------> selection_confirmed
 selection_confirmed --complete_change---------> awaiting_request
 any non-closed state --user ends Live---------> closed
 ```
 
 Every transition increments `revision`. Start returns full bootstrap data plus the clean localhost `uiUrl` that the agent opens and presents to the user. Direct access loads the current active live session without request authentication. Configure and get return full bootstrap data. Wait and mutation results return the current state with IDs, status, revision, timestamps, current request, and result when relevant.
+
+When Core cannot launch or stably capture a published variant, it records `captureFailure` with the request ID,
+variant ID, message, and timestamp, returns the session to `working`, and increments `revision`. This wakes an agent
+blocked in `wait_for_change`; the agent fixes the same request, rebuilds and installs, then calls `publish_variants`
+again. A successful publish clears the prior failure.
 
 ## Tools
 

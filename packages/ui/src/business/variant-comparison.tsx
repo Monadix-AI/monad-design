@@ -210,6 +210,14 @@ export function VariantComparison({
                       aria-label={`Capturing ${labels[variant] ?? variant}`}
                       className="variant-capture-loading"
                       role="status"
+                      style={{
+                        WebkitMaskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                        WebkitMaskSize: '100% 100%',
+                        WebkitMaskRepeat: 'no-repeat',
+                        maskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                        maskSize: '100% 100%',
+                        maskRepeat: 'no-repeat'
+                      }}
                     >
                       <span
                         aria-hidden="true"
