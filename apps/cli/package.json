@@ -1,7 +1,7 @@
 {
   "name": "monad-design",
   "description": "Install Monad Design Core and connect it to local coding agents.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "bin": {
     "monad-design": "dist/cli.js"
   },
