@@ -78,4 +78,17 @@ describe('ClientApi', () => {
     expect(signals[0]).not.toBe(signals[1]);
     expect(signals.every((signal) => !signal.aborted)).toBe(true);
   });
+
+  test('disposes cached requests', async () => {
+    globalThis.fetch = (async (_url: string | URL | Request, _init?: RequestInit) =>
+      Response.json({ projects: [] })) as typeof fetch;
+    const api = new ClientApi({ origin: 'http://127.0.0.1:41765/' });
+
+    await api.adminProjects();
+    expect(Object.keys(api.store.getState().coreApi.queries)).toHaveLength(1);
+
+    api.dispose();
+
+    expect(Object.keys(api.store.getState().coreApi.queries)).toHaveLength(0);
+  });
 });

@@ -23,11 +23,14 @@ const readBootstrap = async (): Promise<CoreBootstrap | null> => {
 };
 
 const isHealthy = async (bootstrap: CoreBootstrap) => {
+  const client = new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 });
   try {
-    await new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 }).adminProjects();
+    await client.adminProjects();
     return true;
   } catch {
     return false;
+  } finally {
+    client.dispose();
   }
 };
 

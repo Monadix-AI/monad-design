@@ -8,6 +8,7 @@ import type {
   SubmitAgentRequest
 } from '@monaddesign/client-contract';
 
+import { coreApi } from './api-slice';
 import { coreEndpoints, projectSelectors, simulatorSelectors } from './endpoints';
 import { type ClientStore, createClientStore } from './store';
 import { createCoreTreaty } from './treaty-client';
@@ -74,6 +75,10 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
 
   inputUrl(path: string) {
     return this.streamUrl(path).replace(/^http/, 'ws');
+  }
+
+  dispose() {
+    this.store.dispatch(coreApi.util.resetApiState());
   }
 
   async adminProjects() {
