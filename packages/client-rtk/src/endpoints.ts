@@ -22,6 +22,7 @@ import type {
   PaginationQuery,
   PairCoreRequest,
   PairCoreResponse,
+  ProjectDesignDocument,
   ProjectIconsResponse,
   ProjectTargetDetection,
   RemoteProject,
@@ -80,6 +81,10 @@ export const coreEndpoints = coreApi.injectEndpoints({
     openAdminProject: builder.mutation<CoreProject, string>({
       queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects({ id }).open.post()),
       invalidatesTags: ['AdminProjects', 'Projects']
+    }),
+    getProjectDesignDocument: builder.query<ProjectDesignDocument, string>({
+      queryFn: (id, api: { extra: unknown }) =>
+        runTreaty(() => clientOf(api).v1.admin.projects({ id })['design-document'].get())
     }),
     removeAdminProject: builder.mutation<RemovedProjectResponse, string>({
       queryFn: (id, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.admin.projects({ id }).delete()),

@@ -91,6 +91,14 @@ export const coreProjectSchema = z.object({
 export type CoreProject = z.infer<typeof coreProjectSchema>;
 export const coreProjectListResponseSchema = z.object({ projects: z.array(coreProjectSchema) });
 export type CoreProjectListResponse = z.infer<typeof coreProjectListResponseSchema>;
+export const projectDesignDocumentSchema = z.object({
+  exists: z.boolean(),
+  path: z.string(),
+  content: z.string(),
+  modifiedAt: z.string().nullable(),
+  version: z.string().nullable()
+});
+export type ProjectDesignDocument = z.infer<typeof projectDesignDocumentSchema>;
 
 export const projectTargetInputSchema = coreProjectTargetSchema.omit({ live: true });
 export type ProjectTargetInput = z.infer<typeof projectTargetInputSchema>;

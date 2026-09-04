@@ -1,6 +1,8 @@
+import type { Dirent } from 'node:fs';
+
 import { createHash } from 'node:crypto';
-import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { access, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { assertGitProjectRoot } from './git-project-root';
 import { resolveProjectTargetIcons } from './project-app-icons';
@@ -11,6 +13,19 @@ const projectSchemaVersion = 1;
 const projectDirectoryName = '.monaddesign';
 const projectConfigName = 'project.json';
 const projectGitignoreRule = `${projectDirectoryName}/`;
+const designDocumentName = 'DESIGN.md';
+const ignoredDesignDocumentDirectories = new Set([
+  '.git',
+  '.monaddesign',
+  '.next',
+  '.turbo',
+  'build',
+  'coverage',
+  'dist',
+  'node_modules',
+  'Pods'
+]);
+const maximumDesignDocumentDepth = 4;
 
 export interface ProjectTargetApp {
   bundleIdentifier: string;
@@ -78,6 +93,70 @@ export interface MonadDesignProject {
   lastOpenedAt: string;
   targetApps: ProjectTargetApp[];
 }
+
+export interface ProjectDesignDocument {
+  exists: boolean;
+  path: string;
+  content: string;
+  modifiedAt: string | null;
+  version: string | null;
+}
+
+const pathIsInside = (root: string, path: string) => {
+  const value = relative(root, path);
+  return value !== '..' && !value.startsWith(`..${sep}`) && !isAbsolute(value);
+};
+
+const existingFile = async (path: string) => {
+  try {
+    return (await stat(path)).isFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+};
+
+const findProjectDesignDocument = async (project: MonadDesignProject) => {
+  const rootDocument = join(project.path, designDocumentName);
+  if (await existingFile(rootDocument)) return rootDocument;
+
+  const targetDirectories = project.targetApps
+    .flatMap(({ sourcePath }) => {
+      if (!sourcePath) return [];
+      const source = resolve(project.path, sourcePath);
+      return pathIsInside(project.path, source) ? [dirname(source)] : [];
+    })
+    .filter((path, index, paths) => paths.indexOf(path) === index);
+  for (const directory of targetDirectories) {
+    const candidate = join(directory, designDocumentName);
+    if (await existingFile(candidate)) return candidate;
+  }
+
+  const matches: Array<{ depth: number; path: string }> = [];
+  const queue = [{ depth: 0, path: project.path }];
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || current.depth >= maximumDesignDocumentDepth) continue;
+    let entries: Dirent[];
+    try {
+      entries = await readdir(current.path, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const path = join(current.path, entry.name);
+      if (entry.isFile() && entry.name === designDocumentName) {
+        matches.push({ depth: current.depth + 1, path });
+      } else if (entry.isDirectory() && !ignoredDesignDocumentDirectories.has(entry.name)) {
+        queue.push({ depth: current.depth + 1, path });
+      }
+    }
+  }
+  return (
+    matches.sort((left, right) => left.depth - right.depth || left.path.localeCompare(right.path))[0]?.path ?? null
+  );
+};
 
 export interface ProjectDirectorySelection {
   name: string;
@@ -407,6 +486,27 @@ export class ProjectStore {
     const project = (await this.list()).find((item) => item.id === id);
     if (!project) throw new Error('This project is no longer available.');
     return resolveProjectTargetIcons(project);
+  }
+
+  async designDocument(id: string): Promise<ProjectDesignDocument> {
+    const project = (await this.list()).find((item) => item.id === id);
+    if (!project) throw new Error('This project is no longer available.');
+    const rootPath = join(project.path, designDocumentName);
+    const path = await findProjectDesignDocument(project);
+    if (!path) return { exists: false, path: rootPath, content: '', modifiedAt: null, version: null };
+    try {
+      const [content, details] = await Promise.all([readFile(path, 'utf8'), stat(path)]);
+      return {
+        exists: true,
+        path,
+        content,
+        modifiedAt: details.mtime.toISOString(),
+        version: createHash('sha256').update(content).digest('hex').slice(0, 16)
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      return { exists: false, path: rootPath, content: '', modifiedAt: null, version: null };
+    }
   }
 
   private async record(project: MonadDesignProject) {

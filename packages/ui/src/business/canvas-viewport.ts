@@ -17,6 +17,11 @@ export const canvasModeAllowsViewportNavigation = (mode: CanvasMode) => {
   }
 };
 
+export const canvasEventTargetsUi = (target: EventTarget | null) => {
+  const closest = (target as { closest?: (selector: string) => Element | null } | null)?.closest;
+  return typeof closest === 'function' && Boolean(closest.call(target, '[data-canvas-ui]'));
+};
+
 interface CanvasViewportSnapshot {
   offset: { x: number; y: number };
   scale: number;
@@ -191,6 +196,7 @@ export function useCanvasViewport({
 
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (!canvasModeAllowsViewportNavigation(mode)) return;
+    if (canvasEventTargetsUi(event.target)) return;
     event.preventDefault();
     viewChanged.current = true;
     const viewport = canvas.current;
@@ -212,7 +218,7 @@ export function useCanvasViewport({
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (!canvasModeAllowsViewportNavigation(mode) || (event.target as HTMLElement).closest('[data-canvas-ui]')) return;
+    if (!canvasModeAllowsViewportNavigation(mode) || canvasEventTargetsUi(event.target)) return;
     viewChanged.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {

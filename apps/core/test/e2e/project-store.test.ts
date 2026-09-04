@@ -137,6 +137,48 @@ describe('project initialization', () => {
     expect(new Set(projects.map(({ path }) => path)).size).toBe(2);
   });
 
+  test('reads the root DESIGN.md and reports content changes', async () => {
+    const root = await temporaryDirectory();
+    initializeGit(root);
+    const store = new ProjectStore(join(root, 'state', 'projects.json'));
+    const project = await store.add(root, [target('com.example.app')]);
+
+    expect(await store.designDocument(project.id)).toEqual({
+      exists: false,
+      path: join(root, 'DESIGN.md'),
+      content: '',
+      modifiedAt: null,
+      version: null
+    });
+
+    await writeFile(join(root, 'DESIGN.md'), '# First\n', 'utf8');
+    const first = await store.designDocument(project.id);
+    await writeFile(join(root, 'DESIGN.md'), '# Second\n', 'utf8');
+    const second = await store.designDocument(project.id);
+
+    expect(first).toMatchObject({ exists: true, content: '# First\n' });
+    expect(first.modifiedAt).not.toBeNull();
+    expect(first.version).toHaveLength(16);
+    expect(second).toMatchObject({ exists: true, content: '# Second\n' });
+    expect(second.version).not.toBe(first.version);
+  });
+
+  test('discovers a nested DESIGN.md while keeping the root document authoritative', async () => {
+    const root = await temporaryDirectory();
+    initializeGit(root);
+    await mkdir(join(root, 'apps', 'desktop'), { recursive: true });
+    const store = new ProjectStore(join(root, 'state', 'projects.json'));
+    const project = await store.add(root, [{ ...target('com.example.app'), sourcePath: 'apps/mobile/app.json' }]);
+    const nestedPath = join(root, 'apps', 'desktop', 'DESIGN.md');
+    await writeFile(nestedPath, '# Nested\n', 'utf8');
+
+    expect(await store.designDocument(project.id)).toMatchObject({ path: nestedPath, content: '# Nested\n' });
+
+    const rootPath = join(root, 'DESIGN.md');
+    await writeFile(rootPath, '# Root\n', 'utf8');
+    expect(await store.designDocument(project.id)).toMatchObject({ path: rootPath, content: '# Root\n' });
+  });
+
   test('removes a project from the local registry without deleting its configuration', async () => {
     const root = await temporaryDirectory();
     const projectPath = join(root, 'Example');

@@ -43,6 +43,8 @@ import { captureTargetFromContext } from './variant-capture-target';
 type AXSnapshot = AccessibilitySnapshot;
 
 const coreClient = new ClientApi({ origin: window.location.origin });
+const loadDesignDocumentCard = () => import('@monaddesign/ui/business/design-document-card');
+const DesignDocumentCard = lazy(async () => ({ default: (await loadDesignDocumentCard()).DesignDocumentCard }));
 const loadVariantComparison = () => import('@monaddesign/ui/business/variant-comparison');
 const VariantComparison = lazy(async () => ({ default: (await loadVariantComparison()).VariantComparison }));
 
@@ -76,6 +78,7 @@ export function App() {
   const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
   const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
   const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
+  const loadDesignDocument = useCallback((projectId: string) => coreClient.projectDesignDocument(projectId), []);
   const socket = useRef<WebSocket | null>(null);
   const screenImage = useRef<HTMLImageElement | null>(null);
   const orientationRef = useRef<SimulatorOrientation>('portrait');
@@ -683,6 +686,13 @@ export function App() {
             }
             inspector={
               <>
+                <Suspense fallback={null}>
+                  <DesignDocumentCard
+                    collapse={isAnnotationMode || isSelectionMode}
+                    loadDocument={loadDesignDocument}
+                    projectId={session.project.id}
+                  />
+                </Suspense>
                 <LiveWorkspaceInspector
                   agentStatus={session.status}
                   confirmedVariant={session.confirmedSelection?.variant}

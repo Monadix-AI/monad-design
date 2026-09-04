@@ -7,13 +7,14 @@ import {
   coreProjectSchema,
   detectProjectTargetsRequestSchema,
   openProjectRequestSchema,
+  projectDesignDocumentSchema,
   projectTargetDetectionSchema,
   removedProjectResponseSchema
 } from '@monaddesign/client-contract';
 import { Elysia } from 'elysia';
 
 type AdminProjectStore = Pick<ProjectStore, 'list' | 'open' | 'add'> &
-  Partial<Pick<ProjectStore, 'configure' | 'remove'>>;
+  Partial<Pick<ProjectStore, 'configure' | 'remove' | 'designDocument'>>;
 
 export const createAdminProjectRoutes = (
   projectStore: AdminProjectStore,
@@ -47,6 +48,19 @@ export const createAdminProjectRoutes = (
       params: openProjectRequestSchema,
       response: { 200: coreProjectSchema }
     })
+    .get(
+      '/:id/design-document',
+      ({ params: { id } }) => {
+        if (!('designDocument' in projectStore) || typeof projectStore.designDocument !== 'function') {
+          throw new Error('Design documents are not available.');
+        }
+        return projectStore.designDocument(id);
+      },
+      {
+        params: openProjectRequestSchema,
+        response: { 200: projectDesignDocumentSchema }
+      }
+    )
     .delete(
       '/:id',
       async ({ params: { id } }) => {

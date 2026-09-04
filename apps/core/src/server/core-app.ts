@@ -14,7 +14,7 @@ import { createProjectRoutes } from './project-routes';
 import { createSimulatorRoutes } from './simulator-routes';
 
 type CoreProjectStore = Pick<ProjectStore, 'list' | 'open' | 'add' | 'configureLiveTargets'> &
-  Partial<Pick<ProjectStore, 'icons' | 'configure' | 'remove'>>;
+  Partial<Pick<ProjectStore, 'icons' | 'configure' | 'remove' | 'designDocument'>>;
 
 export const createCoreApp = (
   projectStore: CoreProjectStore,

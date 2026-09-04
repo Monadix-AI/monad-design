@@ -14,6 +14,7 @@ import {
 } from '@/canvas-viewport-provider';
 import { ActionIcon } from '@/components/action-icon';
 import { AppHeader } from '@/components/app-header';
+import { DesignDocumentCard } from '@/components/workspace/design-document-card';
 import { SimulatorCanvas } from '@/components/workspace/simulator-canvas';
 import { VariantPreview } from '@/components/workspace/variant-preview';
 import { WorkspaceInspector } from '@/components/workspace/workspace-inspector';
@@ -77,6 +78,7 @@ function WorkspaceContent() {
       }
       inspector={
         <>
+          <DesignDocumentCard />
           {isVariantPreviewOpen && <VariantPreview />}
           <WorkspaceInspector />
           <WorkspaceCanvasControls />

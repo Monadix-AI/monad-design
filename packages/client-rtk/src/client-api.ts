@@ -92,6 +92,12 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
     return this.store.dispatch(coreEndpoints.endpoints.openAdminProject.initiate(id)).unwrap();
   }
 
+  projectDesignDocument(id: string) {
+    return this.store
+      .dispatch(coreEndpoints.endpoints.getProjectDesignDocument.initiate(id, { forceRefetch: true, subscribe: false }))
+      .unwrap();
+  }
+
   detectProjectTargets(path: string) {
     return this.store.dispatch(coreEndpoints.endpoints.detectProjectTargets.initiate(path)).unwrap();
   }

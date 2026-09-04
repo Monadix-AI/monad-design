@@ -22,6 +22,7 @@ import type {
   PaginationQuery,
   PairCoreRequest,
   PairCoreResponse,
+  ProjectDesignDocument,
   ProjectIconsResponse,
   ProjectTargetDetection,
   RemoteProject,
@@ -47,6 +48,7 @@ type AdminProjectsTreaty = {
 } & ((params: { id: string }) => {
   delete(): TreatyResponse<RemovedProjectResponse>;
   put(body: ConfigureCoreProjectRequest): TreatyResponse<CoreProject>;
+  'design-document': { get(): TreatyResponse<ProjectDesignDocument> };
   open: { post(): TreatyResponse<CoreProject> };
 });
 

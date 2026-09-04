@@ -539,6 +539,7 @@ export function useDesktopController() {
     projectIcons,
     projects,
     remoteClient,
+    runtimeClient,
     removeProject,
     removingProjectId,
     rotate,

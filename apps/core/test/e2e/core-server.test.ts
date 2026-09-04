@@ -86,6 +86,13 @@ const projectStore = {
   },
   icons: async (id: string): Promise<Record<string, string>> =>
     id === 'project-1' ? { 'com.example.app': 'data:image/png;base64,aWNvbg==' } : {},
+  designDocument: async (id: string) => ({
+    exists: id === 'project-1',
+    path: '/tmp/example/DESIGN.md',
+    content: id === 'project-1' ? '# Example' : '',
+    modifiedAt: id === 'project-1' ? '2026-09-04T00:00:00.000Z' : null,
+    version: id === 'project-1' ? '0123456789abcdef' : null
+  }),
   remove: async () => undefined,
   configureLiveTargets: async () => {
     const project = projects[0];
@@ -228,6 +235,16 @@ describe('Core server', () => {
       id: 'project-1',
       path: '/tmp/example',
       configPath: '/tmp/example/.monaddesign/project.json'
+    });
+
+    const designResponse = await fetch(`${origin}/v1/admin/projects/project-1/design-document`);
+    expect(designResponse.status).toBe(200);
+    expect(await designResponse.json()).toEqual({
+      exists: true,
+      path: '/tmp/example/DESIGN.md',
+      content: '# Example',
+      modifiedAt: '2026-09-04T00:00:00.000Z',
+      version: '0123456789abcdef'
     });
   });
 
