@@ -32,6 +32,7 @@
     "rules": {
       "preset": "recommended",
       "style": {
+        "noDescendingSpecificity": "error",
         "noUnusedTemplateLiteral": "warn",
         "useConst": "error",
         "useImportType": "off"

@@ -355,6 +355,16 @@ button:focus-visible {
   position: relative;
   z-index: 1;
 }
+.simulator-list-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 48px));
+  height: 100%;
+  min-height: 0;
+  padding: 76px 0 18px;
+  margin: 0 auto;
+  background: transparent;
+}
 .project-home,
 .simulator-list-panel {
   opacity: 1;
@@ -732,13 +742,13 @@ button:focus-visible {
   justify-content: space-between;
   min-width: 0;
 }
-.pairing-code-block > div span {
+.pairing-code-block > div :where(span) {
   font-size: 8px;
   font-weight: 700;
   color: var(--muted-foreground);
   letter-spacing: 0.11em;
 }
-.pairing-code-block > div strong {
+.pairing-code-block > div :where(strong) {
   font-size: 17px;
   color: var(--primary);
   letter-spacing: 0.14em;
@@ -1194,7 +1204,7 @@ button:focus-visible {
   border: 1px solid var(--muted-foreground);
   border-radius: 999px;
 }
-.project-target-candidate[data-state="checked"] .project-target-radio {
+.project-target-candidate:where([data-state="checked"]) .project-target-radio {
   border-color: var(--primary);
 }
 .project-target-candidate[data-state="checked"] .project-target-radio::after {
@@ -1230,7 +1240,7 @@ button:focus-visible {
   color: var(--muted-foreground);
   white-space: nowrap;
 }
-.project-target-candidate-copy > span small {
+.project-target-candidate-copy > :where(span small) {
   flex: 0 0 auto;
   padding: 3px 5px;
   background: var(--control-fill);
@@ -1292,16 +1302,6 @@ button:focus-visible {
   overflow: hidden;
   background: transparent;
   isolation: isolate;
-}
-.simulator-list-panel {
-  display: flex;
-  flex-direction: column;
-  width: min(720px, calc(100vw - 48px));
-  height: 100%;
-  min-height: 0;
-  padding: 76px 0 18px;
-  margin: 0 auto;
-  background: transparent;
 }
 .page-back {
   display: inline-flex;
@@ -1419,7 +1419,7 @@ button:focus-visible {
 .target-app-card .project-target-candidate-copy {
   gap: 5px;
 }
-.target-app-card .project-target-candidate-copy strong {
+:where(.target-app-card) .project-target-candidate-copy strong {
   font-size: 11px;
 }
 .simulator-section {
@@ -1481,7 +1481,7 @@ h1 {
   padding: 0 12px 12px;
   border-top: 1px solid #26282d;
 }
-.remote-client-card summary span,
+.remote-client-card :where(summary span),
 .remote-client-card small {
   font-size: 9px;
   color: var(--muted-foreground);
@@ -1827,7 +1827,7 @@ h1 {
   padding-bottom: 12px;
   margin-bottom: 16px;
 }
-.live-split .active-project-heading code {
+:where(.live-split) .active-project-heading code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2497,7 +2497,7 @@ h1 {
   flex-direction: column;
   gap: 6px;
 }
-.variant-setup label span {
+.variant-setup :where(label span) {
   font-size: 9px;
   color: var(--muted-foreground);
 }
@@ -2704,7 +2704,7 @@ h1 {
   font-size: 10px;
   color: var(--muted-foreground);
 }
-.variant-tile.selected .variant-tile-heading small {
+:where(.variant-tile.selected) .variant-tile-heading small {
   color: var(--primary-hover);
 }
 .variant-image-frame {
@@ -3037,7 +3037,7 @@ h1 {
   height: 100%;
   min-height: 0;
 }
-.annotation-note-list label > span {
+.annotation-note-list :where(label > span) {
   font-size: 8px;
   font-weight: 700;
   color: #a8abb3;
@@ -3170,7 +3170,7 @@ h1 {
   border: 1px solid #7dd3fc;
   border-radius: 2px;
 }
-.ax-tree button.container small {
+.ax-tree :where(button.container) small {
   color: #72adc7;
 }
 .ax-tree small {
@@ -3563,7 +3563,7 @@ h1 {
   line-height: 1.45;
   color: var(--muted-foreground);
 }
-.prompt-workbench .handoff-selection > div {
+:where(.prompt-workbench) .handoff-selection > div {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -3577,7 +3577,7 @@ h1 {
 .request-composer .handoff-request {
   align-items: stretch;
 }
-.request-composer .handoff-request > span {
+:where(.request-composer) .handoff-request > span {
   line-height: 1.2;
   text-align: left;
 }
@@ -3666,7 +3666,7 @@ h1 {
   font-size: 9px;
   color: var(--muted-foreground);
 }
-.agent-variant-option[data-state="checked"] small {
+.agent-variant-option:where([data-state="checked"]) small {
   color: var(--primary-hover);
 }
 .agent-review-actions {
@@ -3695,7 +3695,7 @@ h1 {
   border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
   border-radius: 9px;
 }
-.prompt-workbench .handoff-selection button {
+:where(.prompt-workbench) .handoff-selection button {
   display: grid;
   place-items: center;
   width: 22px;
@@ -3758,7 +3758,7 @@ h1 {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-.prompt-workbench .handoff-request textarea {
+:where(.prompt-workbench) .handoff-request textarea {
   min-height: 112px;
   font-size: 12px;
   line-height: 1.5;
@@ -3784,7 +3784,7 @@ h1 {
   min-width: 68px;
   min-height: 34px;
 }
-.prompt-workbench .variant-count-field small {
+:where(.prompt-workbench) .variant-count-field small {
   line-height: 1.4;
 }
 .request-footer {

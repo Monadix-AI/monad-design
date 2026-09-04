@@ -113,7 +113,7 @@
   outline-offset: 1px;
 }
 
-.design-document-header button svg {
+.design-document-header :where(button svg) {
   width: 14px;
   height: 14px;
 }
@@ -448,8 +448,8 @@
   border: 1px solid var(--primary);
 }
 
-.design-shape-preview figcaption strong,
-.design-shape-preview figcaption code {
+.design-shape-preview :where(figcaption strong),
+.design-shape-preview :where(figcaption code) {
   display: block;
 }
 
@@ -458,7 +458,7 @@
   color: var(--foreground);
 }
 
-.design-shape-preview figcaption code {
+.design-shape-preview :where(figcaption code) {
   margin-top: 4px;
   font-size: 10px;
   color: var(--muted-foreground);
