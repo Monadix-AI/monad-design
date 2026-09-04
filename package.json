@@ -2,7 +2,7 @@
   "name": "@monaddesign/workspace",
   "description": "A native visual implementation layer for coding agents, built around real iOS Simulator evidence.",
   "devDependencies": {
-    "@biomejs/biome": "^2.5.10",
+    "@biomejs/biome": "^2.5.12",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@commitlint/format": "^21.2.2",
