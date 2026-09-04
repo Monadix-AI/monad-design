@@ -293,10 +293,6 @@ export function SimulatorsRoute() {
               {error}
             </p>
           )}
-          <footer className="project-boundary">
-            <span>Local project registry</span>
-            <span>Configuration written only after you choose a directory</span>
-          </footer>
           <Dialog.Root
             onOpenChange={(open) => {
               if (open) return;

@@ -56,7 +56,7 @@ export function LiveSessionSimulatorPicker({
   const selectedSimulator = simulators.find(({ udid }) => udid === selectedSimulatorUdid);
   return (
     <div className="simulator-list-page">
-      <section className="simulator-list-panel live-split">
+      <section className="simulator-list-panel live-split simulator-picker-compact">
         {onBack ? (
           <button
             className="page-back"

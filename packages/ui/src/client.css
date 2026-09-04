@@ -1038,15 +1038,6 @@ button:focus-visible {
 .project-error {
   margin: 12px 0;
 }
-.project-boundary {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  padding-top: 16px;
-  font-size: 9px;
-  color: var(--muted-foreground);
-  border-top: 1px solid #282a2f;
-}
 .project-target-overlay {
   position: fixed;
   inset: 0;
@@ -1863,6 +1854,56 @@ h1 {
 .live-split .simulator-action-bar {
   grid-row: 5;
   padding-top: 12px;
+}
+.simulator-picker-compact {
+  grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
+  gap: 0 18px;
+  width: min(960px, calc(100vw - 40px));
+  padding-top: 60px;
+}
+.simulator-picker-compact .page-back {
+  margin-bottom: 6px;
+}
+.simulator-picker-compact .active-project-heading {
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.simulator-picker-compact .picker-section-heading {
+  margin-bottom: 6px;
+}
+:where(.simulator-picker-compact) .picker-section-heading p {
+  display: none;
+}
+.simulator-picker-compact .target-app-section {
+  padding-right: 18px;
+}
+.simulator-picker-compact .target-app-card {
+  min-height: 50px;
+  padding: 7px;
+}
+.simulator-picker-compact .target-app-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.simulator-picker-compact .device-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 6px;
+}
+.simulator-picker-compact .device-card {
+  gap: 8px;
+  min-height: 44px;
+  padding: 5px 8px;
+  border-radius: 9px;
+}
+.simulator-picker-compact .device-icon {
+  max-width: 22px;
+}
+.simulator-picker-compact .simulator-action-bar {
+  padding-top: 8px;
+}
+.simulator-picker-compact .connect-button {
+  min-height: 36px;
 }
 .connect-button:hover:not(:disabled) {
   background: var(--primary-hover);
@@ -4276,12 +4317,10 @@ h1 {
 
 /* Light theme changes the desktop instruments while preserving Simulator imagery. */
 :root[data-theme="light"] .project-home-heading,
-:root[data-theme="light"] .project-boundary,
 :root[data-theme="light"] .active-project-heading {
   border-color: var(--border);
 }
 :root[data-theme="light"] .project-home-heading p,
-:root[data-theme="light"] .project-boundary,
 :root[data-theme="light"] .project-identity code,
 :root[data-theme="light"] .active-project-heading code,
 :root[data-theme="light"] .project-empty p,
