@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode, Ref } from 'react';
+import { type HTMLAttributes, type ReactNode, type Ref, useState } from 'react';
 
 import { CanvasZoomControls, type CanvasZoomControlsProps } from '../canvas-controls';
 import { VariantComparison, type VariantComparisonProps } from '../variant-comparison';
@@ -51,10 +51,19 @@ export function LiveWorkspace({
   variantComparison,
   zoomControls
 }: LiveWorkspaceProps) {
+  const [annotationNotesHost, setAnnotationNotesHost] = useState<HTMLDivElement | null>(null);
   const canvasMode = mode === 'select' ? 'interact' : mode;
   return (
     <LiveWorkspaceFrame
-      canvas={canvas ?? (simulator ? <LiveSimulatorWorkspaceCanvas {...simulator} /> : null)}
+      canvas={
+        canvas ??
+        (simulator ? (
+          <LiveSimulatorWorkspaceCanvas
+            {...simulator}
+            annotationNotesHost={annotationNotesHost}
+          />
+        ) : null)
+      }
       canvasProps={canvasProps}
       error={error}
       header={header}
@@ -65,6 +74,7 @@ export function LiveWorkspace({
           {preview ?? (variantComparison ? <VariantComparison {...variantComparison} /> : null)}
           <LiveWorkspaceInspector
             {...inspector}
+            annotationNotesHostRef={setAnnotationNotesHost}
             isEndingLive={activeSession?.isEnding}
             mode={mode}
             onEndLive={activeSession?.onEnd}

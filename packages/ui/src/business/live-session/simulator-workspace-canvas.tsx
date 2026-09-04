@@ -20,6 +20,7 @@ export interface LiveSimulatorWorkspaceCanvasProps
     onCancel: () => void;
     onFinish: (image: string) => Promise<void>;
   };
+  annotationNotesHost?: HTMLElement | null;
   appearance: 'dark' | 'light';
   canvasOffset: { x: number; y: number };
   canvasScale: number;
@@ -41,6 +42,7 @@ export interface LiveSimulatorWorkspaceCanvasProps
 
 export function LiveSimulatorWorkspaceCanvas({
   annotation,
+  annotationNotesHost,
   appearance,
   canvasOffset,
   canvasScale,
@@ -105,6 +107,7 @@ export function LiveSimulatorWorkspaceCanvas({
       active={isAnnotationMode}
       captureImage={annotation.captureImage}
       imageSize={{ height: simulator.deviceHeight, width: simulator.deviceWidth }}
+      notesHost={annotationNotesHost}
       onCancel={annotation.onCancel}
       onFinish={annotation.onFinish}
       orientation={simulator.orientation}

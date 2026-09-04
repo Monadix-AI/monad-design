@@ -30,6 +30,7 @@ import {
 } from '@monaddesign/simulator/annotation';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Button } from '../../primitives/button';
 import { ActionIcon } from '../action-icon';
@@ -177,6 +178,7 @@ export function LiveAnnotationSurface({
   children,
   icons,
   imageSize,
+  notesHost,
   onCancel,
   onFinish,
   orientation
@@ -186,6 +188,7 @@ export function LiveAnnotationSurface({
   children: (overlay: ReactNode) => ReactNode;
   icons?: LiveAnnotationIcons;
   imageSize: { height: number; width: number };
+  notesHost?: HTMLElement | null;
   onCancel: () => void;
   onFinish: (annotationScreenshot: string) => Promise<void>;
   orientation: SimulatorOrientation;
@@ -855,43 +858,55 @@ export function LiveAnnotationSurface({
               </span>
             )}
           </div>
-          {callouts.length > 0 && (
-            <aside
-              aria-label="Implementation notes"
-              className="canvas-annotation-notes"
-            >
+        </div>
+      )}
+      {active && notesHost
+        ? createPortal(
+            <>
               <header>
                 <div>
-                  <strong>Implementation notes</strong>
-                  <span>Notes are optional and stay outside the sent image.</span>
+                  <strong className="inspector-annotation-notes-title">Implementation notes</strong>
+                  <span className="inspector-annotation-notes-description">
+                    Notes are optional and stay outside the sent image.
+                  </span>
                 </div>
                 <output aria-label={`${callouts.length} annotations`}>{callouts.length}</output>
               </header>
-              <ol ref={annotationNotesList}>
-                {callouts.map((callout, index) => (
-                  <li key={callout.id}>
-                    <span className="canvas-annotation-note-number">{index + 1}</span>
-                    <label>
-                      <span>{calloutTypeLabel[callout.type]}</span>
-                      <textarea
-                        aria-label={`Note ${index + 1}`}
-                        onChange={(event) => updateNote(callout.id, event.target.value)}
-                        placeholder="Describe what should change…"
-                        ref={(node) => {
-                          if (node) noteInputs.current.set(callout.id, node);
-                          else noteInputs.current.delete(callout.id);
-                        }}
-                        rows={3}
-                        value={callout.note}
-                      />
-                    </label>
-                  </li>
-                ))}
-              </ol>
-            </aside>
-          )}
-        </div>
-      )}
+              {callouts.length > 0 ? (
+                <ol ref={annotationNotesList}>
+                  {callouts.map((callout, index) => (
+                    <li key={callout.id}>
+                      <span className="canvas-annotation-note-number">{index + 1}</span>
+                      <label>
+                        <span className="inspector-annotation-note-type">{calloutTypeLabel[callout.type]}</span>
+                        <textarea
+                          aria-label={`Note ${index + 1}`}
+                          className="inspector-annotation-note-input"
+                          onChange={(event) => updateNote(callout.id, event.target.value)}
+                          placeholder="Describe what should change…"
+                          ref={(node) => {
+                            if (node) noteInputs.current.set(callout.id, node);
+                            else noteInputs.current.delete(callout.id);
+                          }}
+                          rows={3}
+                          value={callout.note}
+                        />
+                      </label>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="inspector-annotation-notes-empty">
+                  <strong className="inspector-annotation-notes-empty-title">No annotations yet</strong>
+                  <span className="inspector-annotation-notes-empty-description">
+                    Draw a rectangle, ellipse, or arrow to add an implementation note.
+                  </span>
+                </div>
+              )}
+            </>,
+            notesHost
+          )
+        : null}
     </>
   );
 }

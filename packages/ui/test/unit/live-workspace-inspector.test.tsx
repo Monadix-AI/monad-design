@@ -42,4 +42,19 @@ describe('live workspace inspector', () => {
     expect(endingMarkup).toContain('disabled=""');
     expect(endingMarkup).toContain('>Ending live…</button>');
   });
+
+  test('turns the inspector body into the annotation notes host in annotation mode', () => {
+    const markup = renderToStaticMarkup(
+      <LiveWorkspaceInspector
+        {...props}
+        mode="annotate"
+      />
+    );
+
+    expect(markup).toContain('class="floating-inspector compact annotation-only"');
+    expect(markup).toContain('aria-label="Implementation notes"');
+    expect(markup).toContain('class="inspector-annotation-body"');
+    expect(markup).not.toContain('class="inspector-section prompt-workbench');
+    expect(markup).not.toContain('Adjustment request');
+  });
 });

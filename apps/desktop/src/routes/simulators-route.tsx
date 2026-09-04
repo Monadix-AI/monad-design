@@ -465,46 +465,52 @@ export function SimulatorsRoute() {
     );
   }
 
+  const renderSimulatorPicker = (previewClassName?: string) => (
+    <LiveSessionSimulatorPicker
+      className={previewClassName}
+      error={
+        error ? (
+          <p
+            className="error-message"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null
+      }
+      isConnecting={isConnecting}
+      isScanning={isScanning}
+      onBack={closeProject}
+      onConnect={() => void connect()}
+      onSelectSimulator={setSelectedUdid}
+      onSelectTarget={setSelectedTargetBundleIdentifier}
+      project={{ name: activeProject.name, path: activeProject.path }}
+      selectedSimulatorUdid={selectedUdid}
+      selectedTargetBundleIdentifier={selectedTargetBundleIdentifier}
+      simulators={simulators}
+      targetIcon={(target) =>
+        targetAppIcons[target.bundleIdentifier] ? (
+          <img
+            alt=""
+            src={targetAppIcons[target.bundleIdentifier]}
+          />
+        ) : (
+          <HugeiconsIcon
+            icon={AppStoreIcon}
+            size={21}
+            strokeWidth={1.6}
+          />
+        )
+      }
+      targets={activeProject.targetApps}
+    />
+  );
+
   return (
     <main className="route-shell">
       <AppHeader />
-      <LiveSessionSimulatorPicker
-        error={
-          error ? (
-            <p
-              className="error-message"
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : null
-        }
-        isConnecting={isConnecting}
-        isScanning={isScanning}
-        onBack={closeProject}
-        onConnect={() => void connect()}
-        onSelectSimulator={setSelectedUdid}
-        onSelectTarget={setSelectedTargetBundleIdentifier}
-        project={{ name: activeProject.name, path: activeProject.path }}
-        selectedSimulatorUdid={selectedUdid}
-        selectedTargetBundleIdentifier={selectedTargetBundleIdentifier}
-        simulators={simulators}
-        targetIcon={(target) =>
-          targetAppIcons[target.bundleIdentifier] ? (
-            <img
-              alt=""
-              src={targetAppIcons[target.bundleIdentifier]}
-            />
-          ) : (
-            <HugeiconsIcon
-              icon={AppStoreIcon}
-              size={21}
-              strokeWidth={1.6}
-            />
-          )
-        }
-        targets={activeProject.targetApps}
-      />
+
+      {renderSimulatorPicker('simulator-picker-tactile')}
     </main>
   );
 }
