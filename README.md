@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/readme-hero-v2.png" alt="Monad Design — The app is the canvas." width="100%">
+  <img src="docs/images/readme-hero-v3.png" alt="Monad Design — from a running mobile app to reviewed and approved source changes." width="100%">
 </p>
 
 # Monad Design
@@ -9,6 +9,24 @@
 Monad Design is a visual implementation workspace for coding agents and running mobile native apps. Navigate to the exact state, point to what should change, compare real alternatives, and approve the result before it becomes the new design.
 
 The current preview implements this workflow for local iOS development on macOS.
+
+## Install
+
+Install Monad Design Core and connect it to a supported coding agent:
+
+```bash
+npx monad-design install
+```
+
+Then open your existing Expo or Xcode iOS project in the agent and start a live session:
+
+```text
+/monad-design start
+```
+
+The npm package includes the CLI and machine-level Core runtime for Apple silicon and Intel Macs. It does not include the Desktop or iPad apps.
+
+To run Monad Design from source, read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and development commands.
 
 ## Design in the running mobile app
 
@@ -85,20 +103,6 @@ To use the complete workflow, you need:
 - An existing Git repository containing an Expo or Xcode iOS app
 - A supported local coding agent
 - Image input support in the agent when you send annotated requests
-
-## Install
-
-Install Monad Design Core and connect it to a supported coding agent:
-
-```bash
-npx monad-design install
-```
-
-The npm package includes the CLI and machine-level Core runtime for Apple silicon and Intel Macs. It does not include the Desktop or iPad apps.
-
-You can also run Monad Design from source as a contributor.
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, development commands, and contribution guidance.
 
 ## Keep your project under your control
 
