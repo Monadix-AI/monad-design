@@ -6,9 +6,10 @@ registration. Inside a Git project, the installer offers Project or Global
 scope; outside one, it installs the agent integration globally.
 
 The supported Skill + MCP capability intersection currently includes
-Antigravity, Cline and Cline CLI, Claude Code, Codex, Cursor, Gemini CLI, Goose,
-GitHub Copilot, Grok Build, Kilo Code, Kimi Code CLI, Kiro CLI, OpenCode,
-VS Code with GitHub Copilot, Windsurf, and Zed. Clients without Agent Skills
+Antigravity, Cline and Cline CLI, Claude Code, Codex, Cursor, DeepSeek Harness,
+Gemini CLI, Goose, GitHub Copilot, Grok Build, Kilo Code, Kimi Code CLI,
+Kiro CLI, OpenCode, Qoder, Qwen Code, TRAE / TraeWork, CodeBuddy Code,
+VS Code with GitHub Copilot, Windsurf, ZCode, and Zed. Clients without Agent Skills
 support are not presented as complete targets.
 
 Every interactive install inside a Git project asks for Project or Global
@@ -17,6 +18,13 @@ both project-level MCP and Skill installation; Global scope shows all complete
 targets. The installer only updates the selected scope, so an existing
 project-level integration is left alone after a later Global install, and vice
 versa.
+
+DeepSeek Harness discovers the Monad Design Skill from `.dsh/skills` and loads
+the existing Streamable HTTP MCP server through its built-in
+`@deepseek-ai/dsh-mcp-client`. The installer adds a managed row to
+`$DSH_HOME/cordis.patch.yml` (or `~/.dsh/cordis.patch.yml`), which makes the
+tools available across DSH profiles. A running profile may need to be restarted
+before an existing conversation receives the new tool catalog.
 
 ```bash
 npx monad-design install

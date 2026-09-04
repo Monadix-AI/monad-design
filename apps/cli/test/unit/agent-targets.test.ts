@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { upsertServer } from 'add-mcp';
@@ -12,6 +12,7 @@ import {
   supportsInstallationScope,
   supportsProjectInstallation
 } from '../../src/agent-targets';
+import { upsertDeepSeekHarnessServer } from '../../src/deepseek-harness';
 import { findGitProjectRoot } from '../../src/project-root';
 
 describe('agent and project detection', () => {
@@ -28,6 +29,7 @@ describe('agent and project detection', () => {
     const home = await mkdtemp(join(tmpdir(), 'monad-design-home-'));
     await Promise.all([
       mkdir(join(home, '.cursor')),
+      mkdir(join(home, '.dsh')),
       mkdir(join(home, '.gemini')),
       mkdir(join(home, '.qoder')),
       mkdir(join(home, '.qwen')),
@@ -38,6 +40,7 @@ describe('agent and project detection', () => {
 
     expect(detectGlobalSkillAgents(home)).toEqual([
       'cursor',
+      'deepseek-harness',
       'gemini-cli',
       'qoder',
       'qwen-code',
@@ -55,6 +58,7 @@ describe('agent and project detection', () => {
       'claude-code',
       'codex',
       'cursor',
+      'deepseek-harness',
       'gemini-cli',
       'goose',
       'github-copilot-cli',
@@ -87,6 +91,7 @@ describe('agent and project detection', () => {
       'claude-code': '.claude/skills/monad-design',
       codex: '.agents/skills/monad-design',
       cursor: '.agents/skills/monad-design',
+      'deepseek-harness': '.dsh/skills/monad-design',
       'gemini-cli': '.agents/skills/monad-design',
       goose: '.goose/skills/monad-design',
       'github-copilot-cli': '.agents/skills/monad-design',
@@ -111,6 +116,7 @@ describe('agent and project detection', () => {
       'claude-code',
       'codex',
       'cursor',
+      'deepseek-harness',
       'gemini-cli',
       'github-copilot-cli',
       'grok-build',
@@ -127,6 +133,23 @@ describe('agent and project detection', () => {
       'zed'
     ]);
     expect(supportedAgents.filter((agent) => supportsInstallationScope(agent, 'global'))).not.toContain('trae');
+  });
+
+  test('upserts the DeepSeek Harness MCP client in its shared home patch', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'monad-design-dsh-home-'));
+    const dshHome = join(home, '.dsh');
+    await mkdir(dshHome);
+    await writeFile(join(dshHome, 'cordis.patch.yml'), '[]\n');
+
+    const path = await upsertDeepSeekHarnessServer('http://127.0.0.1:41765/mcp', home);
+    await upsertDeepSeekHarnessServer('http://127.0.0.1:52760/mcp', home);
+    const patch = await readFile(path, 'utf8');
+
+    expect(path).toBe(join(dshHome, 'cordis.patch.yml'));
+    expect(patch.match(/id: mcp-monad-design/g)).toHaveLength(1);
+    expect(patch).toContain("name: '@deepseek-ai/dsh-mcp-client'");
+    expect(patch).toContain('transport: streamable-http');
+    expect(patch).toContain("url: 'http://127.0.0.1:52760/mcp'");
   });
 
   test('writes documented project MCP files for Chinese agent targets', async () => {

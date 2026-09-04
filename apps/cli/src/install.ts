@@ -19,6 +19,7 @@ import {
 } from './agent-targets';
 import { resolveReleaseAssets } from './assets';
 import { stopCore, waitForCoreRunning } from './core-runtime';
+import { upsertDeepSeekHarnessServer } from './deepseek-harness';
 import { installCoreLaunchAgent, unloadCoreLaunchAgent } from './launch-agent';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
@@ -98,18 +99,24 @@ const installAgent = async (
   mcpUrl: string
 ) => {
   const cwd = projectRoot ?? process.cwd();
-  const mcp: InstallResult = upsertServer(
-    agent,
-    'monad-design',
-    { type: 'http', url: mcpUrl },
-    { local: scope === 'project', cwd }
-  );
-  if (!mcp.success) throw new Error(mcp.error ?? `Could not update ${mcp.path}`);
+  const mcpPath =
+    agent === 'deepseek-harness'
+      ? await upsertDeepSeekHarnessServer(mcpUrl)
+      : (() => {
+          const mcp: InstallResult = upsertServer(
+            agent,
+            'monad-design',
+            { type: 'http', url: mcpUrl },
+            { local: scope === 'project', cwd }
+          );
+          if (!mcp.success) throw new Error(mcp.error ?? `Could not update ${mcp.path}`);
+          return mcp.path;
+        })();
 
   const skillPath = skillInstallDirectory(agent, scope, projectRoot ?? undefined);
   await installSkillDirectory(skillSourcePath, skillPath, { includeOpenAiMetadata: agent === 'codex' });
   await removeLegacyMonadDesignSkill(join(dirname(skillPath), 'monad-design-live'));
-  return { mcpPath: mcp.path, skillPath };
+  return { mcpPath, skillPath };
 };
 
 export const runInstall = async (options: InstallCommandOptions = {}) => {

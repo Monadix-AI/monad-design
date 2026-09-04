@@ -5,6 +5,8 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { type AgentConfig, agents } from 'add-mcp';
 
+import { deepSeekHarnessHome } from './deepseek-harness';
+
 export const supportedAgents = [
   'antigravity',
   'cline',
@@ -12,6 +14,7 @@ export const supportedAgents = [
   'claude-code',
   'codex',
   'cursor',
+  'deepseek-harness',
   'gemini-cli',
   'goose',
   'github-copilot-cli',
@@ -166,6 +169,16 @@ export const agentTargets: Record<SupportedAgent, AgentTarget> = {
     globalHarnessDirectories: (home) => [join(home, '.cursor')],
     projectSkillDirectory: projectSkill('.agents/skills'),
     globalSkillDirectory: globalSkill('.cursor/skills')
+  },
+  'deepseek-harness': {
+    displayName: 'DeepSeek Harness',
+    projectHarnessDirectories: ['.dsh'],
+    globalHarnessDirectories: (home) => [deepSeekHarnessHome(home)],
+    projectSkillDirectory: projectSkill('.dsh/skills'),
+    globalSkillDirectory: (home) => join(deepSeekHarnessHome(home), 'skills', 'monad-design'),
+    // DSH's home patch is shared by profiles; project scope applies only to
+    // Skill discovery while the MCP connection remains a user-level plugin row.
+    installScopes: ['project', 'global']
   },
   'gemini-cli': {
     displayName: 'Gemini CLI',

@@ -39,7 +39,7 @@ describe('install defaults', () => {
   });
 
   test('offers every supported agent with a documented global MCP target', () => {
-    expect(installableAgentsForScope('global')).toHaveLength(21);
+    expect(installableAgentsForScope('global')).toHaveLength(22);
     expect(installableAgentsForScope('global')).toContain('qoder');
     expect(installableAgentsForScope('global')).toContain('codebuddy');
     expect(installableAgentsForScope('global')).toContain('qwen-code');
