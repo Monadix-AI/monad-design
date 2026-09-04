@@ -28,6 +28,7 @@
     "./business/canvas-controls": "./src/business/canvas-controls.tsx",
     "./business/canvas-viewport": "./src/business/canvas-viewport.ts",
     "./business/design-document-card": "./src/business/design-document-card.tsx",
+    "./business/edge-atmosphere": "./src/business/edge-atmosphere.tsx",
     "./business/live-session/app-frame": "./src/business/live-session/app-frame.tsx",
     "./business/live-session/simulator-device-glyph": "./src/business/live-session/simulator-device-glyph.tsx",
     "./business/live-session/simulator-picker": "./src/business/live-session/simulator-picker.tsx",

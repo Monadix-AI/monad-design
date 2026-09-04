@@ -159,7 +159,7 @@ export function SimulatorsRoute() {
 
   if (!activeProject) {
     return (
-      <main className="app-shell">
+      <main className="route-shell">
         <AppHeader />
         <section className="project-home">
           <div className="project-home-heading">
@@ -470,7 +470,7 @@ export function SimulatorsRoute() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="route-shell">
       <AppHeader />
       <LiveSessionSimulatorPicker
         error={

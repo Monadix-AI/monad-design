@@ -151,6 +151,9 @@ button:focus-visible {
   background: var(--window-fill);
   backdrop-filter: blur(34px) saturate(108%);
 }
+.route-shell {
+  min-height: 100vh;
+}
 .app-header {
   position: absolute;
   top: 0;
@@ -337,6 +340,7 @@ button:focus-visible {
   }
 }
 .project-home {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -344,6 +348,287 @@ button:focus-visible {
   height: 100vh;
   padding: 106px 42px 28px;
   margin: 0 auto;
+  isolation: isolate;
+}
+.project-home > *,
+.simulator-list-page > * {
+  position: relative;
+  z-index: 1;
+}
+.project-home,
+.simulator-list-panel {
+  opacity: 1;
+  transition: opacity 480ms ease-out;
+}
+:root.edge-intro-active .project-home,
+:root.edge-intro-active .simulator-list-panel {
+  opacity: 0;
+  transition: none;
+}
+.edge-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+}
+.edge-atmosphere[data-visible="true"] {
+  visibility: visible;
+  opacity: 1;
+}
+.edge-object {
+  --edge-object-rotation: 0deg;
+  --edge-object-drift-x: 7px;
+  --edge-object-drift-y: 8px;
+  --edge-object-enter-x: 0px;
+  --edge-object-enter-y: 0px;
+  --edge-object-float-duration: 12s;
+  --edge-object-opacity: 0.92;
+  --edge-object-stagger: 0ms;
+
+  position: absolute;
+  display: block;
+  width: clamp(72px, 8vw, 108px);
+  aspect-ratio: 1;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0;
+  filter: drop-shadow(0 16px 24px rgb(0 0 0 / 24%));
+  transform-origin: center;
+  will-change: transform;
+}
+.edge-atmosphere[data-activated="true"] .edge-object {
+  animation:
+    edge-object-enter 720ms cubic-bezier(0.22, 0.78, 0.2, 1) calc(260ms + var(--edge-object-stagger)) both,
+    edge-object-float var(--edge-object-float-duration) ease-in-out calc(980ms + var(--edge-object-stagger)) infinite;
+}
+.edge-slot-top-left {
+  --edge-object-rotation: -13deg;
+  --edge-object-drift-x: 5px;
+  --edge-object-enter-y: -56px;
+
+  top: -30px;
+  left: 10%;
+}
+.edge-slot-top-right {
+  --edge-object-rotation: 9deg;
+  --edge-object-drift-x: -7px;
+  --edge-object-enter-y: -58px;
+  --edge-object-float-duration: 13.4s;
+  --edge-object-stagger: 120ms;
+
+  top: -36px;
+  right: 16%;
+  width: clamp(82px, 9vw, 118px);
+}
+.edge-slot-top-center {
+  --edge-object-rotation: 12deg;
+  --edge-object-drift-x: 6px;
+  --edge-object-enter-y: -52px;
+  --edge-object-float-duration: 12.1s;
+  --edge-object-stagger: 240ms;
+
+  top: -34px;
+  left: 48%;
+  width: clamp(68px, 7vw, 94px);
+}
+.edge-slot-left-upper {
+  --edge-object-rotation: 8deg;
+  --edge-object-drift-x: 8px;
+  --edge-object-enter-x: -54px;
+  --edge-object-float-duration: 12.8s;
+  --edge-object-stagger: 80ms;
+
+  top: 25%;
+  left: -32px;
+}
+.edge-slot-left-lower {
+  --edge-object-rotation: -11deg;
+  --edge-object-drift-x: 7px;
+  --edge-object-enter-x: -58px;
+  --edge-object-float-duration: 13.1s;
+  --edge-object-stagger: 320ms;
+
+  top: 53%;
+  left: -28px;
+  width: clamp(70px, 7.5vw, 98px);
+}
+.edge-slot-bottom-left {
+  --edge-object-rotation: 11deg;
+  --edge-object-drift-x: 6px;
+  --edge-object-enter-x: -48px;
+  --edge-object-enter-y: 38px;
+  --edge-object-float-duration: 14.2s;
+  --edge-object-stagger: 360ms;
+
+  bottom: 5%;
+  left: -36px;
+  width: clamp(90px, 10.5vw, 128px);
+}
+.edge-slot-right-upper {
+  --edge-object-rotation: -15deg;
+  --edge-object-drift-x: -7px;
+  --edge-object-enter-x: 54px;
+  --edge-object-float-duration: 11.9s;
+  --edge-object-stagger: 160ms;
+
+  top: 39%;
+  right: -32px;
+}
+.edge-slot-right-center {
+  --edge-object-rotation: 14deg;
+  --edge-object-drift-x: -6px;
+  --edge-object-enter-x: 52px;
+  --edge-object-float-duration: 12.6s;
+  --edge-object-stagger: 400ms;
+
+  top: 61%;
+  right: -28px;
+  width: clamp(68px, 7vw, 96px);
+}
+.edge-slot-right-lower {
+  --edge-object-rotation: 13deg;
+  --edge-object-drift-x: -5px;
+  --edge-object-enter-x: 44px;
+  --edge-object-enter-y: 32px;
+  --edge-object-float-duration: 13.7s;
+  --edge-object-stagger: 480ms;
+
+  right: -26px;
+  bottom: 7%;
+}
+.edge-slot-bottom-center {
+  --edge-object-rotation: -18deg;
+  --edge-object-drift-x: 7px;
+  --edge-object-enter-y: 54px;
+  --edge-object-float-duration: 11.7s;
+  --edge-object-stagger: 560ms;
+
+  bottom: -28px;
+  left: 32%;
+  width: clamp(66px, 7vw, 92px);
+}
+.edge-slot-bottom-right {
+  --edge-object-rotation: -5deg;
+  --edge-object-drift-x: 8px;
+  --edge-object-enter-y: 58px;
+  --edge-object-float-duration: 12.5s;
+  --edge-object-stagger: 640ms;
+
+  right: 18%;
+  bottom: -42px;
+  width: clamp(76px, 8.5vw, 110px);
+}
+.edge-asset-bag {
+  background-image: url("./assets/edge-objects/bag.png");
+}
+.edge-asset-brush {
+  background-image: url("./assets/edge-objects/brush.png");
+}
+.edge-asset-bulb {
+  background-image: url("./assets/edge-objects/bulb.png");
+}
+.edge-asset-calculator {
+  background-image: url("./assets/edge-objects/calculator.png");
+}
+.edge-asset-calender {
+  background-image: url("./assets/edge-objects/calender.png");
+}
+.edge-asset-can {
+  background-image: url("./assets/edge-objects/can.png");
+}
+.edge-asset-camera {
+  background-image: url("./assets/edge-objects/camera.png");
+}
+.edge-asset-chess {
+  background-image: url("./assets/edge-objects/chess.png");
+}
+.edge-asset-clock {
+  background-image: url("./assets/edge-objects/clock.png");
+}
+.edge-asset-color-palette {
+  background-image: url("./assets/edge-objects/color-palette.png");
+}
+.edge-asset-computer {
+  background-image: url("./assets/edge-objects/computer.png");
+}
+.edge-asset-glass {
+  background-image: url("./assets/edge-objects/glass.png");
+}
+.edge-asset-headphone {
+  background-image: url("./assets/edge-objects/headphone.png");
+}
+.edge-asset-key {
+  background-image: url("./assets/edge-objects/key.png");
+}
+.edge-asset-laptop {
+  background-image: url("./assets/edge-objects/laptop.png");
+}
+.edge-asset-mic {
+  background-image: url("./assets/edge-objects/mic.png");
+}
+.edge-asset-mobile {
+  background-image: url("./assets/edge-objects/mobile.png");
+}
+.edge-asset-notebook {
+  background-image: url("./assets/edge-objects/notebook.png");
+}
+.edge-asset-paint-kit {
+  background-image: url("./assets/edge-objects/paint-kit.png");
+}
+.edge-asset-pencil {
+  background-image: url("./assets/edge-objects/pencil.png");
+}
+.edge-asset-picture {
+  background-image: url("./assets/edge-objects/picture.png");
+}
+.edge-asset-scissor {
+  background-image: url("./assets/edge-objects/scissor.png");
+}
+.edge-asset-sparkling-water {
+  background-image: url("./assets/edge-objects/sparkling-water.png");
+}
+.edge-asset-takeaway-cup {
+  background-image: url("./assets/edge-objects/takeaway-cup.png");
+}
+.edge-asset-tea-cup {
+  background-image: url("./assets/edge-objects/tea-cup.png");
+}
+.edge-asset-travel {
+  background-image: url("./assets/edge-objects/travel.png");
+}
+.edge-asset-umbrella {
+  background-image: url("./assets/edge-objects/umbrella.png");
+}
+.edge-asset-wallet {
+  background-image: url("./assets/edge-objects/wallet.png");
+}
+@keyframes edge-object-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--edge-object-enter-x), var(--edge-object-enter-y), 0)
+      rotate(var(--edge-object-rotation)) scale(0.84);
+  }
+  to {
+    opacity: var(--edge-object-opacity);
+    transform: translate3d(0, calc(var(--edge-object-drift-y) * -0.5), 0) rotate(var(--edge-object-rotation))
+      scale(0.98);
+  }
+}
+@keyframes edge-object-float {
+  0%,
+  100% {
+    transform: translate3d(0, calc(var(--edge-object-drift-y) * -0.5), 0) rotate(var(--edge-object-rotation))
+      scale(0.98);
+  }
+  50% {
+    transform: translate3d(var(--edge-object-drift-x), var(--edge-object-drift-y), 0)
+      rotate(calc(var(--edge-object-rotation) + 3deg)) scale(1.025);
+  }
 }
 .project-home-heading {
   display: flex;
@@ -687,6 +972,18 @@ button:focus-visible {
   .project-skeleton-action {
     animation: none;
   }
+  .edge-atmosphere[data-activated="true"] .edge-object {
+    animation: none;
+  }
+  .edge-atmosphere[data-activated="true"] .edge-object {
+    opacity: var(--edge-object-opacity);
+    transform: rotate(var(--edge-object-rotation));
+  }
+  .project-home,
+  .simulator-list-panel {
+    opacity: 1;
+    transition: none;
+  }
 }
 .project-empty {
   display: flex;
@@ -990,9 +1287,11 @@ button:focus-visible {
   opacity: 1;
 }
 .simulator-list-page {
+  position: relative;
   height: 100vh;
   overflow: hidden;
-  background: var(--panel-fill);
+  background: transparent;
+  isolation: isolate;
 }
 .simulator-list-panel {
   display: flex;
@@ -4057,7 +4356,12 @@ h1 {
   color: var(--foreground);
 }
 :root[data-theme="light"] .simulator-list-page {
-  background: var(--panel-fill);
+  background: transparent;
+}
+:root[data-theme="light"] .edge-object {
+  --edge-object-opacity: 0.9;
+
+  filter: drop-shadow(0 14px 22px rgb(30 55 92 / 18%));
 }
 :root[data-theme="light"] .page-back:hover,
 :root[data-theme="light"] .mode-switch button:hover {

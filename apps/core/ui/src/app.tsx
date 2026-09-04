@@ -29,6 +29,7 @@ import {
   SimulatorDeviceControls
 } from '@monaddesign/ui/business/canvas-controls';
 import { useCanvasViewport } from '@monaddesign/ui/business/canvas-viewport';
+import { EdgeAtmosphere } from '@monaddesign/ui/business/edge-atmosphere';
 import { LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
@@ -510,9 +511,15 @@ export function App() {
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
   const isSelectionOverlayVisible = canvasModeShowsSelectionOverlay(canvasMode, isSelectionMode);
   const isSimulatorInputDisabled = isAnnotationMode || isSelectionMode;
+  const showEdgeAtmosphere = Boolean(
+    session &&
+      session.status !== 'configuring_project' &&
+      (session.status === 'selecting_simulator' || !session.connection || isChoosingSimulator)
+  );
 
   return (
     <div className="app-shell">
+      <EdgeAtmosphere active={showEdgeAtmosphere} />
       <main>
         {!session || session.status === 'configuring_project' ? (
           <section className="core-waiting">
