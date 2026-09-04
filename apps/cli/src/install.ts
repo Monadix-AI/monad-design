@@ -135,7 +135,10 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   }
 
   const installableAgents = installableAgentsForScope(scope);
-  const defaultAgents = detectedAgentsForScope(detection, scope);
+  const defaultAgents =
+    scope === defaults.scope
+      ? defaults.agents.filter((agent) => installableAgents.includes(agent))
+      : detectedAgentsForScope(detection, scope);
   let selectedAgents = defaultAgents;
   if (!options.yes && interactive) {
     selectedAgents = await chooseFromList(
@@ -152,7 +155,7 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   }
   if (selectedAgents.length === 0) {
     throw new Error(
-      'No supported coding agent was detected. Run interactively to choose one after installing Codex, Claude Code, Cursor, or Gemini CLI.'
+      'No supported coding agent was detected. Run interactively to choose one after installing a supported coding agent.'
     );
   }
 
