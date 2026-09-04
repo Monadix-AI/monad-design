@@ -3,7 +3,7 @@ import type { AgentType } from 'add-mcp';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { agents } from 'add-mcp';
+import { type AgentConfig, agents } from 'add-mcp';
 
 export const supportedAgents = [
   'antigravity',
@@ -20,10 +20,15 @@ export const supportedAgents = [
   'kimi-code',
   'kiro-cli',
   'opencode',
+  'qoder',
+  'qwen-code',
+  'trae',
+  'codebuddy',
   'vscode',
   'windsurf',
+  'zcode',
   'zed'
-] as const satisfies AgentType[];
+] as const;
 export type SupportedAgent = (typeof supportedAgents)[number];
 export type InstallScope = 'project' | 'global';
 
@@ -33,12 +38,91 @@ interface AgentTarget {
   globalHarnessDirectories: (home: string) => string[];
   projectSkillDirectory: (root: string) => string;
   globalSkillDirectory: (home: string) => string;
+  installScopes?: InstallScope[];
 }
 
 const codexHome = (home: string) => process.env.CODEX_HOME?.trim() || join(home, '.codex');
 const claudeHome = (home: string) => process.env.CLAUDE_CONFIG_DIR?.trim() || join(home, '.claude');
+const qwenHome = (home: string) => process.env.QWEN_HOME?.trim() || join(home, '.qwen');
 const projectSkill = (directory: string) => (root: string) => join(root, directory, 'monad-design');
 const globalSkill = (directory: string) => (home: string) => join(home, directory, 'monad-design');
+
+const standardMcpConfig = (_serverName: string, config: Parameters<AgentConfig['transformConfig']>[1]) => config;
+const qwenMcpConfig: AgentConfig['transformConfig'] = (_serverName, config) =>
+  config.type === 'http' ? { httpUrl: config.url, headers: config.headers } : config;
+
+// add-mcp does not yet publish these targets. Register the documented config
+// contracts locally so its JSONC-preserving updater remains the single writer.
+Object.assign(agents as Record<string, AgentConfig>, {
+  qoder: {
+    name: 'qoder',
+    displayName: 'Qoder',
+    configPath: join(homedir(), '.qoder', 'settings.json'),
+    localConfigPath: '.qoder/settings.json',
+    projectDetectPaths: ['.qoder'],
+    configKey: 'mcpServers',
+    format: 'json',
+    supportedTransports: ['stdio', 'http', 'sse'],
+    supportedFields: ['timeout'],
+    detectGlobalInstall: async () => existsSync(join(homedir(), '.qoder')),
+    transformConfig: standardMcpConfig
+  },
+  'qwen-code': {
+    name: 'qwen-code',
+    displayName: 'Qwen Code',
+    configPath: join(qwenHome(homedir()), 'settings.json'),
+    localConfigPath: '.qwen/settings.json',
+    projectDetectPaths: ['.qwen'],
+    configKey: 'mcpServers',
+    format: 'json',
+    supportedTransports: ['stdio', 'http', 'sse'],
+    supportedFields: ['timeout'],
+    detectGlobalInstall: async () => existsSync(qwenHome(homedir())),
+    transformConfig: qwenMcpConfig
+  },
+  trae: {
+    name: 'trae',
+    displayName: 'TRAE / TraeWork',
+    // TRAE documents only the project-level file. Global installation is
+    // intentionally disabled below rather than guessing a private app path.
+    configPath: '',
+    localConfigPath: '.trae/mcp.json',
+    projectDetectPaths: ['.trae'],
+    configKey: 'mcpServers',
+    format: 'json',
+    supportedTransports: ['stdio', 'http'],
+    supportedFields: [],
+    detectGlobalInstall: async () =>
+      [join(homedir(), '.trae-cn'), join(homedir(), '.trae')].some((path) => existsSync(path)),
+    transformConfig: standardMcpConfig
+  },
+  codebuddy: {
+    name: 'codebuddy',
+    displayName: 'CodeBuddy Code',
+    configPath: join(homedir(), '.codebuddy', '.mcp.json'),
+    localConfigPath: '.mcp.json',
+    projectDetectPaths: ['.codebuddy'],
+    configKey: 'mcpServers',
+    format: 'json',
+    supportedTransports: ['stdio', 'http', 'sse'],
+    supportedFields: [],
+    detectGlobalInstall: async () => existsSync(join(homedir(), '.codebuddy')),
+    transformConfig: standardMcpConfig
+  },
+  zcode: {
+    name: 'zcode',
+    displayName: 'ZCode',
+    configPath: join(homedir(), '.zcode', 'cli', 'config.json'),
+    localConfigPath: '.zcode/config.json',
+    projectDetectPaths: ['.zcode'],
+    configKey: 'mcp.servers',
+    format: 'json',
+    supportedTransports: ['stdio', 'http', 'sse'],
+    supportedFields: [],
+    detectGlobalInstall: async () => existsSync(join(homedir(), '.zcode')),
+    transformConfig: standardMcpConfig
+  }
+});
 
 export const agentTargets: Record<SupportedAgent, AgentTarget> = {
   antigravity: {
@@ -139,6 +223,35 @@ export const agentTargets: Record<SupportedAgent, AgentTarget> = {
     projectSkillDirectory: projectSkill('.agents/skills'),
     globalSkillDirectory: globalSkill('.config/opencode/skills')
   },
+  qoder: {
+    displayName: 'Qoder',
+    projectHarnessDirectories: ['.qoder'],
+    globalHarnessDirectories: (home) => [join(home, '.qoder')],
+    projectSkillDirectory: projectSkill('.qoder/skills'),
+    globalSkillDirectory: globalSkill('.qoder/skills')
+  },
+  'qwen-code': {
+    displayName: 'Qwen Code',
+    projectHarnessDirectories: ['.qwen'],
+    globalHarnessDirectories: (home) => [qwenHome(home)],
+    projectSkillDirectory: projectSkill('.qwen/skills'),
+    globalSkillDirectory: (home) => join(qwenHome(home), 'skills', 'monad-design')
+  },
+  trae: {
+    displayName: 'TRAE / TraeWork',
+    projectHarnessDirectories: ['.trae'],
+    globalHarnessDirectories: (home) => [join(home, '.trae-cn'), join(home, '.trae')],
+    projectSkillDirectory: projectSkill('.trae/skills'),
+    globalSkillDirectory: globalSkill('.trae-cn/skills'),
+    installScopes: ['project']
+  },
+  codebuddy: {
+    displayName: 'CodeBuddy Code',
+    projectHarnessDirectories: ['.codebuddy'],
+    globalHarnessDirectories: (home) => [join(home, '.codebuddy')],
+    projectSkillDirectory: projectSkill('.codebuddy/skills'),
+    globalSkillDirectory: globalSkill('.codebuddy/skills')
+  },
   vscode: {
     displayName: 'VS Code (GitHub Copilot)',
     projectHarnessDirectories: ['.github', '.vscode'],
@@ -156,6 +269,13 @@ export const agentTargets: Record<SupportedAgent, AgentTarget> = {
     projectSkillDirectory: projectSkill('.windsurf/skills'),
     globalSkillDirectory: globalSkill('.codeium/windsurf/skills')
   },
+  zcode: {
+    displayName: 'ZCode',
+    projectHarnessDirectories: ['.zcode'],
+    globalHarnessDirectories: (home) => [join(home, '.zcode')],
+    projectSkillDirectory: projectSkill('.zcode/skills'),
+    globalSkillDirectory: globalSkill('.zcode/skills')
+  },
   zed: {
     displayName: 'Zed',
     projectHarnessDirectories: ['.zed'],
@@ -170,7 +290,11 @@ export const agentTargets: Record<SupportedAgent, AgentTarget> = {
 
 export const agentDisplayName = (agent: SupportedAgent) => agentTargets[agent].displayName;
 
-export const supportsProjectInstallation = (agent: SupportedAgent) => Boolean(agents[agent].localConfigPath);
+export const supportsInstallationScope = (agent: SupportedAgent, scope: InstallScope) =>
+  agentTargets[agent].installScopes?.includes(scope) ??
+  (scope === 'global' || Boolean((agents as Record<string, AgentConfig>)[agent]?.localConfigPath));
+
+export const supportsProjectInstallation = (agent: SupportedAgent) => supportsInstallationScope(agent, 'project');
 
 export const isSupportedAgent = (agent: AgentType | string): agent is SupportedAgent =>
   supportedAgents.includes(agent as SupportedAgent);

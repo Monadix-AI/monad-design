@@ -1,13 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { upsertServer } from 'add-mcp';
 
 import {
   agentTargets,
   detectGlobalSkillAgents,
   detectProjectSkillAgents,
   supportedAgents,
+  supportsInstallationScope,
   supportsProjectInstallation
 } from '../../src/agent-targets';
 import { findGitProjectRoot } from '../../src/project-root';
@@ -24,9 +26,25 @@ describe('agent and project detection', () => {
 
   test('detects global agent homes without touching real user configuration', async () => {
     const home = await mkdtemp(join(tmpdir(), 'monad-design-home-'));
-    await Promise.all([mkdir(join(home, '.cursor')), mkdir(join(home, '.gemini'))]);
+    await Promise.all([
+      mkdir(join(home, '.cursor')),
+      mkdir(join(home, '.gemini')),
+      mkdir(join(home, '.qoder')),
+      mkdir(join(home, '.qwen')),
+      mkdir(join(home, '.trae-cn')),
+      mkdir(join(home, '.codebuddy')),
+      mkdir(join(home, '.zcode'))
+    ]);
 
-    expect(detectGlobalSkillAgents(home)).toEqual(['cursor', 'gemini-cli']);
+    expect(detectGlobalSkillAgents(home)).toEqual([
+      'cursor',
+      'gemini-cli',
+      'qoder',
+      'qwen-code',
+      'trae',
+      'codebuddy',
+      'zcode'
+    ]);
   });
 
   test('covers the supported Skill and MCP target matrix', () => {
@@ -45,8 +63,13 @@ describe('agent and project detection', () => {
       'kimi-code',
       'kiro-cli',
       'opencode',
+      'qoder',
+      'qwen-code',
+      'trae',
+      'codebuddy',
       'vscode',
       'windsurf',
+      'zcode',
       'zed'
     ]);
   });
@@ -72,8 +95,13 @@ describe('agent and project detection', () => {
       'kimi-code': '.agents/skills/monad-design',
       'kiro-cli': '.kiro/skills/monad-design',
       opencode: '.agents/skills/monad-design',
+      qoder: '.qoder/skills/monad-design',
+      'qwen-code': '.qwen/skills/monad-design',
+      trae: '.trae/skills/monad-design',
+      codebuddy: '.codebuddy/skills/monad-design',
       vscode: '.agents/skills/monad-design',
       windsurf: '.windsurf/skills/monad-design',
+      zcode: '.zcode/skills/monad-design',
       zed: '.agents/skills/monad-design'
     });
   });
@@ -90,8 +118,39 @@ describe('agent and project detection', () => {
       'kimi-code',
       'kiro-cli',
       'opencode',
+      'qoder',
+      'qwen-code',
+      'trae',
+      'codebuddy',
       'vscode',
+      'zcode',
       'zed'
     ]);
+    expect(supportedAgents.filter((agent) => supportsInstallationScope(agent, 'global'))).not.toContain('trae');
+  });
+
+  test('writes documented project MCP files for Chinese agent targets', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-agent-targets-'));
+    const server = { type: 'http' as const, url: 'http://127.0.0.1:52760/mcp' };
+
+    for (const [agent, relativePath] of [
+      ['qoder', '.qoder/settings.json'],
+      ['qwen-code', '.qwen/settings.json'],
+      ['trae', '.trae/mcp.json'],
+      ['codebuddy', '.mcp.json'],
+      ['zcode', '.zcode/config.json']
+    ] as const) {
+      const result = upsertServer(agent, 'monad-design', server, { local: true, cwd: root });
+      expect(result.success).toBe(true);
+      expect(result.path).toBe(join(root, relativePath));
+      const config = JSON.parse(await readFile(result.path, 'utf8'));
+      if (agent === 'zcode') {
+        expect(config).toMatchObject({ mcp: { servers: { 'monad-design': server } } });
+      } else if (agent === 'qwen-code') {
+        expect(config).toMatchObject({ mcpServers: { 'monad-design': { httpUrl: server.url } } });
+      } else {
+        expect(config).toMatchObject({ mcpServers: { 'monad-design': server } });
+      }
+    }
   });
 });

@@ -14,6 +14,7 @@ import {
   type SupportedAgent,
   skillInstallDirectory,
   supportedAgents,
+  supportsInstallationScope,
   supportsProjectInstallation
 } from './agent-targets';
 import { resolveReleaseAssets } from './assets';
@@ -40,7 +41,7 @@ export interface InstallDefaults {
 }
 
 export const installableAgentsForScope = (scope: InstallScope) =>
-  scope === 'project' ? supportedAgents.filter(supportsProjectInstallation) : supportedAgents;
+  supportedAgents.filter((agent) => supportsInstallationScope(agent, scope));
 
 export const detectedAgentsForScope = (detection: AgentDetection, scope: InstallScope) => {
   const installable = installableAgentsForScope(scope);

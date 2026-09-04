@@ -38,13 +38,23 @@ describe('install defaults', () => {
     });
   });
 
-  test('offers every supported agent for global installation', () => {
-    expect(installableAgentsForScope('global')).toHaveLength(17);
+  test('offers every supported agent with a documented global MCP target', () => {
+    expect(installableAgentsForScope('global')).toHaveLength(21);
+    expect(installableAgentsForScope('global')).toContain('qoder');
+    expect(installableAgentsForScope('global')).toContain('codebuddy');
+    expect(installableAgentsForScope('global')).toContain('qwen-code');
+    expect(installableAgentsForScope('global')).toContain('zcode');
+    expect(installableAgentsForScope('global')).not.toContain('trae');
   });
 
   test('only offers agents that can install both MCP and Skill for project scope', () => {
     const agents = installableAgentsForScope('project');
     expect(agents).toContain('codex');
+    expect(agents).toContain('qoder');
+    expect(agents).toContain('trae');
+    expect(agents).toContain('codebuddy');
+    expect(agents).toContain('qwen-code');
+    expect(agents).toContain('zcode');
     expect(agents).not.toContain('antigravity');
     expect(agents).not.toContain('goose');
   });
