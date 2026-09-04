@@ -38,6 +38,7 @@ export interface FreehandAnnotation {
 
 export type Annotation = DrawnAnnotation | TextAnnotation | FreehandAnnotation;
 export type ShapeAnnotation = DrawnAnnotation | TextAnnotation;
+export type AnnotationResizeHandle = 'e' | 'n' | 'ne' | 'nw' | 's' | 'se' | 'sw' | 'w' | 'arrow-start' | 'arrow-end';
 
 export const annotationInk = '#ff4d67';
 export const annotationId = () =>
@@ -174,6 +175,35 @@ export const translateAnnotation = <Value extends Annotation>(
     start: { x: annotation.start.x + dx, y: annotation.start.y + dy },
     end: { x: annotation.end.x + dx, y: annotation.end.y + dy }
   } as Value;
+};
+
+export const resizeDrawnAnnotation = (
+  annotation: DrawnAnnotation,
+  handle: AnnotationResizeHandle,
+  point: AnnotationPoint,
+  image: AnnotationSize,
+  minimumSize = 5
+): DrawnAnnotation => {
+  const bounded = {
+    x: Math.max(0, Math.min(image.width, point.x)),
+    y: Math.max(0, Math.min(image.height, point.y))
+  };
+  if (annotation.type === 'arrow') {
+    if (handle === 'arrow-start') return { ...annotation, start: bounded };
+    if (handle === 'arrow-end') return { ...annotation, end: bounded };
+    return annotation;
+  }
+
+  const bounds = annotationBounds(annotation);
+  let left = bounds.x;
+  let right = bounds.x + bounds.width;
+  let top = bounds.y;
+  let bottom = bounds.y + bounds.height;
+  if (handle.includes('w')) left = Math.min(bounded.x, right - minimumSize);
+  if (handle.includes('e')) right = Math.max(bounded.x, left + minimumSize);
+  if (handle.includes('n')) top = Math.min(bounded.y, bottom - minimumSize);
+  if (handle.includes('s')) bottom = Math.max(bounded.y, top + minimumSize);
+  return { ...annotation, start: { x: left, y: top }, end: { x: right, y: bottom } };
 };
 
 export const annotationArrowHead = (start: AnnotationPoint, end: AnnotationPoint, size: number) => {

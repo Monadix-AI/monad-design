@@ -1,26 +1,34 @@
-import type { ClientApi } from '@monaddesign/client-rtk/client-api';
-import type { ActiveConnection } from '../desktop-model';
-import type { AgentSessionSnapshot, AgentTurnContext, AXElement, AXSnapshot, IOSSimulator } from '../electron';
+import type {
+  AccessibilitySnapshotResponse,
+  AgentSessionSnapshot,
+  AgentTurnContext,
+  IOSSimulator
+} from '@monaddesign/client-contract';
+import type { ClientApi } from './client-api';
 
-import { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
 import { buildAgentTurnContext, serializeAgentTurn } from '@monaddesign/simulator';
 import { useState } from 'react';
 
-interface AgentRequestControllerOptions {
+import { errorMessage } from './endpoint-helpers';
+
+type AXElement = AccessibilitySnapshotResponse['elements'][number];
+type AXSnapshot = AccessibilitySnapshotResponse;
+
+export interface AgentRequestControllerOptions {
   activeSession: AgentSessionSnapshot | null;
   agentRequest: string;
   connected?: IOSSimulator;
-  connection: ActiveConnection | null;
+  connection: { bundleIdentifier: string } | null;
   runtimeClient: ClientApi | null;
   selectedElement?: AXElement;
   snapshot: AXSnapshot | null;
-  onCopyStatusChanged: (status: 'copied' | 'error') => void;
+  onCopyStatusChanged?: (status: 'copied' | 'error') => void;
   onRequestChanged: (request: string) => void;
   onSessionChanged: (session: AgentSessionSnapshot) => void;
   onSnapshotChanged: (snapshot: AXSnapshot) => void;
 }
 
-export const useAgentRequestController = ({
+export const useAgentRequest = ({
   activeSession,
   agentRequest,
   connected,
@@ -53,9 +61,9 @@ export const useAgentRequestController = ({
     if (!agentTurnPayload) return;
     try {
       await navigator.clipboard.writeText(agentTurnPayload);
-      onCopyStatusChanged('copied');
+      onCopyStatusChanged?.('copied');
     } catch {
-      onCopyStatusChanged('error');
+      onCopyStatusChanged?.('error');
     }
   };
 
@@ -72,7 +80,7 @@ export const useAgentRequestController = ({
     rethrow?: boolean;
     session: AgentSessionSnapshot;
   }) => {
-    if (!runtimeClient) throw new Error('The desktop runtime is not ready yet.');
+    if (!runtimeClient) throw new Error('The live runtime is not ready yet.');
     setIsSendingAgentRequest(true);
     setAgentSessionError(null);
     try {

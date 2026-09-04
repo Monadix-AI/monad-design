@@ -1,8 +1,11 @@
 import type { AXElement, AXSnapshot } from '../../src/electron';
 
 import { describe, expect, test } from 'bun:test';
-
-import { captureTargetFramesAreStable, captureTargetIsVisible, findCaptureTarget } from '../../src/lib/variant-capture';
+import {
+  captureTargetFramesAreStable,
+  captureTargetIsVisible,
+  findCaptureTarget
+} from '@monaddesign/simulator/accessibility-target';
 
 const target: AXElement = {
   id: 'settings-save-button',

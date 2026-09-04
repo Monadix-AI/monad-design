@@ -29,8 +29,18 @@ describe('live annotation surface', () => {
 
     expect(markup).toContain('data-live-simulator');
     expect(markup).toContain('Annotation drawing area');
-    expect(markup).toContain('Annotate');
+    expect(markup).not.toContain('Add centered');
+    expect(markup).toContain('Annotation controls');
+    expect(markup).toContain('canvas-annotation-rail');
+    expect(markup).toContain('Drawing tools');
+    expect(markup).toContain('Annotation actions');
     expect(markup).toContain('Delete selected annotation');
+    expect(markup).toContain('Redo annotation');
+    expect(markup).toContain('data-pointer-state="idle"');
+    expect(markup).not.toContain('<strong>Tools</strong>');
+    expect(markup).not.toContain('<span>Undo</span>');
+    expect(markup).toContain('<span>Cancel</span>');
+    expect(markup).toContain('<span>Finish</span>');
     expect(captures).toBe(0);
   });
 

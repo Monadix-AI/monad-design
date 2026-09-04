@@ -1,8 +1,7 @@
 import type { AgentSessionSnapshot } from '../../src/electron';
 
 import { describe, expect, test } from 'bun:test';
-
-import { agentSessionTransition } from '../../src/lib/agent-session-transition';
+import { agentSessionTransition } from '@monaddesign/client-contract/live-session';
 
 const session = (status: AgentSessionSnapshot['status']): AgentSessionSnapshot => ({
   id: 'session-1',

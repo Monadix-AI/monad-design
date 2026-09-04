@@ -1,8 +1,6 @@
-import type { ClientApi } from '@monaddesign/client-rtk/client-api';
-import type { ActiveConnection, SimulatorAppearance } from '../desktop-model';
-import type { AXSnapshot } from '../electron';
+import type { AccessibilitySnapshotResponse } from '@monaddesign/client-contract';
+import type { ClientApi } from './client-api';
 
-import { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
 import {
   accessibilityElementAtPoint,
   encodeSimulatorFrame,
@@ -19,20 +17,29 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type SetStateAction,
+  useCallback,
   useEffect,
   useRef,
   useState
 } from 'react';
 
+import { errorMessage } from './endpoint-helpers';
 import {
   decodeSimulatorRuntimeConfiguration,
   reconcileSimulatorRuntimeOrientation,
   simulatorRuntimeDeviceSize
-} from '../lib/simulator-runtime';
+} from './simulator-runtime';
+
+export type SimulatorAppearance = 'light' | 'dark';
+
+export interface SimulatorRuntimeConnection {
+  orientation?: SimulatorOrientation;
+  wsUrl: string;
+}
 
 interface SimulatorRuntimeOptions {
-  axSnapshot: AXSnapshot | null;
-  connection: ActiveConnection | null;
+  axSnapshot: AccessibilitySnapshotResponse | null;
+  connection: SimulatorRuntimeConnection | null;
   hasConnectedSimulator: boolean;
   isSelectionMode: boolean;
   onError: (message: string | null) => void;
@@ -60,6 +67,7 @@ export const useSimulatorRuntime = ({
   const [logicalScreenSize, setLogicalScreenSize] = useState<{ width: number; height: number } | null>(null);
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [isStreamReady, setIsStreamReady] = useState(false);
+  const [pointer, setPointer] = useState<{ x: number; y: number; pressed: boolean } | null>(null);
   const pointerActive = useRef(false);
   const lastPointerMove = useRef(0);
   const appearanceChangeActive = useRef(false);
@@ -75,11 +83,11 @@ export const useSimulatorRuntime = ({
   useEffect(() => {
     if (!connection) return;
     orientationSynchronization.current = {
-      expected: connection.orientation,
+      expected: connection.orientation ?? 'portrait',
       requested: false,
       synchronized: false
     };
-    setOrientation(connection.orientation);
+    setOrientation(connection.orientation ?? 'portrait');
     let active = true;
     const ws = new WebSocket(connection.wsUrl);
     ws.binaryType = 'arraybuffer';
@@ -117,6 +125,7 @@ export const useSimulatorRuntime = ({
       active = false;
       if (socket.current === ws) socket.current = null;
       ws.close();
+      setIsStreamReady(false);
     };
   }, [connection, onError]);
 
@@ -173,6 +182,7 @@ export const useSimulatorRuntime = ({
     if (!hasConnectedSimulator) return;
     event.currentTarget.focus();
     const point = updatePointer(event);
+    setPointer(point ? { ...point, pressed: !isSelectionMode } : null);
     if (isSelectionMode) {
       onSelectedPathChange(point && axSnapshot ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null) : null);
       return;
@@ -181,7 +191,8 @@ export const useSimulatorRuntime = ({
     pointerActive.current = sendTouch('begin', event);
   };
   const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    updatePointer(event);
+    const point = updatePointer(event);
+    setPointer((current) => (point ? { ...point, pressed: current?.pressed ?? false } : null));
     const now = performance.now();
     if (isSelectionMode || !pointerActive.current || now - lastPointerMove.current < 8) return;
     lastPointerMove.current = now;
@@ -190,8 +201,13 @@ export const useSimulatorRuntime = ({
   const finishPointer = (event: PointerEvent<HTMLButtonElement>) => {
     if (pointerActive.current) sendTouch('end', event);
     pointerActive.current = false;
+    const point = pointFromEvent(event);
+    setPointer(point ? { ...point, pressed: false } : null);
   };
-  const leavePointer = () => onHoveredPathChange(null);
+  const leavePointer = () => {
+    onHoveredPathChange(null);
+    setPointer((current) => (current?.pressed ? current : null));
+  };
   const sendKey = (usage: number, type: 'down' | 'up') => sendFrame(0x06, { type, usage });
   const handleKey = (event: KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
     if (!hasConnectedSimulator || (event.metaKey && event.code === 'KeyV')) return;
@@ -250,6 +266,7 @@ export const useSimulatorRuntime = ({
     socket.current?.close();
     socket.current = null;
     setIsStreamReady(false);
+    setPointer(null);
     setAppearance(null);
     setIsAppearanceChanging(false);
     setOrientation('portrait');
@@ -262,10 +279,10 @@ export const useSimulatorRuntime = ({
     setLogicalScreenSize(null);
     setDevicePixelRatio(1);
   };
-  const initializeScreen = (size: { width: number; height: number }) => {
-    setScreenSize(size);
+  const initializeScreen = useCallback((size: { width: number; height: number }) => {
+    setScreenSize((current) => (current.width === size.width && current.height === size.height ? current : size));
     setDevicePixelRatio(1);
-  };
+  }, []);
   const isLandscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   const deviceSize = simulatorRuntimeDeviceSize(screenSize, devicePixelRatio);
 
@@ -285,6 +302,7 @@ export const useSimulatorRuntime = ({
     isStreamReady,
     leavePointer,
     orientation,
+    pointer,
     resetSimulatorRuntime,
     rotate,
     screenImage,

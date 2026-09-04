@@ -27,6 +27,23 @@ interface VariantComparisonDeviceFrame {
   hardware?: { x: number; y: number; width: number; height: number } | null;
 }
 
+export interface VariantComparisonProps {
+  capturingVariant?: string | null;
+  captures: VariantComparisonCapture[];
+  deviceChrome?: VariantComparisonDeviceChrome;
+  deviceFrame: VariantComparisonDeviceFrame;
+  deviceHeight: number;
+  deviceWidth: number;
+  framebufferMask?: string;
+  labels: Record<string, string>;
+  offset?: { x: number; y: number };
+  onSelect: (variant: string) => void;
+  orientation?: SimulatorOrientation;
+  scale?: number;
+  selectedVariant?: string | null;
+  variants: string[];
+}
+
 export function VariantComparison({
   capturingVariant,
   captures,
@@ -42,22 +59,7 @@ export function VariantComparison({
   scale = 1,
   selectedVariant,
   variants
-}: {
-  capturingVariant?: string | null;
-  captures: VariantComparisonCapture[];
-  deviceChrome?: VariantComparisonDeviceChrome;
-  deviceFrame: VariantComparisonDeviceFrame;
-  deviceHeight: number;
-  deviceWidth: number;
-  framebufferMask?: string;
-  labels: Record<string, string>;
-  offset?: { x: number; y: number };
-  onSelect: (variant: string) => void;
-  orientation?: SimulatorOrientation;
-  scale?: number;
-  selectedVariant?: string | null;
-  variants: string[];
-}) {
+}: VariantComparisonProps) {
   const variantStrip = useRef<HTMLDivElement | null>(null);
   const [previewScale, setPreviewScale] = useState(0.5);
 

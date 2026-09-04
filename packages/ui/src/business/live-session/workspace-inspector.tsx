@@ -137,23 +137,33 @@ export function LiveWorkspaceInspector({
   const isReviewingVariants = agentStatus === 'variants_ready' || agentStatus === 'selection_confirmed';
   const selectionConfirmed = agentStatus === 'selection_confirmed';
   const activeVariant = variants.find(({ id }) => id === confirmedVariant || id === selectedVariant);
+  const modeLabel =
+    mode === 'annotate'
+      ? 'Annotating live view'
+      : mode === 'variants'
+        ? 'Reviewing variants'
+        : mode === 'select'
+          ? 'Selecting runtime element'
+          : 'Controlling app';
 
   return (
     <aside
-      className={`floating-inspector ${mode === 'annotate' ? 'annotation-only' : ''}`}
+      aria-label="Live workspace controls"
+      className={`floating-inspector compact ${mode === 'annotate' ? 'annotation-only' : ''}`}
       data-canvas-ui
     >
-      <section className="inspector-section">
-        <div className="inspector-section-heading">
-          <strong>Mode</strong>
-          <span>
-            {mode === 'annotate'
-              ? 'Annotate live view'
-              : mode === 'variants'
-                ? 'Review variants'
-                : mode === 'select'
-                  ? 'Select runtime element'
-                  : 'Control app'}
+      <header className="inspector-command-header">
+        <div className="inspector-command-title">
+          <div>
+            <strong>Live workspace</strong>
+            <span>{modeLabel}</span>
+          </div>
+          <span
+            className={`agent-connection-status ${agentStatus ? 'connected' : 'offline'}`}
+            title={agentStatusLabel(agentStatus)}
+          >
+            <i aria-hidden="true" />
+            {agentStatus ? 'Agent live' : 'Agent offline'}
           </span>
         </div>
         <ToggleGroup.Root
@@ -175,11 +185,11 @@ export function LiveWorkspaceInspector({
             </ToggleGroup.Item>
           ))}
         </ToggleGroup.Root>
-      </section>
+      </header>
 
       <section className="inspector-section prompt-workbench">
         <div className="inspector-section-heading">
-          <strong>Request</strong>
+          <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
           <span>{agentStatusLabel(agentStatus)}</span>
         </div>
         {!agentStatus && (
@@ -266,7 +276,16 @@ export function LiveWorkspaceInspector({
                 </Button>
               </div>
             )}
-            {variantError}
+            {typeof variantError === 'string' ? (
+              <p
+                className="variant-error"
+                role="alert"
+              >
+                {variantError}
+              </p>
+            ) : (
+              variantError
+            )}
           </div>
         ) : selectedElement ? (
           <div className={`handoff-selection ${selectedElement.isContainer ? 'container' : ''}`}>
@@ -364,7 +383,16 @@ export function LiveWorkspaceInspector({
             </Button>
           </div>
         )}
-        {agentError}
+        {typeof agentError === 'string' ? (
+          <p
+            className="agent-copy-error"
+            role="alert"
+          >
+            {agentError}
+          </p>
+        ) : (
+          agentError
+        )}
       </section>
       {onEndLive && (
         <section className="live-session-footer">
@@ -373,7 +401,7 @@ export function LiveWorkspaceInspector({
             disabled={isEndingLive}
             onClick={onEndLive}
             type="button"
-            variant="destructive"
+            variant="ghost"
           >
             {isEndingLive ? 'Ending live…' : 'End live'}
           </Button>

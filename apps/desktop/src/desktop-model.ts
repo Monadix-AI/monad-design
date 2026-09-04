@@ -1,5 +1,4 @@
 import type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
-import type { CanvasMode } from '@monaddesign/ui/business/canvas-controls';
 
 export interface ActiveConnection {
   udid: string;
@@ -16,6 +15,3 @@ export interface VariantCapture {
   image: string;
   orientation: SimulatorOrientation;
 }
-
-export const workspaceCanvasMode = (isAnnotationMode: boolean, isVariantPreviewOpen: boolean): CanvasMode =>
-  isAnnotationMode ? 'annotate' : isVariantPreviewOpen ? 'variants' : 'interact';

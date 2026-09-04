@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
-import { createVariantOperationGate } from '../../src/lib/variant-operation-gate';
+import { createVariantOperationGate } from '@monaddesign/client-rtk/variant-operation-gate';
 
 describe('variant operation gate', () => {
   test('permits only one operation until the owner finishes', () => {

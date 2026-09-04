@@ -170,6 +170,19 @@ export function SimulatorDeviceControls({
   );
 }
 
+export interface CanvasZoomControlsProps {
+  fitIcon?: ReactNode;
+  maximumScale: number;
+  minimumScale: number;
+  mode: CanvasMode;
+  onFit: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  scale: number;
+  zoomInIcon?: ReactNode;
+  zoomOutIcon?: ReactNode;
+}
+
 export function CanvasZoomControls({
   fitIcon,
   maximumScale,
@@ -181,18 +194,7 @@ export function CanvasZoomControls({
   scale,
   zoomInIcon,
   zoomOutIcon
-}: {
-  fitIcon?: ReactNode;
-  maximumScale: number;
-  minimumScale: number;
-  mode: CanvasMode;
-  onFit: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  scale: number;
-  zoomInIcon?: ReactNode;
-  zoomOutIcon?: ReactNode;
-}) {
+}: CanvasZoomControlsProps) {
   return (
     <div
       className={`zoom-controls canvas-mode-${mode}`}

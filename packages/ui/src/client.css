@@ -44,6 +44,9 @@
   --canvas-dot: rgb(255 255 255 / 8%);
   --canvas-fill: rgb(13 13 13 / 58%);
   --overlay-fill: rgb(0 0 0 / 58%);
+  --container-evidence-surface: #162127;
+  --container-evidence-border: #417087;
+  --container-evidence-foreground: #dfdfdf;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   color: var(--foreground);
@@ -86,6 +89,9 @@
   --canvas-dot: rgb(26 28 31 / 8%);
   --canvas-fill: rgb(249 249 249 / 64%);
   --overlay-fill: rgb(0 0 0 / 32%);
+  --container-evidence-surface: #e8f7fd;
+  --container-evidence-border: #3982a1;
+  --container-evidence-foreground: #173c4d;
   color: var(--foreground);
   background: transparent;
 }
@@ -981,6 +987,24 @@ button:focus-visible {
   .project-skeleton-meta,
   .project-skeleton-action {
     animation: none;
+  }
+  .header-popover,
+  .spin,
+  .capture-pulse,
+  .variant-capture-spinner,
+  .agent-waiting-orbit {
+    animation: none;
+  }
+  .header-action,
+  .header-icon-button,
+  .project-row,
+  .selection-empty,
+  .copy-prompt-action {
+    transition-duration: 0ms;
+  }
+  .project-row:hover,
+  .copy-prompt-action:hover:not(:disabled) {
+    transform: none;
   }
   .edge-atmosphere[data-activated="true"] .edge-object {
     animation: none;
@@ -2199,8 +2223,9 @@ h1 {
   color: var(--muted-foreground);
 }
 .handoff-selection.container {
-  background: #162127;
-  border-color: #417087;
+  color: var(--container-evidence-foreground);
+  background: var(--container-evidence-surface);
+  border-color: var(--container-evidence-border);
 }
 .handoff-request {
   display: flex;
@@ -2373,8 +2398,13 @@ h1 {
   color: var(--muted-foreground);
 }
 .ax-selection.container {
-  background: #162127;
-  border-color: #417087;
+  color: var(--container-evidence-foreground);
+  background: var(--container-evidence-surface);
+  border-color: var(--container-evidence-border);
+}
+.handoff-selection.container :is(strong, span, code),
+.ax-selection.container :is(strong, span, code) {
+  color: inherit;
 }
 .ax-handoff {
   display: flex;
@@ -3478,7 +3508,7 @@ h1 {
   overflow: hidden;
   color: var(--foreground);
   background: var(--elevated-fill);
-  border-radius: 15px;
+  border-radius: 16px;
   box-shadow: 0 24px 70px rgb(0 0 0 / 48%);
 }
 .floating-inspector.annotation-only {
@@ -3487,7 +3517,61 @@ h1 {
 .inspector-section {
   flex: 0 0 auto;
   padding: 16px 18px 15px;
-  box-shadow: inset 0 -1px #292c31;
+}
+.inspector-command-header {
+  flex: 0 0 auto;
+  padding: 15px 15px 14px;
+  background: var(--panel-fill);
+  box-shadow: inset 0 -1px var(--border);
+}
+.inspector-command-title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.inspector-command-title > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.inspector-command-title strong {
+  font-size: 13px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+:where(.inspector-command-title > div > span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.agent-connection-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 9px;
+  font-weight: 650;
+  color: var(--muted-foreground);
+  background: rgb(255 255 255 / 5%);
+  border-radius: 999px;
+}
+.agent-connection-status i {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.agent-connection-status.connected {
+  color: #7ddb9d;
+}
+.agent-connection-status.offline {
+  color: #9da2ac;
 }
 .inspector-section-heading {
   display: flex;
@@ -3512,19 +3596,21 @@ h1 {
 .mode-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
   padding: 3px;
-  background: #0f1013;
-  border-radius: 10px;
+  margin-top: 13px;
+  background: #111215;
+  border-radius: 9px;
 }
 .mode-switch button {
-  min-height: 34px;
+  min-height: 31px;
   font-size: 10px;
   font-weight: 650;
   color: var(--muted-foreground);
   cursor: pointer;
   background: transparent;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   transition:
     color 140ms ease-out,
     background-color 140ms ease-out,
@@ -3537,7 +3623,7 @@ h1 {
 .mode-switch button[data-state="on"] {
   color: var(--primary-foreground);
   background: var(--primary);
-  box-shadow: 0 3px 10px rgb(0 0 0 / 30%);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 26%);
 }
 .mode-switch button:focus-visible {
   outline: 2px solid var(--primary);
@@ -3552,6 +3638,7 @@ h1 {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  padding: 17px 18px 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
@@ -3560,15 +3647,24 @@ h1 {
   display: none;
 }
 .live-session-footer {
+  display: flex;
   flex: 0 0 auto;
-  padding: 12px 18px 16px;
+  justify-content: flex-end;
+  padding: 10px 14px 12px;
   background: var(--elevated-fill);
   box-shadow: inset 0 1px var(--border);
 }
 .end-live-action {
-  width: 100%;
-  min-height: 38px;
+  width: auto;
+  min-height: 32px;
+  padding: 0 10px;
   font-size: 10px;
+  color: var(--error);
+  background: transparent;
+  border: 0;
+}
+.end-live-action:hover:not(:disabled) {
+  background: var(--error-surface);
 }
 .prompt-workbench .handoff-selection {
   margin-bottom: 13px;
@@ -3578,12 +3674,11 @@ h1 {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 9px;
   align-items: start;
-  padding: 11px;
+  padding: 0 0 15px;
   margin-bottom: 14px;
   color: var(--muted-foreground);
-  background: var(--control-fill);
-  border: 1px solid var(--border);
-  border-radius: 9px;
+  background: transparent;
+  box-shadow: inset 0 -1px var(--border);
 }
 .agent-live-required > svg {
   margin-top: 1px;
@@ -3832,8 +3927,8 @@ h1 {
   position: sticky;
   bottom: 0;
   z-index: 2;
-  padding: 12px 18px 18px;
-  margin-top: auto;
+  padding: 14px 18px 18px;
+  margin: 18px -18px 0;
   background: var(--elevated-fill);
   box-shadow: inset 0 1px var(--border);
 }
@@ -3873,6 +3968,62 @@ h1 {
   color: #666a71;
   cursor: not-allowed;
   background: #25272c;
+}
+.floating-inspector.compact {
+  width: 326px;
+  border-radius: 13px;
+}
+.floating-inspector.compact .inspector-command-header {
+  padding: 11px 12px 10px;
+}
+.floating-inspector.compact :where(.inspector-command-title strong) {
+  font-size: 12px;
+}
+.floating-inspector.compact .agent-connection-status {
+  min-height: 22px;
+  padding-inline: 7px;
+}
+.floating-inspector.compact .mode-switch {
+  margin-top: 9px;
+}
+.floating-inspector.compact :where(.mode-switch button) {
+  min-height: 27px;
+  font-size: 9px;
+}
+.floating-inspector.compact .prompt-workbench {
+  padding: 12px 14px 0;
+}
+.floating-inspector.compact .inspector-section-heading {
+  margin-bottom: 8px;
+}
+.floating-inspector.compact .agent-live-required {
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+.floating-inspector.compact .selection-empty {
+  min-height: 68px;
+  padding: 10px;
+  margin-bottom: 11px;
+}
+.floating-inspector.compact .selection-empty > svg {
+  width: 16px;
+  height: 16px;
+}
+.floating-inspector.compact .request-composer {
+  gap: 11px;
+}
+.floating-inspector.compact :where(.prompt-workbench .handoff-request textarea) {
+  min-height: 94px;
+}
+.floating-inspector.compact .prompt-workbench .variant-count-field {
+  padding-top: 10px;
+}
+.floating-inspector.compact .request-footer {
+  padding: 11px 14px 14px;
+  margin: 12px -14px 0;
+}
+.floating-inspector.compact .copy-prompt-action {
+  min-height: 36px;
 }
 .inspector-actions {
   display: grid;
@@ -4066,6 +4217,19 @@ h1 {
 .canvas-annotation-layer.tool-text {
   cursor: text;
 }
+.canvas-annotation-layer[data-pointer-state="draggable"] {
+  cursor: grab;
+}
+.canvas-annotation-layer[data-pointer-state="dragging"] {
+  cursor: grabbing;
+}
+.canvas-annotation-layer[data-pointer-state="resizing"] {
+  cursor: inherit;
+}
+.canvas-annotation-resize-handle {
+  pointer-events: all;
+  vector-effect: non-scaling-stroke;
+}
 .canvas-annotation-text-entry {
   position: absolute;
   z-index: 40;
@@ -4085,17 +4249,35 @@ h1 {
   border-radius: 7px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 42%);
 }
-.canvas-annotation-toolbar {
+.canvas-annotation-rail {
   position: absolute;
   top: 70px;
-  right: 386px;
+  right: clamp(12px, 32vw, 386px);
+  bottom: 74px;
   left: 18px;
   z-index: 20;
   display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+  container-type: inline-size;
   pointer-events: none;
+}
+.canvas-annotation-toolbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  padding: 5px;
+  pointer-events: auto;
+  background: rgb(20 22 26 / 94%);
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(16px);
 }
 .canvas-annotation-tool-group,
 .canvas-annotation-action-group {
@@ -4103,26 +4285,20 @@ h1 {
   gap: 3px;
   align-items: center;
   min-width: 0;
-  padding: 5px;
-  pointer-events: auto;
-  background: rgb(20 22 26 / 92%);
-  border: 1px solid #34373d;
-  border-radius: 10px;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 38%);
-  backdrop-filter: blur(16px);
+  padding: 0;
+  margin: 0;
+  border: 0;
 }
-.canvas-annotation-tool-group > strong {
-  padding: 0 8px 0 6px;
-  font-size: 10px;
-  font-weight: 680;
-  color: #8f949e;
+.canvas-annotation-action-group {
+  flex: 1 1 300px;
 }
 .canvas-annotation-toolbar button {
   display: inline-flex;
-  gap: 6px;
   align-items: center;
+  justify-content: center;
+  width: 34px;
   min-height: 34px;
-  padding: 7px 10px;
+  padding: 0;
   font-size: 10px;
   font-weight: 650;
   color: #b9bdc5;
@@ -4130,6 +4306,16 @@ h1 {
   background: transparent;
   border: 0;
   border-radius: 7px;
+  transition:
+    color 120ms ease-out,
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+.canvas-annotation-toolbar button.annotation-cancel,
+.canvas-annotation-toolbar button.annotation-done {
+  gap: 6px;
+  width: auto;
+  padding: 7px 10px;
 }
 .canvas-annotation-toolbar button:hover:not(:disabled) {
   color: #f5f6f8;
@@ -4158,18 +4344,21 @@ h1 {
   margin: 0 2px;
   background: rgb(255 255 255 / 12%);
 }
+.canvas-annotation-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
 .canvas-annotation-error {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  max-width: 420px;
+  flex: 1 0 100%;
+  max-width: min(420px, 100%);
   padding: 8px 10px;
+  margin-top: 3px;
   font-size: 10px;
+  line-height: 1.4;
   color: var(--error);
   background: var(--error-surface);
   border-radius: 8px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
-  transform: translateX(-50%);
 }
 .canvas-annotation-connectors {
   position: absolute;
@@ -4192,20 +4381,17 @@ h1 {
   --muted-foreground: #9da2ac;
   --border: #343840;
   --input: #4a4f59;
-  --control-fill: rgb(255 255 255 / 6%);
   --field-fill: #16181d;
 
-  position: absolute;
-  top: 124px;
-  right: 386px;
-  bottom: 74px;
-  z-index: 15;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  width: 300px;
+  align-self: flex-end;
+  width: min(300px, 100%);
   min-height: 0;
   overflow: hidden;
   color: var(--foreground);
+  pointer-events: auto;
   color-scheme: dark;
   background: rgb(24 24 24 / 96%);
   border-radius: 15px;
@@ -4262,9 +4448,12 @@ h1 {
   grid-template-columns: 26px minmax(0, 1fr);
   gap: 9px;
   align-items: start;
-  padding: 9px;
-  background: var(--control-fill);
-  border-radius: 10px;
+  padding: 9px 5px 17px;
+  border-bottom: 1px solid var(--border);
+}
+.canvas-annotation-notes li:last-child {
+  padding-bottom: 9px;
+  border-bottom: 0;
 }
 .canvas-annotation-note-number {
   display: grid;
@@ -4414,8 +4603,8 @@ h1 {
 :root[data-theme="light"] .floating-inspector {
   box-shadow: 0 24px 70px rgb(35 39 43 / 24%);
 }
-:root[data-theme="light"] .inspector-section {
-  box-shadow: inset 0 -1px var(--border);
+:root[data-theme="light"] .inspector-command-header {
+  background: var(--panel-fill);
 }
 :root[data-theme="light"] .inspector-actions button:hover:not(:disabled) {
   background: var(--control-hover-fill);
@@ -4435,6 +4624,20 @@ h1 {
   background: var(--elevated-fill);
 }
 
+@container (max-width: 480px) {
+  .canvas-annotation-toolbar {
+    width: 100%;
+  }
+  .canvas-annotation-tool-group,
+  .canvas-annotation-action-group {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .canvas-annotation-action-group {
+    padding-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 8%);
+  }
+}
 @media (max-width: 1100px) {
   .selection-handoff-panel {
     position: absolute;
@@ -4468,12 +4671,8 @@ h1 {
   .floating-inspector {
     width: 310px;
   }
-  .canvas-annotation-toolbar {
-    right: 352px;
-  }
-  .canvas-annotation-notes {
-    right: 352px;
-    width: 260px;
+  .canvas-annotation-rail {
+    left: 12px;
   }
   .canvas-error {
     right: 346px;

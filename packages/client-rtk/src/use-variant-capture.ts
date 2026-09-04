@@ -1,8 +1,6 @@
-import type { ClientApi } from '@monaddesign/client-rtk/client-api';
-import type { ActiveConnection, VariantCapture } from '../desktop-model';
-import type { AgentSessionSnapshot, AXElement } from '../electron';
+import type { AccessibilitySnapshotResponse, AgentSessionSnapshot } from '@monaddesign/client-contract';
+import type { ClientApi } from './client-api';
 
-import { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
 import {
   type SimulatorOrientation,
   type SimulatorVariantId,
@@ -11,14 +9,22 @@ import {
 } from '@monaddesign/simulator';
 import { useCallback, useEffect, useState } from 'react';
 
-import { captureStableSimulatorScreen } from '../lib/variant-capture';
-import { createVariantOperationGate } from '../lib/variant-operation-gate';
+import { errorMessage } from './endpoint-helpers';
+import { createVariantOperationGate } from './variant-operation-gate';
+
+type AXElement = AccessibilitySnapshotResponse['elements'][number];
+export interface VariantCapture {
+  id: SimulatorVariantId;
+  image: string;
+  orientation: SimulatorOrientation;
+}
 
 export type VariantTransition = 'opening' | 'restoring' | 'confirming' | 'discarding' | null;
 
-interface VariantCaptureControllerOptions {
+export interface VariantCaptureControllerOptions {
   activeAgentSession: AgentSessionSnapshot | null;
-  connection: ActiveConnection | null;
+  captureStableScreen: (variant: SimulatorVariantId, target?: AXElement) => Promise<string>;
+  connection: object | null;
   onError: (message: string) => void;
   onSessionChanged: (session: AgentSessionSnapshot) => void;
   orientation: SimulatorOrientation;
@@ -26,8 +32,9 @@ interface VariantCaptureControllerOptions {
   selectedElement?: AXElement;
 }
 
-export const useVariantCaptureController = ({
+export const useVariantCapture = ({
   activeAgentSession,
+  captureStableScreen,
   connection,
   onError,
   onSessionChanged,
@@ -76,13 +83,31 @@ export const useVariantCaptureController = ({
           setCapturingVariant(variant);
           await runtimeClient.launchVariant(variant);
           previewLaunchStarted = true;
-          const image = await captureStableSimulatorScreen(runtimeClient, variant, selectedElement);
+          const image = await captureStableScreen(variant, selectedElement);
           if (!operationGate.isCurrent(operationToken)) return;
           captures.push({ id: variant, image, orientation });
           setVariantCaptures([...captures]);
         }
       } catch (captureError) {
-        if (operationGate.isCurrent(operationToken)) setVariantError(errorMessage(captureError));
+        if (operationGate.isCurrent(operationToken)) {
+          const message = errorMessage(captureError);
+          setVariantError(message);
+          const requestId = activeAgentSession?.changeRequest?.id;
+          const failedVariant = variants[captures.length];
+          if (activeAgentSession?.status === 'variants_ready' && requestId && failedVariant) {
+            try {
+              onSessionChanged(
+                await runtimeClient.reportVariantCaptureFailure(activeAgentSession.id, {
+                  requestId,
+                  variant: failedVariant,
+                  message
+                })
+              );
+            } catch (reportError) {
+              setVariantError(`${message} Could not notify the coding agent: ${errorMessage(reportError)}`);
+            }
+          }
+        }
       } finally {
         if (previewLaunchStarted) {
           try {
@@ -101,7 +126,16 @@ export const useVariantCaptureController = ({
         }
       }
     },
-    [connection, operationGate, orientation, runtimeClient, selectedElement]
+    [
+      activeAgentSession,
+      captureStableScreen,
+      connection,
+      onSessionChanged,
+      operationGate,
+      orientation,
+      runtimeClient,
+      selectedElement
+    ]
   );
 
   useEffect(() => {

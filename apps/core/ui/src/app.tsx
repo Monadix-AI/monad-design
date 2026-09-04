@@ -1,123 +1,123 @@
-import type { VariantComparisonCapture } from '@monaddesign/ui/business/variant-comparison';
-
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
 import { errorMessage as formatErrorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
+import { useLiveWorkspaceController } from '@monaddesign/client-rtk/use-live-workspace';
 import {
   type AccessibilityElement,
-  type AccessibilitySnapshot,
-  accessibilityElementAtPoint,
-  buildAgentTurnContext,
   canvasScaleStep,
-  encodeSimulatorFrame,
   maximumCanvasScale,
   minimumCanvasScale,
-  normalizedCanvasPoint,
-  orientCanvasPoint,
-  rotatedSimulatorOrientation,
-  type SimulatorOrientation,
   type SimulatorVariantId,
-  simulatorKeyUsage,
-  simulatorVariantIdsForCount,
   simulatorVariantLabels
 } from '@monaddesign/simulator';
-import { LiveAnnotationSurface } from '@monaddesign/ui/business/annotation/live-surface';
-import {
-  CanvasZoomControls,
-  canvasModeShowsSelectionOverlay,
-  liveSimulatorDeviceFrame,
-  liveWorkspaceCanvasPlacement,
-  SimulatorDeviceControls
-} from '@monaddesign/ui/business/canvas-controls';
-import { useCanvasViewport } from '@monaddesign/ui/business/canvas-viewport';
 import { EdgeAtmosphere } from '@monaddesign/ui/business/edge-atmosphere';
-import { LiveWorkspaceFrame, LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
+import { LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
-import { LiveWorkspaceInspector } from '@monaddesign/ui/business/live-session/workspace-inspector';
-import { SimulatorCanvas } from '@monaddesign/ui/business/simulator-canvas';
+import { LiveWorkspace } from '@monaddesign/ui/business/live-session/workspace';
+import { useLiveWorkspaceViewport } from '@monaddesign/ui/business/live-session/workspace-viewport';
 import { captureStableSimulatorScreen } from '@monaddesign/ui/business/variant-capture';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCoreLiveSession } from './use-core-live-session';
 import { captureTargetFromContext } from './variant-capture-target';
 
-type AXSnapshot = AccessibilitySnapshot;
-
 const coreClient = new ClientApi({ origin: window.location.origin });
 const loadDesignDocumentCard = () => import('@monaddesign/ui/business/design-document-card');
 const DesignDocumentCard = lazy(async () => ({ default: (await loadDesignDocumentCard()).DesignDocumentCard }));
-const loadVariantComparison = () => import('@monaddesign/ui/business/variant-comparison');
-const VariantComparison = lazy(async () => ({ default: (await loadVariantComparison()).VariantComparison }));
 
 export function App() {
   useClientTheme();
   const [errorMessage, setErrorMessage] = useState('');
-  const { isScanning, refreshSession, session, setSession, simulators } = useCoreLiveSession(
-    coreClient,
-    setErrorMessage
-  );
+  const {
+    endLive,
+    isEndingLive,
+    isScanning,
+    refresh: refreshSession,
+    session,
+    setSession,
+    simulators
+  } = useCoreLiveSession(coreClient, setErrorMessage);
   const [isChoosingSimulator, setIsChoosingSimulator] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isStreamReady, setIsStreamReady] = useState(false);
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
-  const [selectedVariant, setSelectedVariant] = useState('');
   const [agentRequest, setAgentRequest] = useState('');
-  const [variantCount, setVariantCount] = useState(1);
-  const [isSendingAgentRequest, setIsSendingAgentRequest] = useState(false);
-  const [variantTransition, setVariantTransition] = useState<'confirming' | 'discarding' | null>(null);
-  const [variantCaptures, setVariantCaptures] = useState<VariantComparisonCapture[]>([]);
-  const [capturingVariant, setCapturingVariant] = useState<SimulatorVariantId | null>(null);
-  const [variantError, setVariantError] = useState('');
   const [isRestoringConnection, setIsRestoringConnection] = useState(false);
-  const [isEndingLive, setIsEndingLive] = useState(false);
-  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [axSnapshot, setAXSnapshot] = useState<AXSnapshot | null>(null);
-  const [hoveredAXPath, setHoveredAXPath] = useState<string | null>(null);
   const [selectedAXPath, setSelectedAXPath] = useState<string | null>(null);
-  const [orientation, setOrientation] = useState<SimulatorOrientation>('portrait');
-  const [appearance, setAppearance] = useState<'light' | 'dark'>('light');
-  const [isAppearanceChanging, setIsAppearanceChanging] = useState(false);
   const loadDesignDocument = useCallback((projectId: string) => coreClient.projectDesignDocument(projectId), []);
-  const socket = useRef<WebSocket | null>(null);
-  const screenImage = useRef<HTMLImageElement | null>(null);
-  const orientationRef = useRef<SimulatorOrientation>('portrait');
   const restoredConnection = useRef<string | null>(null);
-  const capturedRequest = useRef<string | null>(null);
   const connectingSimulator = useRef(false);
   const selectedSimulator = useMemo(
     () => simulators.find((simulator) => simulator.udid === selectedUdid),
     [selectedUdid, simulators]
   );
-  const screen = selectedSimulator?.screen
-    ? {
-        width: selectedSimulator.screen.width / selectedSimulator.screen.scale,
-        height: selectedSimulator.screen.height / selectedSimulator.screen.scale
-      }
-    : { width: 390, height: 844 };
-  const deviceFrame = liveSimulatorDeviceFrame({
-    deviceChrome: selectedSimulator?.deviceChrome,
-    deviceHeight: screen.height,
-    deviceName: selectedSimulator?.name ?? 'iPhone',
-    deviceWidth: screen.width,
-    orientation
-  });
   const connectionUdid = session?.connection?.udid;
-  const isReviewingVariants = session?.status === 'variants_ready' || session?.status === 'selection_confirmed';
-  const reviewVariantIds = session?.changeRequest
-    ? simulatorVariantIdsForCount(session.changeRequest.variantCount)
-    : [];
-  const canvasMode = isAnnotationMode
-    ? 'annotate'
-    : session?.status === 'variants_ready' || session?.status === 'selection_confirmed'
-      ? 'variants'
-      : 'interact';
-  const canvasViewport = useCanvasViewport({ deviceFrame, mode: canvasMode, resetKey: connectionUdid });
+  const captureStableSimulatorImage = useCallback(
+    (variant: SimulatorVariantId, target?: AccessibilityElement) =>
+      captureStableSimulatorScreen(coreClient, variant, target, {
+        targetVisibilityError: (currentVariant, detail) =>
+          `${simulatorVariantLabels[currentVariant]} did not restore the selected page and scroll target in the visible viewport.${detail}`,
+        stableFrameError: () => 'The Simulator did not reach a stable frame for variant comparison.'
+      }),
+    []
+  );
+  const handleWorkspaceError = useCallback((message: string | null) => setErrorMessage(message ?? ''), []);
+  const workspaceConnection = useMemo(
+    () =>
+      session?.connection
+        ? {
+            bundleIdentifier: session.connection.bundleIdentifier,
+            streamUrl: '/v1/simulator/stream',
+            wsUrl: `${window.location.origin.replace(/^http/, 'ws')}/v1/simulator/input`
+          }
+        : null,
+    [session?.connection]
+  );
+  const workspace = useLiveWorkspaceController({
+    agentRequest,
+    canAutoCapture:
+      !isRestoringConnection &&
+      Boolean(simulators.some(({ connected, udid }) => connected && udid === session?.connection?.udid)),
+    captureStableScreen: captureStableSimulatorImage,
+    client: coreClient,
+    connected: selectedSimulator,
+    connection: workspaceConnection,
+    connectionKey: session?.connection
+      ? `${session.project.id}:${session.connection.udid}:${session.connection.bundleIdentifier}`
+      : null,
+    onError: handleWorkspaceError,
+    onRequestChanged: setAgentRequest,
+    onSessionChanged: setSession,
+    selectedPath: selectedAXPath,
+    selectionMode: isSelectionMode,
+    session,
+    setSelectedPath: setSelectedAXPath,
+    setSelectionMode: setIsSelectionMode,
+    variantTarget: session?.changeRequest ? captureTargetFromContext(session.changeRequest.context) : undefined
+  });
   const {
-    beginTemporaryView: beginAnnotationCanvasView,
+    annotationMode: isAnnotationMode,
+    axError,
+    capturingVariant,
+    isStreamReady,
+    resetSimulatorRuntime,
+    reviewingAgentVariants: isReviewingVariants,
+    setIsStreamReady
+  } = workspace;
+  const canvasViewport = useLiveWorkspaceViewport({
+    deviceChrome: selectedSimulator?.deviceChrome,
+    deviceHeight: workspace.deviceHeight,
+    deviceName: selectedSimulator?.name ?? 'iPhone',
+    deviceWidth: workspace.deviceWidth,
+    mode: workspace.workspaceMode,
+    orientation: workspace.orientation,
+    resetKey: connectionUdid
+  });
+  const {
     canvas,
     changeScale: changeCanvasScale,
+    deviceFrame,
     finishPointer: finishCanvasDrag,
     fit: fitCanvas,
     handlePointerDown: handleCanvasPointerDown,
@@ -125,18 +125,9 @@ export function App() {
     handleWheel: handleCanvasWheel,
     isDragging: isCanvasDragging,
     offset: canvasOffset,
-    restoreTemporaryView: restoreAnnotationCanvasView,
     scale: canvasScale,
     viewChanged: canvasViewChanged
   } = canvasViewport;
-
-  useEffect(() => {
-    if (!connectionUdid) return;
-    void coreClient
-      .appearance()
-      .then(({ appearance: nextAppearance }) => setAppearance(nextAppearance))
-      .catch(() => undefined);
-  }, [connectionUdid]);
 
   useEffect(() => {
     if (!session?.project.targetApps.length) return;
@@ -154,10 +145,6 @@ export function App() {
         ''
     );
   }, [connectionUdid, simulators]);
-
-  useEffect(() => {
-    orientationRef.current = orientation;
-  }, [orientation]);
 
   useEffect(() => {
     if (
@@ -182,34 +169,7 @@ export function App() {
       })
       .catch((error) => setErrorMessage(formatErrorMessage(error)))
       .finally(() => setIsRestoringConnection(false));
-  }, [isChoosingSimulator, refreshSession, session, simulators]);
-
-  useEffect(
-    () => () => {
-      socket.current?.close();
-    },
-    []
-  );
-
-  const connectInput = useCallback(() => {
-    socket.current?.close();
-    const nextSocket = new WebSocket(`${window.location.origin.replace(/^http/, 'ws')}/v1/simulator/input`);
-    nextSocket.binaryType = 'arraybuffer';
-    nextSocket.addEventListener('message', (event) => {
-      if (!(event.data instanceof ArrayBuffer) || new Uint8Array(event.data)[0] !== 130) return;
-      try {
-        const configuration = JSON.parse(new TextDecoder().decode(new Uint8Array(event.data).subarray(1)));
-        if (typeof configuration.orientation === 'string') setOrientation(configuration.orientation);
-      } catch {
-        // Stream configuration is advisory; malformed frames do not block touch input.
-      }
-    });
-    socket.current = nextSocket;
-  }, []);
-
-  useEffect(() => {
-    if (connectionUdid) connectInput();
-  }, [connectInput, connectionUdid]);
+  }, [isChoosingSimulator, refreshSession, session, setIsStreamReady, simulators]);
 
   const connectSimulator = async () => {
     if (!session || connectingSimulator.current) return;
@@ -235,9 +195,8 @@ export function App() {
 
   const disconnectSimulator = async () => {
     try {
-      socket.current?.close();
       await coreClient.disconnect();
-      setIsStreamReady(false);
+      resetSimulatorRuntime();
       setIsChoosingSimulator(true);
       setErrorMessage('');
     } catch (error) {
@@ -245,272 +204,15 @@ export function App() {
     }
   };
 
-  const endLive = async () => {
-    if (!session || isEndingLive) return;
-    setIsEndingLive(true);
-    try {
-      await coreClient.closeAgentSession(session.id);
-      socket.current?.close();
-      setIsStreamReady(false);
-      setSession(null);
-      setErrorMessage('');
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-    } finally {
-      setIsEndingLive(false);
-    }
-  };
-
-  const submitChangeRequest = async () => {
-    if (!session?.connection || !agentRequest.trim() || isSendingAgentRequest) return;
-    const selectedElement = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
-    setIsSendingAgentRequest(true);
-    try {
-      const nextSession = await coreClient.submitAgentRequest(session.id, {
-        request: agentRequest.trim(),
-        variantCount,
-        context: buildAgentTurnContext({
-          bundleIdentifier: session.connection.bundleIdentifier,
-          element: selectedElement,
-          snapshot: axSnapshot ?? undefined,
-          simulator: selectedSimulator ?? { udid: session.connection.udid }
-        })
-      });
-      setSession(nextSession);
-      setAgentRequest('');
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-    } finally {
-      setIsSendingAgentRequest(false);
-    }
-  };
-
-  const confirmVariant = async (variant: string, transition: 'confirming' | 'discarding') => {
-    if (!session?.changeRequest || variantTransition) return;
-    setVariantTransition(transition);
-    try {
-      const nextSession = await coreClient.confirmAgentSelection(session.id, {
-        requestId: session.changeRequest.id,
-        variant: variant as SimulatorVariantId
-      });
-      setSession(nextSession);
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-    } finally {
-      setVariantTransition(null);
-    }
-  };
-
-  const captureStableSimulatorImage = useCallback(
-    (variant: SimulatorVariantId, target?: AccessibilityElement) =>
-      captureStableSimulatorScreen(coreClient, variant, target, {
-        targetVisibilityError: (currentVariant, detail) =>
-          `${simulatorVariantLabels[currentVariant]} did not restore the selected page and scroll target in the visible viewport.${detail}`,
-        stableFrameError: () => 'The Simulator did not reach a stable frame for variant comparison.'
-      }),
-    []
-  );
-
-  useEffect(() => {
-    const changeRequest = session?.changeRequest;
-    const requestId = changeRequest?.id;
-    if (
-      session?.status !== 'variants_ready' ||
-      !requestId ||
-      isRestoringConnection ||
-      !simulators.some(({ connected, udid }) => connected && udid === session.connection?.udid) ||
-      capturedRequest.current === requestId
-    ) {
-      return;
-    }
-    capturedRequest.current = requestId;
-    setVariantCaptures([]);
-    setSelectedVariant('');
-    setVariantError('');
-
-    void (async () => {
-      const captures: VariantComparisonCapture[] = [];
-      let previewLaunchStarted = false;
-      let failedVariant: SimulatorVariantId | undefined;
-      const captureTarget = captureTargetFromContext(changeRequest.context);
-      try {
-        for (const variant of simulatorVariantIdsForCount(changeRequest.variantCount)) {
-          failedVariant = variant;
-          setCapturingVariant(variant);
-          await coreClient.launchVariant(variant);
-          previewLaunchStarted = true;
-          captures.push({
-            id: variant,
-            image: await captureStableSimulatorImage(variant, captureTarget),
-            orientation: orientationRef.current
-          });
-          setVariantCaptures([...captures]);
-          failedVariant = undefined;
-        }
-      } catch (error) {
-        const message = formatErrorMessage(error);
-        setVariantError(message);
-        if (failedVariant) {
-          try {
-            setSession(
-              await coreClient.reportVariantCaptureFailure(session.id, { requestId, variant: failedVariant, message })
-            );
-            capturedRequest.current = null;
-          } catch (reportError) {
-            setVariantError(`${message} Could not notify the coding agent: ${formatErrorMessage(reportError)}`);
-          }
-        }
-      } finally {
-        if (previewLaunchStarted) {
-          try {
-            await coreClient.launchApp();
-          } catch (error) {
-            setVariantError((current) => {
-              const message = `Could not restart the app normally: ${formatErrorMessage(error)}`;
-              return current ? `${current} ${message}` : message;
-            });
-          }
-        }
-        setCapturingVariant(null);
-      }
-    })();
-  }, [captureStableSimulatorImage, isRestoringConnection, session, setSession, simulators]);
-
-  useEffect(() => {
-    if (session?.status !== 'awaiting_request') return;
-    capturedRequest.current = null;
-    setVariantCaptures([]);
-    setSelectedVariant('');
-    setCapturingVariant(null);
-    setVariantError('');
-  }, [session?.status]);
-
-  const openAnnotation = () => {
-    if (isAnnotationMode) return;
-    beginAnnotationCanvasView();
-    setIsSelectionMode(false);
-    setHoveredAXPath(null);
-    setSelectedAXPath(null);
-    setIsAnnotationMode(true);
-  };
-
-  const closeAnnotation = () => {
-    setIsAnnotationMode(false);
-    restoreAnnotationCanvasView();
-  };
-
-  const captureSimulatorImage = async () => (await coreClient.screenshot()).image;
-
-  const sendAnnotation = async (annotationScreenshot: string) => {
-    if (!session?.connection) throw new Error('The active Simulator session is unavailable.');
-    const snapshot = axSnapshot ?? (await coreClient.accessibility());
-    const nextSession = await coreClient.submitAgentRequest(session.id, {
-      request: 'Implement the changes shown in the attached annotated screenshot.',
-      variantCount: 1,
-      context: buildAgentTurnContext({
-        bundleIdentifier: session.connection.bundleIdentifier,
-        snapshot,
-        simulator: selectedSimulator ?? { udid: session.connection.udid }
-      }),
-      annotationScreenshot
-    });
-    setAXSnapshot(snapshot);
-    setSession(nextSession);
-    closeAnnotation();
-  };
-
-  const changeSelectionMode = async (next: boolean) => {
-    setIsSelectionMode(next);
-    setHoveredAXPath(null);
-    if (!next) return;
-    try {
-      setErrorMessage('');
-      setAXSnapshot(await coreClient.accessibility());
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-      setIsSelectionMode(false);
-    }
-  };
-
-  const sendInputFrame = (tag: number, payload: object) => {
-    if (socket.current?.readyState !== WebSocket.OPEN) {
-      setErrorMessage('The Simulator input channel is still starting.');
-      return false;
-    }
-    socket.current.send(encodeSimulatorFrame(tag, payload));
-    return true;
-  };
-
-  const pointFromSimulatorEvent = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const bounds = screenImage.current?.getBoundingClientRect();
-    return bounds ? normalizedCanvasPoint({ x: event.clientX, y: event.clientY }, bounds) : null;
-  };
-
-  const selectionPathFromEvent = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const point = pointFromSimulatorEvent(event);
-    return point && axSnapshot ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null) : null;
-  };
-
-  const sendTouch = (type: 'begin' | 'move' | 'end', event: React.PointerEvent<HTMLButtonElement>) => {
-    const point = pointFromSimulatorEvent(event);
-    if (!point) return;
-    sendInputFrame(0x03, { type, ...orientCanvasPoint(point, orientation) });
-  };
-
-  const rotate = (direction: 'left' | 'right') => {
-    const next = rotatedSimulatorOrientation(orientation, direction);
-    if (sendInputFrame(0x07, { orientation: next })) setOrientation(next);
-  };
-
-  const changeAppearance = async () => {
-    if (isAppearanceChanging) return;
-    const nextAppearance = appearance === 'dark' ? 'light' : 'dark';
-    setIsAppearanceChanging(true);
-    try {
-      await coreClient.setAppearance(nextAppearance);
-      setAppearance(nextAppearance);
-      setErrorMessage('');
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-    } finally {
-      setIsAppearanceChanging(false);
-    }
-  };
-
-  const handleKey = (event: React.KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
-    if (event.metaKey && event.code === 'KeyV') return;
-    const usage = simulatorKeyUsage(event.code);
-    if (usage === undefined) return;
-    event.preventDefault();
-    sendInputFrame(0x06, { type, usage });
-  };
-
-  const handlePaste = async (event: React.ClipboardEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const text = event.clipboardData.getData('text');
-    if (!text) return;
-    try {
-      await coreClient.setPasteboard(text);
-      sendInputFrame(0x06, { type: 'down', usage: 227 });
-      sendInputFrame(0x06, { type: 'down', usage: 25 });
-      sendInputFrame(0x06, { type: 'up', usage: 25 });
-      sendInputFrame(0x06, { type: 'up', usage: 227 });
-    } catch (error) {
-      setErrorMessage(formatErrorMessage(error));
-    }
-  };
-
-  const error = errorMessage ? (
+  const visibleError = errorMessage || axError;
+  const error = visibleError ? (
     <p
       className="error"
       role="alert"
     >
-      {errorMessage}
+      {visibleError}
     </p>
   ) : null;
-  const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
-  const isSelectionOverlayVisible = canvasModeShowsSelectionOverlay(canvasMode, isSelectionMode);
-  const isSimulatorInputDisabled = isAnnotationMode || isSelectionMode;
   const showEdgeAtmosphere = Boolean(
     session &&
       session.status !== 'configuring_project' &&
@@ -545,133 +247,8 @@ export function App() {
             targets={session.project.targetApps}
           />
         ) : (
-          <LiveWorkspaceFrame
-            canvas={
-              isReviewingVariants ? (
-                <Suspense fallback={null}>
-                  <VariantComparison
-                    captures={variantCaptures}
-                    capturingVariant={capturingVariant}
-                    deviceChrome={selectedSimulator?.deviceChrome}
-                    deviceFrame={deviceFrame}
-                    deviceHeight={screen.height}
-                    deviceWidth={screen.width}
-                    framebufferMask={selectedSimulator?.framebufferMask}
-                    labels={simulatorVariantLabels}
-                    offset={canvasOffset}
-                    onSelect={setSelectedVariant}
-                    scale={canvasScale}
-                    selectedVariant={selectedVariant}
-                    variants={reviewVariantIds}
-                  />
-                </Suspense>
-              ) : (
-                <LiveAnnotationSurface
-                  active={isAnnotationMode}
-                  captureImage={captureSimulatorImage}
-                  imageSize={screen}
-                  onCancel={closeAnnotation}
-                  onFinish={sendAnnotation}
-                  orientation={orientation}
-                >
-                  {(annotationOverlay) => (
-                    <section
-                      aria-label="Live Simulator canvas"
-                      className={`device-cluster canvas-mode-${canvasMode}`}
-                      data-canvas-ui
-                      style={{
-                        left: `calc(${canvasPlacement.left} + ${canvasOffset.x}px)`,
-                        top: `calc(50% + ${canvasOffset.y}px)`,
-                        transform: `translate(-50%, -50%) scale(${canvasScale * canvasPlacement.scale})`
-                      }}
-                    >
-                      <SimulatorCanvas
-                        ariaLabel="Interact with the connected Simulator"
-                        controls={
-                          <SimulatorDeviceControls
-                            appearance={appearance}
-                            isAppearanceChanging={isAppearanceChanging}
-                            onChangeAppearance={() => void changeAppearance()}
-                            onHome={() => sendInputFrame(0x04, { button: 'home' })}
-                            onRotateLeft={() => rotate('left')}
-                            onRotateRight={() => rotate('right')}
-                            scale={canvasScale}
-                          />
-                        }
-                        deviceChrome={selectedSimulator?.deviceChrome}
-                        deviceFrame={deviceFrame}
-                        deviceHeight={screen.height}
-                        deviceWidth={screen.width}
-                        framebufferMask={selectedSimulator?.framebufferMask}
-                        onKeyDown={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'down')}
-                        onKeyUp={isSimulatorInputDisabled ? undefined : (event) => handleKey(event, 'up')}
-                        onPaste={isSimulatorInputDisabled ? undefined : (event) => void handlePaste(event)}
-                        onPointerCancel={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
-                        onPointerDown={
-                          isAnnotationMode
-                            ? undefined
-                            : isSelectionMode
-                              ? (event) => {
-                                  event.stopPropagation();
-                                  event.currentTarget.focus();
-                                  const path = selectionPathFromEvent(event);
-                                  setHoveredAXPath(path);
-                                  setSelectedAXPath(path);
-                                }
-                              : (event) => {
-                                  event.currentTarget.setPointerCapture(event.pointerId);
-                                  sendTouch('begin', event);
-                                }
-                        }
-                        onPointerLeave={isSelectionMode ? () => setHoveredAXPath(null) : undefined}
-                        onPointerMove={
-                          isAnnotationMode
-                            ? undefined
-                            : isSelectionMode
-                              ? (event) => setHoveredAXPath(selectionPathFromEvent(event))
-                              : (event) => {
-                                  if (event.currentTarget.hasPointerCapture(event.pointerId)) sendTouch('move', event);
-                                }
-                        }
-                        onPointerUp={isSimulatorInputDisabled ? undefined : (event) => sendTouch('end', event)}
-                        onStreamError={() => {
-                          setIsStreamReady(false);
-                          setErrorMessage('The Simulator video stream stopped.');
-                        }}
-                        onStreamLoad={() => setIsStreamReady(true)}
-                        orientation={orientation}
-                        overlay={
-                          isAnnotationMode ? (
-                            annotationOverlay
-                          ) : isSelectionOverlayVisible && axSnapshot ? (
-                            <span
-                              aria-hidden="true"
-                              className="ax-overlay"
-                            >
-                              {axSnapshot.elements.map((element) => (
-                                <span
-                                  className={`ax-element-box ${element.isContainer ? 'container' : ''} ${element.path === hoveredAXPath ? 'hovered' : ''} ${element.path === selectedAXPath ? 'selected' : ''}`}
-                                  key={`${element.path}-${element.id}`}
-                                  style={{
-                                    left: `${(element.frame.x / axSnapshot.screen.width) * 100}%`,
-                                    top: `${(element.frame.y / axSnapshot.screen.height) * 100}%`,
-                                    width: `${(element.frame.width / axSnapshot.screen.width) * 100}%`,
-                                    height: `${(element.frame.height / axSnapshot.screen.height) * 100}%`
-                                  }}
-                                />
-                              ))}
-                            </span>
-                          ) : null
-                        }
-                        screenClassName={`phone-frame interactive canvas-phone device-${deviceFrame.kind} ${selectedSimulator?.deviceChrome ? 'native-device-chrome' : ''}`}
-                        screenImageRef={screenImage}
-                        streamUrl="/v1/simulator/stream"
-                      />
-                    </section>
-                  )}
-                </LiveAnnotationSurface>
-              )
-            }
+          <LiveWorkspace
+            activeSession={{ isEnding: isEndingLive, onEnd: () => void endLive() }}
             canvasProps={{
               className: isCanvasDragging ? 'dragging' : undefined,
               onLostPointerCapture: finishCanvasDrag,
@@ -682,6 +259,15 @@ export function App() {
               onWheel: handleCanvasWheel,
               ref: canvas
             }}
+            designDocument={
+              <Suspense fallback={null}>
+                <DesignDocumentCard
+                  collapse={isAnnotationMode || isSelectionMode}
+                  loadDocument={loadDesignDocument}
+                  projectId={session.project.id}
+                />
+              </Suspense>
+            }
             error={error}
             heading={
               <LiveWorkspaceHeading
@@ -691,96 +277,30 @@ export function App() {
                 previewLabel={capturingVariant ? `Capturing ${simulatorVariantLabels[capturingVariant]}` : undefined}
               />
             }
-            inspector={
-              <>
-                <Suspense fallback={null}>
-                  <DesignDocumentCard
-                    collapse={isAnnotationMode || isSelectionMode}
-                    loadDocument={loadDesignDocument}
-                    projectId={session.project.id}
-                  />
-                </Suspense>
-                <LiveWorkspaceInspector
-                  agentStatus={session.status}
-                  confirmedVariant={session.confirmedSelection?.variant}
-                  isEndingLive={isEndingLive}
-                  isSendingRequest={isSendingAgentRequest}
-                  mode={
-                    isAnnotationMode
-                      ? 'annotate'
-                      : canvasMode === 'variants'
-                        ? 'variants'
-                        : isSelectionMode
-                          ? 'select'
-                          : 'interact'
+            inspector={workspace.inspector}
+            mode={workspace.workspaceMode}
+            simulator={{ ...workspace.simulator, canvasOffset, canvasScale, deviceFrame }}
+            variantComparison={
+              isReviewingVariants
+                ? {
+                    ...workspace.variantComparison,
+                    deviceFrame,
+                    offset: canvasOffset,
+                    scale: canvasScale
                   }
-                  onAcceptVariant={() => {
-                    if (selectedVariant) void confirmVariant(selectedVariant, 'confirming');
-                  }}
-                  onBeginSelection={() => void changeSelectionMode(true)}
-                  onClearSelection={() => setSelectedAXPath(null)}
-                  onDiscardVariant={() => void confirmVariant('original', 'discarding')}
-                  onEndLive={() => void endLive()}
-                  onModeChange={(mode) => {
-                    if (mode === 'annotate') {
-                      openAnnotation();
-                    } else {
-                      if (isAnnotationMode) closeAnnotation();
-                      void changeSelectionMode(mode === 'select');
-                    }
-                  }}
-                  onRequestChange={setAgentRequest}
-                  onSelectVariant={setSelectedVariant}
-                  onSendRequest={() => void submitChangeRequest()}
-                  onVariantCountChange={setVariantCount}
-                  request={agentRequest}
-                  requestInFlight={session.changeRequest?.request}
-                  selectedElement={(() => {
-                    const element = axSnapshot?.elements.find(({ path }) => path === selectedAXPath);
-                    return element
-                      ? {
-                          frame: element.frame,
-                          isContainer: element.isContainer,
-                          name: element.label || element.value || element.role || element.type || 'Element',
-                          role: element.role,
-                          type: element.type
-                        }
-                      : null;
-                  })()}
-                  selectedVariant={selectedVariant}
-                  variantCount={session.changeRequest?.variantCount ?? variantCount}
-                  variantError={
-                    variantError ? (
-                      <p
-                        className="variant-error"
-                        role="alert"
-                      >
-                        {variantError}
-                      </p>
-                    ) : undefined
-                  }
-                  variants={reviewVariantIds.map((id) => ({
-                    id,
-                    label: simulatorVariantLabels[id],
-                    ready: variantCaptures.some((capture) => capture.id === id)
-                  }))}
-                  variantTransition={variantTransition}
-                />
-                <CanvasZoomControls
-                  maximumScale={maximumCanvasScale}
-                  minimumScale={minimumCanvasScale}
-                  mode={canvasMode}
-                  onFit={() => {
-                    canvasViewChanged.current = false;
-                    fitCanvas();
-                  }}
-                  onZoomIn={() => changeCanvasScale(canvasScale + canvasScaleStep)}
-                  onZoomOut={() => changeCanvasScale(canvasScale - canvasScaleStep)}
-                  scale={canvasScale}
-                />
-              </>
+                : undefined
             }
-            mode={canvasMode}
+            zoomControls={{
+              maximumScale: maximumCanvasScale,
+              minimumScale: minimumCanvasScale,
+              onFit: () => {
+                canvasViewChanged.current = false;
+                fitCanvas();
+              },
+              onZoomIn: () => changeCanvasScale(canvasScale + canvasScaleStep),
+              onZoomOut: () => changeCanvasScale(canvasScale - canvasScaleStep),
+              scale: canvasScale
+            }}
           />
         )}
       </main>

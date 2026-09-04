@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-
 import {
   decodeSimulatorRuntimeConfiguration,
   reconcileSimulatorRuntimeOrientation,
   simulatorRuntimeDeviceSize
-} from '../../src/lib/simulator-runtime';
+} from '@monaddesign/client-rtk/simulator-runtime';
 
 const frame = (value: unknown, tag = 130) => {
   const payload = new TextEncoder().encode(JSON.stringify(value));

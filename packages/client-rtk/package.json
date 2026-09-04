@@ -4,6 +4,7 @@
   "dependencies": {
     "@elysiajs/eden": "^1.4.9",
     "@monaddesign/client-contract": "workspace:*",
+    "@monaddesign/simulator": "workspace:*",
     "@reduxjs/toolkit": "^2.12.0"
   },
   "devDependencies": {
@@ -14,12 +15,7 @@
     "typescript": "^7.0.0"
   },
   "exports": {
-    "./api-slice": "./src/api-slice.ts",
-    "./client-api": "./src/client-api.ts",
-    "./endpoint-helpers": "./src/endpoint-helpers.ts",
-    "./endpoints": "./src/endpoints.ts",
-    "./store": "./src/store.ts",
-    "./treaty-client": "./src/treaty-client.ts"
+    "./*": "./src/*.ts"
   },
   "peerDependencies": {
     "react": "^19.2.8",

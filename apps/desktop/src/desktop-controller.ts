@@ -1,15 +1,12 @@
 import type { ActiveConnection } from './desktop-model';
-import type { AgentSessionSnapshot, IOSSimulator, MonadDesignProject } from './electron';
+import type { AgentSessionSnapshot, MonadDesignProject } from './electron';
 
-import { agentSessionVersion } from '@monaddesign/client-contract/agent-session-version';
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
 import { errorMessage } from '@monaddesign/client-rtk/endpoint-helpers';
-import {
-  accessibilityElementName as axElementName,
-  simulatorVariantIds,
-  simulatorVariantIdsForCount,
-  simulatorVariantLabels
-} from '@monaddesign/simulator';
+import { useLiveSession } from '@monaddesign/client-rtk/use-live-session';
+import { useLiveWorkspaceController } from '@monaddesign/client-rtk/use-live-workspace';
+import { useSimulators } from '@monaddesign/client-rtk/use-simulators';
+import { accessibilityElementName as axElementName, simulatorVariantLabels } from '@monaddesign/simulator';
 import {
   parseSimulatorHistory,
   recordUsedSimulator,
@@ -17,16 +14,10 @@ import {
   sortSimulatorsForProject
 } from '@monaddesign/simulator-history';
 import { workspaceStore } from '@monaddesign/state/workspace-store';
-import { liveSimulatorDeviceFrame } from '@monaddesign/ui/business/canvas-controls';
+import { captureStableSimulatorScreen } from '@monaddesign/ui/business/variant-capture';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
-
-import { useAccessibilityController } from './hooks/use-accessibility-controller';
-import { useAgentRequestController } from './hooks/use-agent-request-controller';
-import { useSimulatorRuntime } from './hooks/use-simulator-runtime';
-import { useVariantCaptureController } from './hooks/use-variant-capture-controller';
-import { agentSessionTransition } from './lib/agent-session-transition';
 
 type ProjectTargetInput = Pick<MonadDesignProject['targetApps'][number], 'bundleIdentifier' | 'name' | 'sourcePath'>;
 
@@ -46,6 +37,9 @@ const writeSimulatorHistory = (history: ReturnType<typeof readSimulatorHistory>)
   }
 };
 
+const subscribeToAgentSession = (listener: (session: AgentSessionSnapshot | null) => void) =>
+  window.client?.core.subscribeToAgentSession(listener);
+
 export function useDesktopController() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<MonadDesignProject[]>([]);
@@ -53,26 +47,20 @@ export function useDesktopController() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isOpeningProject, setIsOpeningProject] = useState(false);
   const [removingProjectId, setRemovingProjectId] = useState<string | null>(null);
-  const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
   const [usedSimulatorUdids, setUsedSimulatorUdids] = useState<string[]>([]);
-  const orderedSimulators = useMemo(
-    () => sortSimulatorsForProject(simulators, usedSimulatorUdids),
-    [simulators, usedSimulatorUdids]
-  );
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedTargetBundleIdentifier, setSelectedTargetBundleIdentifier] = useState('');
   const [connection, setConnection] = useState<ActiveConnection | null>(null);
-  const connected = orderedSimulators.find(({ udid }) => udid === connection?.udid);
-  const [isScanning, setIsScanning] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const isAXTreeOpen = useStore(workspaceStore, (state) => state.selectionMode);
   const setIsAXTreeOpen = useStore(workspaceStore, (state) => state.setSelectionMode);
+  const selectedAXPath = useStore(workspaceStore, (state) => state.selectedElementPath);
+  const setSelectedAXPath = useStore(workspaceStore, (state) => state.setSelectedElementPath);
   const agentRequest = useStore(workspaceStore, (state) => state.agentRequest);
   const setAgentRequest = useStore(workspaceStore, (state) => state.setAgentRequest);
   const copyStatus = useStore(workspaceStore, (state) => state.copyStatus);
   const setCopyStatus = useStore(workspaceStore, (state) => state.setCopyStatus);
   const resetWorkspaceState = useStore(workspaceStore, (state) => state.resetWorkspaceState);
-  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remoteClient, setRemoteClient] = useState<{
     port: number;
@@ -80,123 +68,121 @@ export function useDesktopController() {
     addresses: string[];
   } | null>(null);
   const [runtimeClient, setRuntimeClient] = useState<ClientApi | null>(null);
-  const [activeAgentSession, setActiveAgentSession] = useState<AgentSessionSnapshot | null>(null);
+  const {
+    endLive,
+    isEndingLive,
+    session: activeAgentSession,
+    setSession: setActiveAgentSession
+  } = useLiveSession({
+    client: runtimeClient,
+    onError: setError,
+    subscribe: subscribeToAgentSession
+  });
+  const { isScanning, scan, simulators } = useSimulators({
+    client: runtimeClient,
+    enabled: Boolean(activeProject),
+    onError: setError
+  });
+  const orderedSimulators = useMemo(
+    () => sortSimulatorsForProject(simulators, usedSimulatorUdids),
+    [simulators, usedSimulatorUdids]
+  );
+  const connected = orderedSimulators.find(({ udid }) => udid === connection?.udid);
   const openedAgentSessionId = useRef<string | null>(null);
-  const {
-    error: axError,
-    hoveredPath: hoveredAXPath,
-    selectedElement: selectedAXElement,
+  const captureStableScreen = useCallback(
+    (
+      variant: Parameters<typeof captureStableSimulatorScreen>[1],
+      target?: Parameters<typeof captureStableSimulatorScreen>[2]
+    ) => {
+      if (!runtimeClient) throw new Error('The live runtime is not ready yet.');
+      return captureStableSimulatorScreen(runtimeClient, variant, target);
+    },
+    [runtimeClient]
+  );
+  const workspace = useLiveWorkspaceController({
+    agentRequest,
+    captureStableScreen,
+    client: runtimeClient,
+    connected,
+    connection,
+    connectionKey: connection ? `${connection.projectId}:${connection.udid}:${connection.bundleIdentifier}` : null,
+    onCopyStatusChanged: setCopyStatus,
+    onError: setError,
+    onRequestChanged: setAgentRequest,
+    onSessionChanged: setActiveAgentSession,
     selectedPath: selectedAXPath,
-    setHoveredPath: setHoveredAXPath,
+    selectionMode: isAXTreeOpen,
+    session: activeAgentSession,
     setSelectedPath: setSelectedAXPath,
-    setSnapshot: setAXSnapshot,
-    snapshot: axSnapshot
-  } = useAccessibilityController({ connection, isOpen: isAXTreeOpen, runtimeClient });
+    setSelectionMode: setIsAXTreeOpen
+  });
   const {
+    activePreviewVariant,
+    agentSessionError,
+    agentTurnPayload,
+    annotationMode: isAnnotationMode,
     appearance,
+    axError,
+    axSnapshot,
+    captureSimulatorImage,
+    captureVariants,
+    capturingVariant,
     changeAppearance,
+    changeWorkspaceMode,
+    closeAnnotation,
+    confirmSelectedVariant,
+    copyAgentTurnPayload,
     deviceHeight,
     deviceWidth,
+    discardAgentChange,
+    discardVariantPreview,
     finishPointer,
     handleKey,
     handlePaste,
     handlePointerDown,
     handlePointerMove,
+    hoveredAXPath,
     initializeScreen,
     isAppearanceChanging,
     isLandscape,
+    isSendingAgentRequest,
     isStreamReady,
+    isVariantPreviewOpen,
     leavePointer,
+    openSelectedVariant,
     orientation,
+    pointer,
     resetSimulatorRuntime,
+    resetVariantPreview,
     rotate,
     screenImage,
     screenSize,
+    selectedAXElement,
+    selectedVariant,
+    sendAgentRequest,
+    sendAnnotatedAgentRequest,
     sendFrame,
+    setAgentSessionError,
     setAppearance,
     setIsStreamReady,
     setLogicalScreenSize,
-    setOrientation
-  } = useSimulatorRuntime({
-    axSnapshot,
-    connection,
-    hasConnectedSimulator: Boolean(connected),
-    isSelectionMode: isAXTreeOpen,
-    onError: setError,
-    onHoveredPathChange: setHoveredAXPath,
-    onSelectedPathChange: setSelectedAXPath,
-    runtimeClient
-  });
-  const {
-    activePreviewVariant,
-    captureVariants,
-    capturingVariant,
-    confirmSelectedVariant,
-    discardAgentChange,
-    discardVariantPreview,
-    isVariantPreviewOpen,
-    openSelectedVariant,
-    resetVariantPreview,
-    selectedVariant,
-    setIsVariantPreviewOpen,
-    setPendingAutoCapture,
+    setOrientation,
     setSelectedVariant,
+    setVariantCount,
     setVariantError,
     toggleVariantPreview,
     variantCaptures,
+    variantCount,
     variantError,
+    variantIds,
+    variantComparison,
     variantTransition
-  } = useVariantCaptureController({
-    activeAgentSession,
-    connection,
-    onError: setError,
-    onSessionChanged: setActiveAgentSession,
-    orientation,
-    runtimeClient,
-    selectedElement: selectedAXElement
-  });
-  const {
-    agentSessionError,
-    agentTurnPayload,
-    copyAgentTurnPayload,
-    isSendingAgentRequest,
-    sendAgentRequest,
-    sendAnnotatedAgentRequest,
-    setAgentSessionError,
-    setVariantCount,
-    variantCount
-  } = useAgentRequestController({
-    activeSession: activeAgentSession,
-    agentRequest,
-    connected,
-    connection,
-    runtimeClient,
-    selectedElement: selectedAXElement,
-    snapshot: axSnapshot,
-    onCopyStatusChanged: setCopyStatus,
-    onRequestChanged: setAgentRequest,
-    onSessionChanged: setActiveAgentSession,
-    onSnapshotChanged: setAXSnapshot
-  });
+  } = workspace;
 
   useEffect(() => {
     resetWorkspaceState();
     return resetWorkspaceState;
   }, [resetWorkspaceState]);
-
-  const scan = useCallback(async () => {
-    if (!runtimeClient) return;
-    setIsScanning(true);
-    setError(null);
-    try {
-      const detected = await runtimeClient.simulators();
-      setSimulators(detected);
-    } catch (scanError) {
-      setError(errorMessage(scanError));
-    } finally {
-      setIsScanning(false);
-    }
-  }, [runtimeClient]);
 
   useEffect(() => {
     setSelectedUdid((current) =>
@@ -226,7 +212,6 @@ export function useDesktopController() {
     setUsedSimulatorUdids(readSimulatorHistory()[project.id] ?? []);
     setSelectedTargetBundleIdentifier(project.targetApps[0]?.bundleIdentifier ?? '');
     setProjects((current) => [project, ...current.filter(({ id }) => id !== project.id)]);
-    setSimulators([]);
     setSelectedUdid('');
   }, []);
 
@@ -246,63 +231,29 @@ export function useDesktopController() {
   };
 
   useEffect(() => {
-    if (!runtimeClient) return;
-    let lastSessionVersion: string | null | undefined;
-    const receiveSession = (session: AgentSessionSnapshot | null) => {
-      const version = agentSessionVersion(session);
-      if (version === lastSessionVersion) return;
-      lastSessionVersion = version;
-      const transition = agentSessionTransition(session);
-      setActiveAgentSession(transition.activeSession);
-      if (transition.pendingAutoCapture !== undefined) setPendingAutoCapture(transition.pendingAutoCapture);
-      if (transition.closeVariantPreview) setIsVariantPreviewOpen(false);
-      if (transition.resetVariantPreview) resetVariantPreview();
-      if (!session || !transition.shouldOpenProject || !runtimeClient || openedAgentSessionId.current === session.id) {
-        return;
-      }
-      openedAgentSessionId.current = session.id;
-      void (async () => {
-        try {
-          await runtimeClient.disconnect().catch(() => undefined);
-          setConnection(null);
-          setIsStreamReady(false);
-          const project = (await runtimeClient.openAdminProject(session.project.id)) as MonadDesignProject;
-          openProjectWorkspace(project);
-          setError(null);
-          await navigate({ to: '/' });
-          await scan();
-        } catch (sessionError) {
-          setAgentSessionError(errorMessage(sessionError));
-        }
-      })();
-    };
-
-    let active = true;
-    const poll = async () => {
+    if (
+      activeAgentSession?.status !== 'selecting_simulator' ||
+      !runtimeClient ||
+      openedAgentSessionId.current === activeAgentSession.id
+    ) {
+      return;
+    }
+    openedAgentSessionId.current = activeAgentSession.id;
+    void (async () => {
       try {
-        const { session } = await runtimeClient.activeAgentSession();
-        if (active) receiveSession(session);
-      } catch {
-        // Core restarts and transient session gaps are retried by the next poll.
+        await runtimeClient.disconnect().catch(() => undefined);
+        setConnection(null);
+        setIsStreamReady(false);
+        const project = (await runtimeClient.openAdminProject(activeAgentSession.project.id)) as MonadDesignProject;
+        openProjectWorkspace(project);
+        setError(null);
+        await navigate({ to: '/' });
+        await scan();
+      } catch (sessionError) {
+        setAgentSessionError(errorMessage(sessionError));
       }
-    };
-    const unsubscribe = window.client?.core.subscribeToAgentSession(receiveSession);
-    void poll();
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [
-    navigate,
-    openProjectWorkspace,
-    resetVariantPreview,
-    runtimeClient,
-    scan,
-    setIsStreamReady,
-    setIsVariantPreviewOpen,
-    setPendingAutoCapture,
-    setAgentSessionError
-  ]);
+    })();
+  }, [activeAgentSession, navigate, openProjectWorkspace, runtimeClient, scan, setIsStreamReady, setAgentSessionError]);
 
   const chooseProject = async () => {
     setIsOpeningProject(true);
@@ -369,7 +320,6 @@ export function useDesktopController() {
 
   const closeProject = () => {
     setActiveProject(null);
-    setSimulators([]);
     setUsedSimulatorUdids([]);
     setSelectedUdid('');
     setSelectedTargetBundleIdentifier('');
@@ -440,43 +390,14 @@ export function useDesktopController() {
     }
   };
 
-  const deviceFrame = liveSimulatorDeviceFrame({
-    deviceChrome: connected?.deviceChrome,
-    deviceHeight,
-    deviceName: connected?.name ?? 'iOS Simulator',
-    deviceWidth,
-    orientation
-  });
   const disconnect = () => {
     setConnection(null);
     void navigate({ to: '/' });
     setIsAXTreeOpen(false);
     resetVariantPreview();
-    setIsAnnotationMode(false);
+    closeAnnotation();
     resetSimulatorRuntime();
     if (runtimeClient) void runtimeClient.disconnect().catch(() => undefined);
-  };
-  const openAnnotation = () => {
-    if (!connection || isAnnotationMode) return;
-    setIsAnnotationMode(true);
-    setIsAXTreeOpen(false);
-    setSelectedAXPath(null);
-  };
-  const captureSimulatorImage = async () => {
-    if (!connection || !runtimeClient) throw new Error('The Simulator is not available.');
-    return (await runtimeClient.screenshot()).image;
-  };
-  const closeAnnotation = () => {
-    setIsAnnotationMode(false);
-  };
-  const changeWorkspaceMode = (value: string) => {
-    if (!value) return;
-    if (value === 'annotate') {
-      openAnnotation();
-      return;
-    }
-    if (isAnnotationMode) closeAnnotation();
-    setIsAXTreeOpen(value === 'select');
   };
 
   return {
@@ -509,11 +430,11 @@ export function useDesktopController() {
     copyStatus,
     detectProjectTargets,
     deviceHeight,
-    deviceFrame,
     deviceWidth,
     discardAgentChange,
     discardVariantPreview,
     disconnect,
+    endLive,
     error,
     finishPointer,
     handleKey,
@@ -532,10 +453,12 @@ export function useDesktopController() {
     isScanning,
     isSendingAgentRequest,
     isStreamReady,
+    isEndingLive,
     isVariantPreviewOpen,
     leavePointer,
     openSelectedVariant,
     orientation,
+    pointer,
     projectIcons,
     projects,
     remoteClient,
@@ -569,12 +492,13 @@ export function useDesktopController() {
     variantCaptures,
     variantCount,
     variantError,
-    variantIds:
-      activeAgentSession?.changeRequest !== undefined
-        ? simulatorVariantIdsForCount(activeAgentSession.changeRequest.variantCount)
-        : simulatorVariantIds,
+    variantIds,
+    variantComparison,
     variantLabels: simulatorVariantLabels,
     variantTransition,
+    workspaceInspector: workspace.inspector,
+    workspaceMode: workspace.workspaceMode,
+    workspaceSimulator: workspace.simulator,
     setVariantCount
   };
 }

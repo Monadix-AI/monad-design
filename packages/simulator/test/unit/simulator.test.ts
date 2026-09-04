@@ -10,7 +10,12 @@ import {
   rotatedSimulatorOrientation,
   simulatorKeyUsage
 } from '../../src';
-import { annotationContainsPoint, calloutBadgeGeometry, translateAnnotation } from '../../src/annotation';
+import {
+  annotationContainsPoint,
+  calloutBadgeGeometry,
+  resizeDrawnAnnotation,
+  translateAnnotation
+} from '../../src/annotation';
 
 describe('shared canvas positioning', () => {
   test('keeps dragged content recoverable', () => {
@@ -87,5 +92,20 @@ describe('shared annotation interaction', () => {
       start: { x: 190, y: 0 },
       end: { x: 390, y: 200 }
     });
+  });
+
+  test('resizes shapes and arrow endpoints within the image', () => {
+    expect(resizeDrawnAnnotation(rectangle, 'nw', { x: 12, y: 24 }, { width: 390, height: 844 })).toMatchObject({
+      start: { x: 12, y: 24 },
+      end: { x: 240, y: 280 }
+    });
+    expect(
+      resizeDrawnAnnotation(
+        { ...rectangle, type: 'arrow' },
+        'arrow-end',
+        { x: 500, y: -20 },
+        { width: 390, height: 844 }
+      )
+    ).toMatchObject({ end: { x: 390, y: 0 } });
   });
 });

@@ -34,6 +34,10 @@ describe('live workspace inspector', () => {
     );
 
     expect(activeMarkup).toContain('class="live-session-footer"');
+    expect(activeMarkup).toContain('aria-label="Live workspace controls"');
+    expect(activeMarkup).toContain('Live workspace');
+    expect(activeMarkup).toContain('Agent live');
+    expect(activeMarkup).toContain('data-variant="ghost"');
     expect(activeMarkup).toContain('>End live</button>');
     expect(endingMarkup).toContain('disabled=""');
     expect(endingMarkup).toContain('>Ending live…</button>');
