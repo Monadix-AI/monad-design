@@ -28,6 +28,7 @@ const DesignDocumentCard = lazy(async () => ({ default: (await loadDesignDocumen
 export function App() {
   useClientTheme();
   const [errorMessage, setErrorMessage] = useState('');
+  const [isChoosingSimulator, setIsChoosingSimulator] = useState(false);
   const {
     endLive,
     isEndingLive,
@@ -36,8 +37,7 @@ export function App() {
     session,
     setSession,
     simulators
-  } = useCoreLiveSession(coreClient, setErrorMessage);
-  const [isChoosingSimulator, setIsChoosingSimulator] = useState(false);
+  } = useCoreLiveSession(coreClient, setErrorMessage, isChoosingSimulator);
   const [isConnecting, setIsConnecting] = useState(false);
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');

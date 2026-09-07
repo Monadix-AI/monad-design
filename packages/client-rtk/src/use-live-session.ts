@@ -5,15 +5,23 @@ import { nextAgentSession } from '@monaddesign/client-contract/live-session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { errorMessage } from './endpoint-helpers';
+import { startPolling } from './polling';
 
 export interface UseLiveSessionOptions {
   client: ClientApi | null;
   onError?: (message: string) => void;
   pollIntervalMs?: number | false;
+  pauseWhenHidden?: boolean;
   subscribe?: (listener: (session: AgentSessionSnapshot | null) => void) => (() => void) | undefined;
 }
 
-export function useLiveSession({ client, onError, pollIntervalMs = false, subscribe }: UseLiveSessionOptions) {
+export function useLiveSession({
+  client,
+  onError,
+  pollIntervalMs = false,
+  pauseWhenHidden = false,
+  subscribe
+}: UseLiveSessionOptions) {
   const [session, setSessionState] = useState<AgentSessionSnapshot | null>(null);
   const [isEndingLive, setIsEndingLive] = useState(false);
   const isEndingLiveRef = useRef(false);
@@ -47,19 +55,17 @@ export function useLiveSession({ client, onError, pollIntervalMs = false, subscr
     const unsubscribe = subscribe?.((next) => {
       if (!cancelled && !isEndingLiveRef.current) setSession(next);
     });
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      await refresh();
-      if (!cancelled && pollIntervalMs !== false) timeout = setTimeout(() => void poll(), pollIntervalMs);
-    };
-    void poll();
+    const stopPolling = startPolling(refresh, {
+      intervalMs: pollIntervalMs,
+      visibility: pauseWhenHidden && typeof document !== 'undefined' ? document : undefined
+    });
     return () => {
       cancelled = true;
       requestGeneration.current += 1;
-      if (timeout !== undefined) clearTimeout(timeout);
+      stopPolling();
       unsubscribe?.();
     };
-  }, [client, pollIntervalMs, refresh, setSession, subscribe]);
+  }, [client, pauseWhenHidden, pollIntervalMs, refresh, setSession, subscribe]);
 
   const endLive = useCallback(async () => {
     const current = sessionRef.current;

@@ -4,6 +4,7 @@ import type { ClientApi } from './client-api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { errorMessage } from './endpoint-helpers';
+import { startPolling } from './polling';
 
 export interface UseSimulatorsOptions {
   autoScan?: boolean;
@@ -11,6 +12,7 @@ export interface UseSimulatorsOptions {
   enabled?: boolean;
   onError?: (message: string) => void;
   pollIntervalMs?: number | false;
+  pauseWhenHidden?: boolean;
 }
 
 export function useSimulators({
@@ -18,7 +20,8 @@ export function useSimulators({
   client,
   enabled = true,
   onError,
-  pollIntervalMs = false
+  pollIntervalMs = false,
+  pauseWhenHidden = false
 }: UseSimulatorsOptions) {
   const [simulators, setSimulators] = useState<IOSSimulator[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -73,19 +76,15 @@ export function useSimulators({
   useEffect(() => {
     if (!enabled) return;
     if (!autoScan) return;
-    let cancelled = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      await scan();
-      if (!cancelled && pollIntervalMs !== false) timeout = setTimeout(() => void poll(), pollIntervalMs);
-    };
-    void poll();
+    const stopPolling = startPolling(scan, {
+      intervalMs: pollIntervalMs,
+      visibility: pauseWhenHidden && typeof document !== 'undefined' ? document : undefined
+    });
     return () => {
-      cancelled = true;
       requestGeneration.current += 1;
-      if (timeout !== undefined) clearTimeout(timeout);
+      stopPolling();
     };
-  }, [autoScan, enabled, pollIntervalMs, scan]);
+  }, [autoScan, enabled, pauseWhenHidden, pollIntervalMs, scan]);
 
   return { isScanning, scan, simulators };
 }
