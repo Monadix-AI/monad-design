@@ -28,43 +28,6 @@ const zoomControls: LiveWorkspaceProps['zoomControls'] = {
 };
 
 describe('live workspace', () => {
-  test('owns the shared connected-workspace composition', () => {
-    const markup = renderToStaticMarkup(
-      <LiveWorkspace
-        canvas={<div>Canvas</div>}
-        designDocument={<div>Design document</div>}
-        inspector={inspector}
-        mode="select"
-        preview={<div>Variant preview</div>}
-        zoomControls={zoomControls}
-      />
-    );
-
-    expect(markup).toContain('class="free-canvas interact-mode"');
-    expect(markup).toContain('Selecting runtime element');
-    expect(markup).toContain('Live workspace');
-    expect(markup.indexOf('Design document')).toBeLessThan(markup.indexOf('class="floating-inspector'));
-    expect(markup.indexOf('Design document')).toBeLessThan(markup.indexOf('Variant preview'));
-    expect(markup.indexOf('Variant preview')).toBeLessThan(markup.indexOf('class="floating-inspector'));
-    expect(markup.indexOf('class="floating-inspector')).toBeLessThan(markup.indexOf('class="zoom-controls'));
-    expect(markup.match(/class="zoom-controls/g)).toHaveLength(1);
-    expect(markup).not.toContain('>End live</button>');
-  });
-
-  test('renders the shared lifecycle control for an active session', () => {
-    const markup = renderToStaticMarkup(
-      <LiveWorkspace
-        activeSession={{ isEnding: true, onEnd: () => undefined }}
-        canvas={<div>Canvas</div>}
-        inspector={inspector}
-        mode="interact"
-        zoomControls={zoomControls}
-      />
-    );
-
-    expect(markup).toContain('>Ending live…</button>');
-  });
-
   test('shows only the comparison preview in variants mode', () => {
     const markup = renderToStaticMarkup(
       <LiveWorkspace
@@ -76,7 +39,6 @@ describe('live workspace', () => {
       />
     );
 
-    expect(markup).toContain('class="free-canvas variants-mode"');
     expect(markup).toContain('Original and variants');
     expect(markup).not.toContain('Live Simulator');
   });

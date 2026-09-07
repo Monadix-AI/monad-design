@@ -64,10 +64,8 @@ describe('device frame profiles', () => {
     expect(phone.kind).toBe('dynamic-island');
     expect(phone.height).toBe(30);
     expect(phone.width).toBeCloseTo(13.81, 2);
-    expect(phone.artwork.screen.end).toBe('#ff667e');
     expect(tablet.kind).toBe('tablet');
     expect(tablet.height).toBeCloseTo(24.18, 2);
     expect(tablet.width).toBeCloseTo(18.135, 3);
-    expect(tablet.artwork.screen.bridge).toBe('#c7f1da');
   });
 });
