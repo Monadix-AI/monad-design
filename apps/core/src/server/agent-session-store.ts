@@ -390,6 +390,9 @@ export class AgentSessionStore {
   }
 
   #update(session: AgentSessionSnapshot, patch: Partial<AgentSessionSnapshot>) {
+    if (this.#sessions.get(session.id)?.revision !== session.revision) {
+      throw new CoreApiError(409, 'CONFLICT', 'This agent session changed while the operation was in progress.');
+    }
     const updated: AgentSessionSnapshot = {
       ...session,
       ...patch,

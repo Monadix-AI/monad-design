@@ -167,6 +167,63 @@ describe('agent session store', () => {
     expect(republished.captureFailure).toBeUndefined();
   });
 
+  test.each(['publish', 'complete'] as const)(
+    'does not reopen a closed session after %s finishes restarting',
+    async (operation) => {
+      const gate = Promise.withResolvers<void>();
+      let shouldWait = false;
+      const changes: AgentSessionSnapshot[] = [];
+      const sessions = new AgentSessionStore(projectStore, {
+        onChanged: (session) => changes.push(session),
+        restartApp: async () => {
+          if (shouldWait) await gate.promise;
+        }
+      });
+      const created = await sessions.create('/tmp/example');
+      sessions.connected(created.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
+      const requested = await sessions.request(created.id, {
+        request: 'Adjust the title',
+        variantCount: 1,
+        context: { simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' } }
+      });
+      const requestId = requested.changeRequest?.id ?? 'missing';
+      sessions.claim(created.id, requestId);
+      if (operation === 'complete') {
+        await sessions.publishVariants(created.id, requestId, 'Built.');
+        sessions.confirmSelection(created.id, requestId, 'v1');
+      }
+      shouldWait = true;
+      const pending =
+        operation === 'publish'
+          ? sessions.publishVariants(created.id, requestId, 'Built.')
+          : sessions.complete(created.id, requestId, 'Applied.');
+      const closed = await sessions.close(created.id);
+      gate.resolve();
+      await expect(pending).rejects.toMatchObject({ status: 409, code: 'CONFLICT' });
+      expect(sessions.get(created.id)).toEqual(closed);
+      expect(sessions.active()).toBeNull();
+      expect(changes.at(-1)).toEqual(closed);
+      expect(new Set(changes.map(({ revision }) => revision)).size).toBe(changes.length);
+    }
+  );
+
+  test('does not reopen a closed session when project configuration finishes', async () => {
+    const gate = Promise.withResolvers<typeof project>();
+    const unconfigured = { ...project, targetApps: [{ bundleIdentifier: 'com.example.app', name: 'Example App' }] };
+    const sessions = new AgentSessionStore({
+      list: async () => [unconfigured],
+      open: async () => unconfigured,
+      configureLiveTargets: () => gate.promise
+    });
+    const created = await sessions.create('/tmp/example');
+    const pending = sessions.configureProject(created.id, [{ bundleIdentifier: 'com.example.app', live }]);
+    const closed = await sessions.close(created.id);
+    gate.resolve(project);
+    await expect(pending).rejects.toMatchObject({ status: 409, code: 'CONFLICT' });
+    expect(sessions.get(created.id)).toEqual(closed);
+    expect(sessions.active()).toBeNull();
+  });
+
   test('stores an annotated screenshot in the bound project temp directory and exposes its path to the agent', async () => {
     const root = await mkdtemp(join(tmpdir(), 'monad-design-annotation-request-'));
     try {
