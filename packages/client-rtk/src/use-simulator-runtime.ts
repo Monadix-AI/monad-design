@@ -24,6 +24,7 @@ import {
 } from 'react';
 
 import { errorMessage } from './endpoint-helpers';
+import { connectSimulatorInputChannel } from './simulator-input-channel';
 import {
   decodeSimulatorRuntimeConfiguration,
   reconcileSimulatorRuntimeOrientation,
@@ -73,7 +74,7 @@ export const useSimulatorRuntime = ({
   const appearanceChangeActive = useRef(false);
   const appearanceGeneration = useRef(0);
   const screenImage = useRef<HTMLImageElement | null>(null);
-  const socket = useRef<WebSocket | null>(null);
+  const inputChannel = useRef<ReturnType<typeof connectSimulatorInputChannel> | null>(null);
   const orientationSynchronization = useRef({
     expected: 'portrait' as SimulatorOrientation,
     requested: false,
@@ -88,46 +89,49 @@ export const useSimulatorRuntime = ({
       synchronized: false
     };
     setOrientation(connection.orientation ?? 'portrait');
-    let active = true;
-    const ws = new WebSocket(connection.wsUrl);
-    ws.binaryType = 'arraybuffer';
-    socket.current = ws;
-    ws.addEventListener('open', () => {
-      if (active && socket.current === ws) onError(null);
-    });
-    ws.addEventListener('error', () => {
-      if (active && socket.current === ws) onError('The simulator input channel could not be opened.');
-    });
-    ws.addEventListener('message', (event) => {
-      if (!active || socket.current !== ws) return;
-      const configuration = decodeSimulatorRuntimeConfiguration(event.data);
-      if (configuration?.screenSize) setScreenSize(configuration.screenSize);
-      const synchronizedOrientation = reconcileSimulatorRuntimeOrientation({
-        ...orientationSynchronization.current,
-        received: configuration?.orientation
-      });
-      orientationSynchronization.current.synchronized = synchronizedOrientation.synchronized;
-      if (
-        configuration?.orientation &&
-        !synchronizedOrientation.synchronized &&
-        !orientationSynchronization.current.requested
-      ) {
-        orientationSynchronization.current.requested = true;
-        ws.send(
-          encodeSimulatorFrame(0x07, {
-            orientation: orientationSynchronization.current.expected
-          })
-        );
+    const channel = connectSimulatorInputChannel({
+      url: connection.wsUrl,
+      onOpen: () => {
+        orientationSynchronization.current.requested = false;
+        orientationSynchronization.current.synchronized = false;
+        onError(null);
+      },
+      onDisconnected: () => {
+        pointerActive.current = false;
+        setPointer(null);
+        onHoveredPathChange(null);
+        onError('The simulator input channel disconnected. Reconnecting…');
+      },
+      onUnavailable: () =>
+        onError('The simulator input channel could not reconnect. Reconnect the Simulator to retry.'),
+      onMessage: (event, ws) => {
+        const configuration = decodeSimulatorRuntimeConfiguration(event.data);
+        if (configuration?.screenSize) setScreenSize(configuration.screenSize);
+        const synchronizedOrientation = reconcileSimulatorRuntimeOrientation({
+          ...orientationSynchronization.current,
+          received: configuration?.orientation
+        });
+        orientationSynchronization.current.synchronized = synchronizedOrientation.synchronized;
+        if (
+          configuration?.orientation &&
+          !synchronizedOrientation.synchronized &&
+          !orientationSynchronization.current.requested
+        ) {
+          orientationSynchronization.current.requested = true;
+          ws.send(encodeSimulatorFrame(0x07, { orientation: orientationSynchronization.current.expected }));
+        }
+        if (synchronizedOrientation.orientation) setOrientation(synchronizedOrientation.orientation);
       }
-      if (synchronizedOrientation.orientation) setOrientation(synchronizedOrientation.orientation);
     });
+    inputChannel.current = channel;
     return () => {
-      active = false;
-      if (socket.current === ws) socket.current = null;
-      ws.close();
+      channel.close();
+      if (inputChannel.current === channel) inputChannel.current = null;
+      pointerActive.current = false;
+      setPointer(null);
       setIsStreamReady(false);
     };
-  }, [connection, onError]);
+  }, [connection, onError, onHoveredPathChange]);
 
   useEffect(() => {
     if (!logicalScreenSize || devicePixelRatio !== 1 || screenSize.width < 500) return;
@@ -138,12 +142,10 @@ export const useSimulatorRuntime = ({
   }, [devicePixelRatio, logicalScreenSize, screenSize]);
 
   const sendFrame = (tag: number, payload: object) => {
-    const ws = socket.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (!inputChannel.current?.send(encodeSimulatorFrame(tag, payload))) {
       onError('The simulator input channel is not ready yet.');
       return false;
     }
-    ws.send(encodeSimulatorFrame(tag, payload));
     if (tag === 0x07) {
       const nextOrientation = (payload as { orientation?: unknown }).orientation;
       if (
@@ -263,8 +265,8 @@ export const useSimulatorRuntime = ({
     appearanceGeneration.current += 1;
     appearanceChangeActive.current = false;
     pointerActive.current = false;
-    socket.current?.close();
-    socket.current = null;
+    inputChannel.current?.close();
+    inputChannel.current = null;
     setIsStreamReady(false);
     setPointer(null);
     setAppearance(null);
