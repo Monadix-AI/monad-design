@@ -64,4 +64,20 @@ describe('live workspace', () => {
 
     expect(markup).toContain('>Ending live…</button>');
   });
+
+  test('shows only the comparison preview in variants mode', () => {
+    const markup = renderToStaticMarkup(
+      <LiveWorkspace
+        canvas={<div>Live Simulator</div>}
+        inspector={{ ...inspector, agentStatus: 'variants_ready' }}
+        mode="variants"
+        preview={<div>Original and variants</div>}
+        zoomControls={zoomControls}
+      />
+    );
+
+    expect(markup).toContain('class="free-canvas variants-mode"');
+    expect(markup).toContain('Original and variants');
+    expect(markup).not.toContain('Live Simulator');
+  });
 });

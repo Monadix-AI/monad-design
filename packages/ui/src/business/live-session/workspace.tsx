@@ -53,17 +53,19 @@ export function LiveWorkspace({
 }: LiveWorkspaceProps) {
   const [annotationNotesHost, setAnnotationNotesHost] = useState<HTMLDivElement | null>(null);
   const canvasMode = mode === 'select' ? 'interact' : mode;
-  return (
-    <LiveWorkspaceFrame
-      canvas={
-        canvas ??
+  const workspaceCanvas =
+    mode === 'variants'
+      ? null
+      : (canvas ??
         (simulator ? (
           <LiveSimulatorWorkspaceCanvas
             {...simulator}
             annotationNotesHost={annotationNotesHost}
           />
-        ) : null)
-      }
+        ) : null));
+  return (
+    <LiveWorkspaceFrame
+      canvas={workspaceCanvas}
       canvasProps={canvasProps}
       error={error}
       header={header}
