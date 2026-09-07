@@ -53,6 +53,8 @@ const globalSkill = (directory: string) => (home: string) => join(home, director
 const standardMcpConfig = (_serverName: string, config: Parameters<AgentConfig['transformConfig']>[1]) => config;
 const qwenMcpConfig: AgentConfig['transformConfig'] = (_serverName, config) =>
   config.type === 'http' ? { httpUrl: config.url, headers: config.headers } : config;
+const traeMcpConfig: AgentConfig['transformConfig'] = (_serverName, config) =>
+  config.type === 'http' ? { url: config.url, headers: config.headers } : config;
 
 // add-mcp does not yet publish these targets. Register the documented config
 // contracts locally so its JSONC-preserving updater remains the single writer.
@@ -97,7 +99,7 @@ Object.assign(agents as Record<string, AgentConfig>, {
     supportedFields: [],
     detectGlobalInstall: async () =>
       [join(homedir(), '.trae-cn'), join(homedir(), '.trae')].some((path) => existsSync(path)),
-    transformConfig: standardMcpConfig
+    transformConfig: traeMcpConfig
   },
   codebuddy: {
     name: 'codebuddy',
@@ -308,6 +310,11 @@ export const supportsInstallationScope = (agent: SupportedAgent, scope: InstallS
   (scope === 'global' || Boolean((agents as Record<string, AgentConfig>)[agent]?.localConfigPath));
 
 export const supportsProjectInstallation = (agent: SupportedAgent) => supportsInstallationScope(agent, 'project');
+
+export const agentInstallationCapability = (agent: SupportedAgent) => {
+  if (!supportsInstallationScope(agent, 'global')) return 'Project only';
+  return supportsProjectInstallation(agent) ? 'Project + Global' : 'Global only';
+};
 
 export const isSupportedAgent = (agent: AgentType | string): agent is SupportedAgent =>
   supportedAgents.includes(agent as SupportedAgent);

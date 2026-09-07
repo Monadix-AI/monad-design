@@ -3,6 +3,14 @@ import { describe, expect, test } from 'bun:test';
 import { detectedAgentsForScope, installableAgentsForScope, resolveInstallDefaults } from '../../src/install';
 
 describe('install defaults', () => {
+  test('selects project installation for a detected TRAE client', () => {
+    expect(resolveInstallDefaults({ project: [], global: ['trae'] }, true)).toEqual({
+      agents: ['trae'],
+      scope: 'project'
+    });
+    expect(detectedAgentsForScope({ project: [], global: ['trae'] }, 'global')).toEqual([]);
+  });
+
   test('prefers project agents and project scope inside a Git project', () => {
     expect(resolveInstallDefaults({ project: ['codex'], global: ['codex', 'claude-code'] }, true)).toEqual({
       agents: ['codex'],

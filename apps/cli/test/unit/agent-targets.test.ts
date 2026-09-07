@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { upsertServer } from 'add-mcp';
 
 import {
+  agentInstallationCapability,
   agentTargets,
   detectGlobalSkillAgents,
   detectProjectSkillAgents,
@@ -16,6 +17,35 @@ import { upsertDeepSeekHarnessServer } from '../../src/deepseek-harness';
 import { findGitProjectRoot } from '../../src/project-root';
 
 describe('agent and project detection', () => {
+  test('labels TRAE as project-only in the installer', () => {
+    expect(agentInstallationCapability('trae')).toBe('Project only');
+    expect(agentInstallationCapability('codex')).toBe('Project + Global');
+    expect(agentInstallationCapability('goose')).toBe('Global only');
+  });
+
+  test('updates TRAE HTTP configuration without replacing other servers', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-trae-'));
+    await mkdir(join(root, '.trae'));
+    const path = join(root, '.trae', 'mcp.json');
+    const other = { command: 'example-server', args: ['--local'] };
+    await writeFile(path, JSON.stringify({ mcpServers: { other }, customSetting: true }));
+
+    for (const port of [41765, 52760]) {
+      expect(
+        upsertServer(
+          'trae',
+          'monad-design',
+          { type: 'http', url: `http://127.0.0.1:${port}/mcp` },
+          { local: true, cwd: root }
+        ).success
+      ).toBe(true);
+    }
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({
+      customSetting: true,
+      mcpServers: { other, 'monad-design': { url: 'http://127.0.0.1:52760/mcp' } }
+    });
+  });
+
   test('detects project harnesses from the canonical Git root', async () => {
     const root = await mkdtemp(join(tmpdir(), 'monad-design-project-'));
     const nested = join(root, 'packages', 'app');
@@ -171,6 +201,8 @@ describe('agent and project detection', () => {
         expect(config).toMatchObject({ mcp: { servers: { 'monad-design': server } } });
       } else if (agent === 'qwen-code') {
         expect(config).toMatchObject({ mcpServers: { 'monad-design': { httpUrl: server.url } } });
+      } else if (agent === 'trae') {
+        expect(config).toEqual({ mcpServers: { 'monad-design': { url: server.url } } });
       } else {
         expect(config).toMatchObject({ mcpServers: { 'monad-design': server } });
       }

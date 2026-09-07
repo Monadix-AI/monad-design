@@ -97,7 +97,7 @@ The current preview lets you:
 - Request and compare one to five alternatives
 - Keep refining the app in the same live session
 - Use the iPad companion for touch control and Apple Pencil annotation
-- Work with local agents including Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, and Zed
+- Work with local agents including Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot, OpenCode, TRAE (project scope), Windsurf, and Zed
 
 ## What you need
 

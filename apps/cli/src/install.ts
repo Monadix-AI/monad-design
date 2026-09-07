@@ -8,6 +8,7 @@ import colors from 'picocolors';
 
 import {
   agentDisplayName,
+  agentInstallationCapability,
   detectGlobalSkillAgents,
   detectProjectSkillAgents,
   type InstallScope,
@@ -76,7 +77,7 @@ const agentHint = (agent: SupportedAgent, detection: AgentDetection, scope: Inst
       ? colors.green('detected in project')
       : colors.cyan('detected globally')
     : colors.dim(`not detected ${scope === 'project' ? 'in project' : 'globally'}`);
-  const capability = supportsProjectInstallation(agent) ? 'Project + Global' : 'Global only';
+  const capability = agentInstallationCapability(agent);
   return `${detected} · ${capability}`;
 };
 
@@ -161,6 +162,11 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
     prompts.log.info(`Using detected agents: ${colors.cyan(selectedAgents.map(agentDisplayName).join(', '))}`);
   }
   if (selectedAgents.length === 0) {
+    if (!projectRoot && detection.global.some((agent) => !supportsInstallationScope(agent, 'global'))) {
+      throw new Error(
+        'Detected agents require project installation. Run monad-design install inside your Git project and choose Project scope (TRAE requires this).'
+      );
+    }
     throw new Error(
       'No supported coding agent was detected. Run interactively to choose one after installing a supported coding agent.'
     );
@@ -217,6 +223,11 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
         `${colors.dim('MCP')}    ${colors.cyan(installed.mcpPath)}`,
         `${colors.dim('Skill')}  ${colors.cyan(installed.skillPath)}`
       ]);
+      if (agent === 'trae') {
+        prompts.log.info(
+          'TRAE: open Settings > MCP and enable project-level MCP (启用项目级 MCP), then confirm. Open this project in TRAE and start a new agent session to load the Monad Design Skill.'
+        );
+      }
     } catch (error) {
       const message = `${name}: ${(error as Error).message}`;
       failures.push(message);

@@ -14,10 +14,23 @@ support are not presented as complete targets.
 
 Every interactive install inside a Git project asks for Project or Global
 scope before selecting agents. Project scope shows only agents that support
-both project-level MCP and Skill installation; Global scope shows all complete
-targets. The installer only updates the selected scope, so an existing
+both project-level MCP and Skill installation; Global scope shows targets with
+global installation support. The installer only updates the selected scope, so an existing
 project-level integration is left alone after a later Global install, and vice
 versa.
+
+### TRAE
+
+TRAE installation currently supports **Project scope only**. Run
+`npx monad-design install` inside your Git project, choose **Project**, then
+select **TRAE / TraeWork**. The installer writes `.trae/mcp.json` and installs
+the Skill at `.trae/skills/monad-design/`, preserving other MCP registrations.
+
+In TRAE, open **Settings > MCP**, enable **project-level MCP**
+(**启用项目级 MCP**), and confirm. Open the same project and start a new agent
+session to load the Skill. See the [official MCP setup instructions](https://docs.trae.cn/ide_add-mcp-servers).
+TRAE is not offered under Global scope; run the installer from a Git project
+if it does not appear.
 
 DeepSeek Harness discovers the Monad Design Skill from `.dsh/skills` and loads
 the existing Streamable HTTP MCP server through its built-in
