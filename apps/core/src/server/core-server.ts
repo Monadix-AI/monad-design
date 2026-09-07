@@ -1,4 +1,5 @@
 import type { ProjectStore } from '../project-store';
+import type { CoreErrorReporter } from './error-journal';
 
 import { randomInt } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
@@ -44,6 +45,7 @@ export interface CoreServerOptions {
   addresses?: () => string[];
   agentSessions?: AgentSessionStore;
   ui?: (pathname: string) => Response | Promise<Response>;
+  reportError?: CoreErrorReporter;
 }
 
 const localAddresses = () => {
@@ -88,7 +90,8 @@ export class CoreServer {
       this.#mcp,
       agentSessions,
       detectProjectTargets,
-      options.ui
+      options.ui,
+      options.reportError
     );
   }
 

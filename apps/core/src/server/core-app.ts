@@ -1,6 +1,7 @@
 import type { ProjectTargetDetection } from '@monaddesign/client-contract';
 import type { ProjectStore } from '../project-store';
 import type { AgentSessionStore } from './agent-session-store';
+import type { CoreErrorReporter } from './error-journal';
 import type { createMonadDesignMcpHandler } from './mcp-server';
 
 import { node } from '@elysia/node';
@@ -22,7 +23,8 @@ export const createCoreApp = (
   mcp: ReturnType<typeof createMonadDesignMcpHandler>,
   agentSessions: AgentSessionStore,
   detectTargets: (path: string) => Promise<ProjectTargetDetection>,
-  ui: ((pathname: string) => Response | Promise<Response>) | undefined
+  ui: ((pathname: string) => Response | Promise<Response>) | undefined,
+  reportError?: CoreErrorReporter
 ) => {
   const adapter = node();
 
@@ -32,7 +34,7 @@ export const createCoreApp = (
       set.headers['access-control-allow-headers'] = 'content-type';
       set.headers['access-control-allow-methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
     })
-    .onError(({ code, error, set, status }) => {
+    .onError(async ({ code, error, request, set, status }) => {
       const requestId = requestCorrelationId();
       set.headers['x-monad-design-request-id'] = requestId;
       const publicError =
@@ -42,6 +44,22 @@ export const createCoreApp = (
             ? new CoreApiError(400, 'VALIDATION', 'request validation failed')
             : error;
       const mapped = projectHttpError(publicError, requestId);
+      if (mapped.status >= 500 && reportError) {
+        await Promise.resolve(
+          reportError({
+            requestId,
+            status: mapped.status,
+            method: request.method,
+            pathname: new URL(request.url).pathname,
+            frameworkCode: String(code),
+            responseCode: mapped.body.code,
+            error
+          })
+        ).catch((reportingError) => {
+          // biome-ignore lint/suspicious/noConsole: A failed durable error report must remain operator-visible.
+          console.error(`Could not persist Core error ${requestId}.`, reportingError);
+        });
+      }
       return status(mapped.status, mapped.body);
     })
     .options('/*', ({ status }) => status(204))

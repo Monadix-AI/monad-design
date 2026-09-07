@@ -489,4 +489,50 @@ describe('Core server', () => {
       code: 'NOT_FOUND'
     });
   });
+
+  test('correlates internal responses with durable error reports', async () => {
+    const reports: Array<{
+      requestId: string;
+      status: number;
+      method: string;
+      pathname: string;
+      frameworkCode: string;
+      responseCode: string;
+      error: unknown;
+    }> = [];
+    const failure = new Error('project storage failed');
+    const server = new CoreServer(
+      {
+        ...projectStore,
+        list: async () => {
+          throw failure;
+        }
+      },
+      {
+        host: '127.0.0.1',
+        port: 0,
+        reportError: (report) => reports.push(report)
+      }
+    );
+    servers.push(server);
+    await server.start();
+
+    const response = await fetch(`http://127.0.0.1:${server.status.port}/v1/admin/projects/`);
+    const body = (await response.json()) as { requestId: string };
+
+    expect(response.status).toBe(500);
+    expect(body.requestId).toMatch(/^req_/);
+    expect(response.headers.get('x-monad-design-request-id')).toBe(body.requestId);
+    expect(reports).toEqual([
+      {
+        requestId: body.requestId,
+        status: 500,
+        method: 'GET',
+        pathname: '/v1/admin/projects/',
+        frameworkCode: 'UNKNOWN',
+        responseCode: 'INTERNAL',
+        error: failure
+      }
+    ]);
+  });
 });

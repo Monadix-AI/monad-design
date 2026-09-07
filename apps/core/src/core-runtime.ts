@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { ProjectStore } from './project-store';
 import { AgentSessionStore } from './server/agent-session-store';
 import { CoreServer } from './server/core-server';
+import { CoreErrorJournal } from './server/error-journal';
 import { simulatorBridge } from './simulator-bridge';
 import { launchSimulatorApp } from './simulators';
 
@@ -20,6 +21,7 @@ export interface CoreRuntimeOptions {
 export const createCoreRuntime = async ({ stateDirectory, host, port, onSessionChanged, ui }: CoreRuntimeOptions) => {
   await mkdir(stateDirectory, { recursive: true });
   const projectStore = new ProjectStore(join(stateDirectory, 'projects.json'));
+  const errorJournal = new CoreErrorJournal(join(stateDirectory, 'core-errors.jsonl'));
   const agentSessions = new AgentSessionStore(projectStore, {
     persistencePath: join(stateDirectory, 'agent-sessions.json'),
     onChanged: onSessionChanged,
@@ -41,6 +43,7 @@ export const createCoreRuntime = async ({ stateDirectory, host, port, onSessionC
     port,
     pairingStatePath: join(stateDirectory, 'pairing.json'),
     agentSessions,
+    reportError: errorJournal.report,
     ui
   });
 

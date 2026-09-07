@@ -46,3 +46,23 @@ The installed Core is detached from Electron and remains available after the
 desktop window quits. If a live session is active, Electron hands the flow to
 Core's browser UI before exiting. The next desktop launch reconnects to that
 same session and Core process.
+
+## Error diagnostics
+
+Unexpected HTTP failures are correlated with the `requestId` returned in the
+error response and `x-monad-design-request-id` header. Core writes the complete
+error record to `core-errors.jsonl` in the machine application-support
+directory. The JSONL file is private to the current user, rotates at 1 MiB, and
+retains one previous file as `core-errors.jsonl.previous`.
+
+On macOS, Core also emits privacy-limited correlation metadata through the
+system logger. It omits exception messages, stack traces, project paths, request
+bodies, headers, and query parameters. Inspect recent entries with:
+
+```bash
+/usr/bin/log show --last 1h --style compact \
+  --predicate 'eventMessage BEGINSWITH "[ai.monadix.design.core:http]"'
+```
+
+Use the request ID from that entry to find the detailed record in the private
+JSONL journal. Expected client errors below HTTP 500 are not persisted.

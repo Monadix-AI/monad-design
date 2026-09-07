@@ -12,3 +12,10 @@ Before asking for help, search existing issues and include the commit, macOS and
 Xcode versions, Bun version, relevant logs, and the smallest reproduction you
 can provide. Remove local paths, project source, and screenshots containing
 private information.
+
+For an `internal server error`, include its `requestId`. The matching private
+Core record is in `~/Library/Application Support/Monad Design/core-errors.jsonl`
+or the `.previous` rotation. Review and redact its message, stack trace, and
+local paths before attaching it to an issue. Recent privacy-limited correlation
+entries can also be found in Console.app by searching for
+`[ai.monadix.design.core:http]`.
