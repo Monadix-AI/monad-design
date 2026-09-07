@@ -17,8 +17,8 @@
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core": "workspace:*",
     "@monaddesign/core-installation": "workspace:*",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.4.0",
+    "@types/bun": "^1.4.1",
+    "@types/node": "^26.4.1",
     "typescript": "^7.0.0"
   },
   "engines": {

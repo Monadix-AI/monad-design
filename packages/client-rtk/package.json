@@ -8,7 +8,7 @@
     "@reduxjs/toolkit": "^2.12.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.1",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-redux": "^9.3.0",
