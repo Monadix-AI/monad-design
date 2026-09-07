@@ -30,6 +30,10 @@ Then open your existing Expo or Xcode iOS project in the agent and start a live 
 
 The npm package includes the CLI and machine-level Core runtime for Apple silicon and Intel Macs. It does not include the Desktop or iPad apps.
 
+For the Kimi Work desktop app on Apple silicon, `install --kimi-work` prepares
+a native Skill + MCP plugin for import through the app's Plugin Builder.
+See [Kimi Work setup and verification status](apps/cli/README.md#kimi-work-desktop-app).
+
 To run Monad Design from source, read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and development commands.
 
 ## Design in the running mobile app

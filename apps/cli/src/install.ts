@@ -21,12 +21,14 @@ import {
 import { resolveReleaseAssets } from './assets';
 import { stopCore, waitForCoreRunning } from './core-runtime';
 import { upsertDeepSeekHarnessServer } from './deepseek-harness';
+import { exportKimiWorkPlugin } from './kimi-work';
 import { installCoreLaunchAgent, unloadCoreLaunchAgent } from './launch-agent';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
 import { installSkillDirectory, removeLegacyMonadDesignSkill } from './skill-installer';
 
 export interface InstallCommandOptions {
+  kimiWork?: boolean;
   yes?: boolean;
   cwd?: string;
   interactive?: boolean;
@@ -124,7 +126,10 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   const cwd = options.cwd ?? process.cwd();
   const interactive = options.interactive ?? (process.stdin.isTTY && process.stdout.isTTY);
   const projectRoot = findGitProjectRoot(cwd);
-  const detection = await detectAgents(projectRoot);
+  if (options.kimiWork && (process.platform !== 'darwin' || process.arch !== 'arm64')) {
+    throw new Error('Kimi Work integration requires an Apple silicon Mac.');
+  }
+  const detection = options.kimiWork ? { project: [], global: [] } : await detectAgents(projectRoot);
   const defaults = resolveInstallDefaults(detection, Boolean(projectRoot));
 
   prompts.intro(colors.bgCyan(colors.black(' Monad Design installer ')));
@@ -138,7 +143,7 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   );
 
   let scope = defaults.scope;
-  if (projectRoot && interactive) {
+  if (!options.kimiWork && projectRoot && interactive) {
     scope = await chooseScope(projectRoot, defaults.scope);
   }
 
@@ -148,7 +153,9 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
       ? defaults.agents.filter((agent) => installableAgents.includes(agent))
       : detectedAgentsForScope(detection, scope);
   let selectedAgents = defaultAgents;
-  if (!options.yes && interactive) {
+  if (options.kimiWork) {
+    selectedAgents = [];
+  } else if (!options.yes && interactive) {
     selectedAgents = await chooseFromList(
       'Select coding agents',
       installableAgents.map((agent) => ({
@@ -161,7 +168,7 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   } else {
     prompts.log.info(`Using detected agents: ${colors.cyan(selectedAgents.map(agentDisplayName).join(', '))}`);
   }
-  if (selectedAgents.length === 0) {
+  if (!options.kimiWork && selectedAgents.length === 0) {
     if (!projectRoot && detection.global.some((agent) => !supportsInstallationScope(agent, 'global'))) {
       throw new Error(
         'Detected agents require project installation. Run monad-design install inside your Git project and choose Project scope (TRAE requires this).'
@@ -174,8 +181,8 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
 
   prompts.note(
     [
-      `${colors.bold('Agents')}  ${selectedAgents.map(agentDisplayName).join(', ')}`,
-      `${colors.bold('Integration')}  ${scope === 'project' ? projectRoot : 'Global'}`,
+      `${colors.bold('Agents')}  ${options.kimiWork ? 'Kimi Work (plugin export)' : selectedAgents.map(agentDisplayName).join(', ')}`,
+      `${colors.bold('Integration')}  ${options.kimiWork ? 'Import in Kimi Work after preparation' : scope === 'project' ? projectRoot : 'Global'}`,
       `${colors.bold('Core')}  Machine-level shared runtime`
     ].join('\n'),
     'Installation plan'
@@ -211,6 +218,20 @@ export const runInstall = async (options: InstallCommandOptions = {}) => {
   }
 
   const mcpUrl = `${runtime.bootstrap.localClient.origin}/mcp`;
+  if (options.kimiWork) {
+    const directory = await exportKimiWorkPlugin({
+      outputDirectory: join(resolveCorePaths().stateDirectory, 'plugins', 'kimi-work'),
+      skillSourcePath: assets.skillPath,
+      version: assets.manifest.version,
+      mcpUrl
+    });
+    prompts.note(directory, 'Kimi Work plugin source');
+    prompts.log.info(
+      'In Kimi Work, use Custom plugin / Plugin Builder to import this local directory. Then install Monad Design from Plugins > Personal and open your app repository in a task.'
+    );
+    prompts.outro('Core is running. Plugin prepared; import and activation in Kimi Work are still required.');
+    return;
+  }
   const failures: string[] = [];
   for (const agent of selectedAgents) {
     const name = agentDisplayName(agent);

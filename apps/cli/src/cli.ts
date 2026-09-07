@@ -11,7 +11,7 @@ import { InstallCancelledError } from './prompt';
 const usage = `Monad Design
 
 Usage:
-  npx monad-design install [--yes]
+  npx monad-design install [--yes] [--kimi-work]
   npx monad-design core start
 
 Commands:
@@ -19,6 +19,7 @@ Commands:
   core start Start the installed Core through its macOS launch agent
 
 Options:
+  --kimi-work Prepare a Kimi Work desktop plugin for import in the app
   -y, --yes  Accept detected agents (scope is still asked inside a Git project)
   -h, --help Show this help`;
 
@@ -40,9 +41,9 @@ const main = async () => {
     return;
   }
   if (command !== 'install') throw new Error(`Unknown command: ${command}\n\n${usage}`);
-  const unknown = flags.filter((flag) => flag !== '--yes' && flag !== '-y');
+  const unknown = flags.filter((flag) => flag !== '--yes' && flag !== '-y' && flag !== '--kimi-work');
   if (unknown.length > 0) throw new Error(`Unknown option: ${unknown.join(', ')}\n\n${usage}`);
-  await runInstall({ yes: flags.includes('--yes') || flags.includes('-y') });
+  await runInstall({ yes: flags.includes('--yes') || flags.includes('-y'), kimiWork: flags.includes('--kimi-work') });
 };
 
 main().catch((error) => {

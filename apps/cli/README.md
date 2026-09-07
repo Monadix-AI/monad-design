@@ -19,6 +19,41 @@ global installation support. The installer only updates the selected scope, so a
 project-level integration is left alone after a later Global install, and vice
 versa.
 
+### Kimi Work desktop app
+
+On an Apple silicon Mac, a release containing this integration prepares a native
+Kimi plugin with:
+
+```bash
+npx monad-design install --kimi-work
+```
+
+Before that release is published, build the CLI from this checkout and run
+`node apps/cli/dist/cli.js install --kimi-work` from the repository root.
+
+This installs and starts Core, then exports `kimi.plugin.json` and the complete
+Monad Design Skill into a new directory printed by the installer. The manifest
+uses the running Core's local MCP URL. No Kimi Code CLI installation is required,
+and this mode does not modify CLI or private desktop-app configuration.
+
+In Kimi Work, open **Custom plugin / Plugin Builder** and ask it to import the
+printed local plugin directory, preserving its manifest, Skill references, and
+MCP URL. Install the result from **Plugins > Personal**. Open your native app
+repository in a Work task and ask it to use Monad Design. Confirm that the Skill
+and MCP tools are available; start a new task if its tool catalog has not refreshed.
+
+The export is a plugin source directory, not an automatic App installation.
+Keep it for future imports. Repeating the command creates a fresh source without
+overwriting earlier exports. If the Core endpoint changes, regenerate and
+reimport. Kimi Work and Core must run on the same Mac, with Xcode and an iOS
+Simulator available. Windows, Intel Kimi Chat, and cloud sessions are not targets
+of this integration. Desktop import, localhost access, and the complete Simulator
+workflow still require verification in Kimi Work; packaging tests alone do not
+establish end-to-end compatibility.
+
+Format and import references: [Kimi plugin manifest](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html),
+[Kimi Work Plugin Builder](https://www.kimi.com/en/help/plugins-and-skills/create).
+
 ### TRAE
 
 TRAE installation currently supports **Project scope only**. Run
