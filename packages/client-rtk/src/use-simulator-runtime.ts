@@ -24,6 +24,7 @@ import {
 } from 'react';
 
 import { errorMessage } from './endpoint-helpers';
+import { createFrameTask } from './frame-task';
 import { connectSimulatorInputChannel } from './simulator-input-channel';
 import {
   decodeSimulatorRuntimeConfiguration,
@@ -70,7 +71,7 @@ export const useSimulatorRuntime = ({
   const [isStreamReady, setIsStreamReady] = useState(false);
   const [pointer, setPointer] = useState<{ x: number; y: number; pressed: boolean } | null>(null);
   const pointerActive = useRef(false);
-  const lastPointerMove = useRef(0);
+  const [pointerUpdates] = useState(() => createFrameTask());
   const appearanceChangeActive = useRef(false);
   const appearanceGeneration = useRef(0);
   const screenImage = useRef<HTMLImageElement | null>(null);
@@ -97,6 +98,7 @@ export const useSimulatorRuntime = ({
         onError(null);
       },
       onDisconnected: () => {
+        pointerUpdates.cancel();
         pointerActive.current = false;
         setPointer(null);
         onHoveredPathChange(null);
@@ -125,13 +127,14 @@ export const useSimulatorRuntime = ({
     });
     inputChannel.current = channel;
     return () => {
+      pointerUpdates.cancel();
       channel.close();
       if (inputChannel.current === channel) inputChannel.current = null;
       pointerActive.current = false;
       setPointer(null);
       setIsStreamReady(false);
     };
-  }, [connection, onError, onHoveredPathChange]);
+  }, [connection, onError, onHoveredPathChange, pointerUpdates]);
 
   useEffect(() => {
     if (!logicalScreenSize || devicePixelRatio !== 1 || screenSize.width < 500) return;
@@ -161,17 +164,16 @@ export const useSimulatorRuntime = ({
     }
     return true;
   };
-  const pointFromEvent = (event: PointerEvent<HTMLButtonElement>) => {
+  const pointFromEvent = (event: Pick<PointerEvent<HTMLButtonElement>, 'clientX' | 'clientY'>) => {
     const bounds = screenImage.current?.getBoundingClientRect();
     return bounds ? normalizedCanvasPoint({ x: event.clientX, y: event.clientY }, bounds) : null;
   };
-  const sendTouch = (type: 'begin' | 'move' | 'end', event: PointerEvent<HTMLButtonElement>) => {
-    const point = pointFromEvent(event);
+  const sendTouch = (type: 'begin' | 'move' | 'end', point: { x: number; y: number } | null) => {
     if (!point) return false;
     const simulatorPoint = orientCanvasPoint(point, orientation);
     return sendFrame(0x03, { type, ...simulatorPoint });
   };
-  const updatePointer = (event: PointerEvent<HTMLButtonElement>) => {
+  const updatePointer = (event: Pick<PointerEvent<HTMLButtonElement>, 'clientX' | 'clientY'>) => {
     const point = pointFromEvent(event);
     if (isSelectionMode && axSnapshot && point) {
       onHoveredPathChange(accessibilityElementAtPoint(axSnapshot, point)?.path ?? null);
@@ -182,6 +184,7 @@ export const useSimulatorRuntime = ({
   };
   const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     if (!hasConnectedSimulator) return;
+    pointerUpdates.cancel();
     event.currentTarget.focus();
     const point = updatePointer(event);
     setPointer(point ? { ...point, pressed: !isSelectionMode } : null);
@@ -190,26 +193,31 @@ export const useSimulatorRuntime = ({
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    pointerActive.current = sendTouch('begin', event);
+    pointerActive.current = sendTouch('begin', point);
   };
   const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    const point = updatePointer(event);
-    setPointer((current) => (point ? { ...point, pressed: current?.pressed ?? false } : null));
-    const now = performance.now();
-    if (isSelectionMode || !pointerActive.current || now - lastPointerMove.current < 8) return;
-    lastPointerMove.current = now;
-    sendTouch('move', event);
+    const coordinates = { clientX: event.clientX, clientY: event.clientY };
+    pointerUpdates.schedule(() => {
+      const point = updatePointer(coordinates);
+      const pressed = !isSelectionMode && pointerActive.current;
+      setPointer(point ? { ...point, pressed } : null);
+      if (pressed) sendTouch('move', point);
+    });
   };
   const finishPointer = (event: PointerEvent<HTMLButtonElement>) => {
-    if (pointerActive.current) sendTouch('end', event);
-    pointerActive.current = false;
+    pointerUpdates.flush();
     const point = pointFromEvent(event);
+    if (pointerActive.current) sendTouch('end', point);
+    pointerActive.current = false;
     setPointer(point ? { ...point, pressed: false } : null);
   };
   const leavePointer = () => {
+    pointerUpdates.cancel();
     onHoveredPathChange(null);
     setPointer((current) => (current?.pressed ? current : null));
   };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Queued coordinates must not survive mode or orientation changes.
+  useEffect(() => () => pointerUpdates.cancel(), [isSelectionMode, orientation, pointerUpdates]);
   const sendKey = (usage: number, type: 'down' | 'up') => sendFrame(0x06, { type, usage });
   const handleKey = (event: KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
     if (!hasConnectedSimulator || (event.metaKey && event.code === 'KeyV')) return;
@@ -262,6 +270,7 @@ export const useSimulatorRuntime = ({
     }
   };
   const resetSimulatorRuntime = () => {
+    pointerUpdates.cancel();
     appearanceGeneration.current += 1;
     appearanceChangeActive.current = false;
     pointerActive.current = false;
