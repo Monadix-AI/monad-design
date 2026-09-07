@@ -4301,7 +4301,7 @@ h1 {
   outline-color: rgb(255 255 255 / 24%);
 }
 .canvas-variant-device[data-state="checked"] {
-  outline-color: var(--primary);
+  outline-color: transparent;
   filter: drop-shadow(0 0 18px rgb(var(--primary-rgb) / 28%));
 }
 .canvas-variant-device:disabled {
