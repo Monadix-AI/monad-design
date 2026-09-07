@@ -10,6 +10,10 @@ Monad Design is a visual implementation workspace for coding agents and running 
 
 The current preview implements this workflow for local iOS development on macOS.
 
+## See Monad Design in action
+
+https://github.com/user-attachments/assets/12b20c40-6798-408c-a127-6d684ed42bab
+
 ## Install
 
 Install Monad Design Core and connect it to a supported coding agent:
