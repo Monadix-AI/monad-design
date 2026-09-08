@@ -9,7 +9,7 @@ colors:
   elevated-panel: "#23262c"
   control: "rgb(255 255 255 / 5%)"
   control-hover: "rgb(255 255 255 / 8%)"
-  field: "rgb(255 255 255 / 4%)"
+  field: "rgb(8 12 20 / 28%)"
   brand-accent: "#339cff"
   brand-accent-hover: "#66b5ff"
   on-brand-accent: "#0d0d0d"
@@ -168,6 +168,12 @@ The palette is almost entirely charcoal and cool gray so runtime imagery carries
 - **Cool White:** Primary text and high-confidence labels.
 - **Muted Steel:** Metadata, hints, boundary copy, and secondary labels.
 - **Structural Border:** Quiet separators and field outlines; divisions remain visible without becoming a grid of bright lines.
+
+### Internal Surface Rule
+
+Internal cards, rows, fields, buttons, segmented controls, and document blocks use tonal backgrounds and spacing instead of borders or inset outline shadows. Hover and selection must not reintroduce decorative borders. Selected controls use a semantic tinted surface; input fields use a recessed background. Document tables use header fill and alternating row backgrounds.
+
+Quiet perimeter borders are reserved for detached outer containers, such as the inspector, popovers, and floating toolbars. Keep outlines where they convey keyboard focus, invalid input, radio controls, Simulator geometry, or accessibility and annotation evidence. Do not remove strokes that draw an icon or device frame.
 
 ### Theme Surfaces and Elevation
 

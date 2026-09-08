@@ -44,7 +44,7 @@
   --elevated-fill: rgb(35 38 44 / 96%);
   --control-fill: rgb(255 255 255 / 5%);
   --control-hover-fill: rgb(255 255 255 / 8%);
-  --field-fill: rgb(255 255 255 / 4%);
+  --field-fill: rgb(8 12 20 / 28%);
   --subtle-fill: rgb(255 255 255 / 3%);
   --canvas-dot: rgb(180 190 210 / 10%);
   --canvas-fill: #131519;
@@ -94,7 +94,7 @@
   --elevated-fill: rgb(255 255 255 / 94%);
   --control-fill: rgb(26 28 31 / 5%);
   --control-hover-fill: rgb(26 28 31 / 10%);
-  --field-fill: rgb(26 28 31 / 4%);
+  --field-fill: rgb(38 52 76 / 6%);
   --subtle-fill: rgb(26 28 31 / 3%);
   --canvas-dot: rgb(73 89 114 / 13%);
   --canvas-fill: #eef1f5;
@@ -225,7 +225,7 @@ button:focus-visible {
   color: var(--muted-foreground);
   cursor: pointer;
   background: transparent;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 8px;
   transition:
     color 160ms ease,
@@ -241,7 +241,6 @@ button:focus-visible {
 .header-icon-button:hover {
   color: var(--foreground);
   background: var(--control-fill);
-  border-color: color-mix(in srgb, var(--border) 72%, transparent);
 }
 .header-action:active:not(:disabled),
 .header-icon-button:active {
@@ -657,7 +656,7 @@ button:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   padding-bottom: 24px;
-  border-bottom: 1px solid var(--border);
+  border: 0;
 }
 .project-home-heading p {
   margin: 10px 0 0;
@@ -774,7 +773,7 @@ button:focus-visible {
   color: var(--muted-foreground);
   cursor: pointer;
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 7px;
 }
 .pairing-copy-button:hover:not(:disabled) {
@@ -808,7 +807,7 @@ button:focus-visible {
   margin: 4px 0;
   overflow: hidden;
   background: var(--control-fill);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 12px;
   transition:
     background 180ms ease,
@@ -817,7 +816,6 @@ button:focus-visible {
 }
 .project-row:hover {
   background: var(--control-hover-fill);
-  border-color: var(--border);
   transform: translateY(-1px);
 }
 .project-row:focus-within {
@@ -935,7 +933,7 @@ button:focus-visible {
   margin: 4px 0;
   overflow: hidden;
   background: var(--control-fill);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 12px;
 }
 .project-skeleton-icon,
@@ -1037,7 +1035,7 @@ button:focus-visible {
   width: 48px;
   height: 48px;
   background: var(--elevated-fill);
-  border: 1px solid #34373d;
+  border: 0;
   border-radius: 12px;
 }
 .empty-project-mark svg {
@@ -1204,17 +1202,15 @@ button:focus-visible {
   color: var(--foreground);
   text-align: left;
   cursor: pointer;
-  background: #101216;
-  border: 1px solid var(--border);
+  background: var(--control-fill);
+  border: 0;
   border-radius: 9px;
 }
 .project-target-candidate:hover {
-  background: var(--control-fill);
-  border-color: var(--border);
+  background: var(--control-hover-fill);
 }
 .project-target-candidate[data-state="checked"] {
-  background: var(--elevated-fill);
-  border-color: var(--primary);
+  background: var(--primary-soft-hover);
 }
 .project-target-radio {
   display: grid;
@@ -1292,7 +1288,6 @@ button:focus-visible {
   margin-top: 5px;
   color: var(--foreground);
   background: var(--card);
-  border-color: var(--border);
 }
 .project-target-warning {
   margin: -5px 0 0;
@@ -1313,7 +1308,7 @@ button:focus-visible {
   color: var(--muted-foreground);
   cursor: not-allowed;
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   opacity: 1;
 }
 .simulator-list-page {
@@ -1346,7 +1341,7 @@ button:focus-visible {
   min-width: 0;
   padding-bottom: 15px;
   margin-bottom: 18px;
-  border-bottom: 1px solid var(--border);
+  border: 0;
 }
 .active-project-heading strong {
   font-size: 15px;
@@ -1377,9 +1372,10 @@ button:focus-visible {
 .picker-section-heading {
   display: flex;
   gap: 16px;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 9px;
+  min-height: 24px;
+  margin-bottom: 10px;
 }
 .picker-section-heading h2 {
   margin: 0;
@@ -1394,10 +1390,15 @@ button:focus-visible {
   color: var(--muted-foreground);
 }
 .picker-count {
+  display: inline-flex;
   flex: 0 0 auto;
-  padding: 3px 6px;
-  font-size: 9px;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: 10px;
   font-weight: 650;
+  line-height: 16px;
   color: var(--muted-foreground);
   background: var(--control-fill);
   border-radius: 999px;
@@ -1427,7 +1428,7 @@ button:focus-visible {
   overflow: hidden;
   color: var(--muted-foreground);
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 10px;
 }
 .target-app-icon img {
@@ -1477,7 +1478,7 @@ h1 {
   display: grid;
   margin: -6px 0 18px;
   background: var(--elevated-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 11px;
 }
 .remote-client-card summary {
@@ -1499,7 +1500,7 @@ h1 {
   display: grid;
   gap: 7px;
   padding: 0 12px 12px;
-  border-top: 1px solid #26282d;
+  border: 0;
 }
 .remote-client-card :where(summary span),
 .remote-client-card small {
@@ -1514,7 +1515,7 @@ h1 {
   padding: 5px 9px;
   margin-left: 12px;
   background: #17191d;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 8px;
 }
 .canvas-remote-client span {
@@ -1563,7 +1564,7 @@ h1 {
   height: 32px;
   cursor: pointer;
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 9px;
 }
 .icon-button:disabled {
@@ -1601,8 +1602,8 @@ h1 {
   padding: 12px;
   text-align: left;
   cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--subtle-fill);
+  border: 0;
   border-radius: 11px;
 }
 .device-card:hover {
@@ -1610,8 +1611,7 @@ h1 {
 }
 .device-card[data-state="checked"] {
   background: var(--primary-soft);
-  border-color: color-mix(in srgb, var(--primary) 58%, transparent);
-  box-shadow: inset 0 0 0 1px rgb(var(--primary-rgb) / 5%);
+  box-shadow: none;
 }
 .device-card:disabled {
   cursor: default;
@@ -1865,7 +1865,7 @@ h1 {
   flex: 0 0 auto;
   padding-top: 13px;
   margin-top: 2px;
-  border-top: 1px solid var(--border);
+  border: 0;
 }
 .simulator-list-panel.live-split {
   display: grid;
@@ -1902,7 +1902,7 @@ h1 {
   grid-column: 1;
   padding-right: 24px;
   margin: 0;
-  border-right: 1px solid var(--border);
+  border: 0;
 }
 .live-split .target-app-card {
   grid-template-columns: 36px minmax(0, 1fr);
@@ -1982,8 +1982,8 @@ h1 {
 .simulator-picker-layout-rail {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-  gap: 0 22px;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 0 20px;
   width: min(960px, calc(100vw - 40px));
   padding-top: 58px;
 }
@@ -2013,25 +2013,26 @@ h1 {
   grid-row: 3;
   grid-column: 1;
   min-height: 0;
-  padding-right: 22px;
+  padding-right: 0;
   margin: 0;
   overflow: hidden;
-  border-right: 1px solid var(--border);
+  border: 0;
 }
 .simulator-picker-layout-rail .target-app-list {
   display: grid;
-  gap: 6px;
-  max-height: calc(100% - 42px);
+  gap: 8px;
+  max-height: calc(100% - 34px);
 }
 .simulator-picker-layout-rail .target-app-card {
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 9px;
-  min-height: 50px;
-  padding: 7px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px;
+  border-radius: 10px;
 }
 .simulator-picker-layout-rail .target-app-icon {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
 }
 .simulator-picker-layout-rail .project-target-radio {
@@ -2044,13 +2045,39 @@ h1 {
 }
 .simulator-picker-layout-rail .device-list {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px 7px;
+  gap: 8px;
+  padding: 0 2px 8px 0;
 }
 .simulator-picker-layout-rail .device-card {
-  gap: 8px;
-  min-height: 44px;
-  padding: 6px 8px;
-  border-radius: 9px;
+  grid-template-columns: 14px 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px;
+  border-radius: 10px;
+}
+:where(.simulator-picker-layout-rail) .device-details strong {
+  font-size: 12px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+:where(.simulator-picker-layout-rail) .device-details small {
+  line-height: 15px;
+}
+:where(.simulator-picker-layout-rail) .device-status {
+  gap: 5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.simulator-picker-layout-rail .project-target-candidate-copy {
+  gap: 3px;
+}
+:where(.simulator-picker-layout-rail) .project-target-candidate-copy strong {
+  font-size: 12px;
+  line-height: 17px;
+}
+:where(.simulator-picker-layout-rail) .device-skeleton-icon {
+  height: 28px;
 }
 .simulator-picker-layout-rail .simulator-action-bar {
   grid-row: 5;
@@ -2062,10 +2089,10 @@ h1 {
     background 180ms ease-out;
 }
 .simulator-picker-tactile .device-card {
-  min-height: 75px;
+  min-height: 64px;
 }
 .simulator-picker-tactile .target-app-card {
-  min-height: 71px;
+  min-height: 64px;
 }
 .connect-button:hover:not(:disabled) {
   background: var(--primary-hover);
@@ -2114,17 +2141,15 @@ h1 {
   color: var(--muted-foreground);
   cursor: pointer;
   background: #17191d;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 6px;
 }
 .preview-actions button:hover {
   color: #fff;
-  border-color: #45484f;
 }
 .preview-actions button.active {
   color: var(--primary-emphasis);
   background: var(--primary-soft);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .preview-actions button:disabled {
   cursor: wait;
@@ -2301,7 +2326,7 @@ h1 {
   align-items: flex-start;
   justify-content: space-between;
   padding: 20px 18px 16px;
-  border-bottom: 1px solid #25272c;
+  border: 0;
 }
 .selection-handoff-heading h2 {
   margin: 0;
@@ -2321,12 +2346,11 @@ h1 {
   color: var(--muted-foreground);
   cursor: pointer;
   background: var(--control-fill);
-  border: 1px solid #34373d;
+  border: 0;
   border-radius: 7px;
 }
 .selection-handoff-heading button:hover {
   color: var(--foreground);
-  border-color: #50535a;
 }
 .coding-handoff-content {
   display: flex;
@@ -2345,7 +2369,7 @@ h1 {
   gap: 4px;
   padding: 11px 12px;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 9px;
 }
 .handoff-selection strong {
@@ -2363,7 +2387,6 @@ h1 {
 .handoff-selection.container {
   color: var(--container-evidence-foreground);
   background: var(--container-evidence-surface);
-  border-color: var(--container-evidence-border);
 }
 .handoff-request {
   display: flex;
@@ -2388,7 +2411,7 @@ h1 {
   resize: vertical;
   outline: none;
   background: var(--field-fill);
-  border: 1px solid var(--input);
+  border: 0;
   border-radius: 9px;
 }
 .handoff-request textarea::placeholder {
@@ -2430,18 +2453,16 @@ h1 {
   color: var(--primary-emphasis);
   cursor: pointer;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 7px;
 }
 .complete-prompt-heading button:hover:not(:disabled) {
   background: var(--primary-soft-hover);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .complete-prompt-heading button:disabled {
   color: #686c73;
   cursor: not-allowed;
   background: var(--control-fill);
-  border-color: var(--border);
 }
 .complete-prompt pre {
   flex: 1;
@@ -2455,13 +2476,12 @@ h1 {
   color: var(--muted-foreground);
   word-break: break-word;
   white-space: pre-wrap;
-  background: #0d0f12;
-  border: 1px dashed var(--border);
+  background: var(--field-fill);
+  border: 0;
   border-radius: 9px;
 }
 .complete-prompt pre.ready {
   color: var(--foreground);
-  border-style: solid;
 }
 .selection-status {
   position: absolute;
@@ -2497,7 +2517,7 @@ h1 {
   color: var(--muted-foreground);
   text-align: center;
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 999px;
 }
 .ax-hint {
@@ -2521,7 +2541,7 @@ h1 {
   padding: 10px;
   margin: 0;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 8px;
 }
 .ax-selection strong {
@@ -2538,7 +2558,6 @@ h1 {
 .ax-selection.container {
   color: var(--container-evidence-foreground);
   background: var(--container-evidence-surface);
-  border-color: var(--container-evidence-border);
 }
 .handoff-selection.container :is(strong, span, code),
 .ax-selection.container :is(strong, span, code) {
@@ -2550,7 +2569,7 @@ h1 {
   gap: 12px;
   padding-bottom: 16px;
   margin: 0 12px 16px;
-  border-bottom: 1px solid #292b30;
+  border: 0;
 }
 .agent-request {
   display: flex;
@@ -2574,7 +2593,7 @@ h1 {
   resize: vertical;
   outline: none;
   background: var(--field-fill);
-  border: 1px solid #34373d;
+  border: 0;
   border-radius: 8px;
 }
 .agent-request textarea::placeholder {
@@ -2608,18 +2627,16 @@ h1 {
   color: var(--primary-emphasis);
   cursor: pointer;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 6px;
 }
 .agent-prompt-heading button:hover:not(:disabled) {
   background: var(--primary-soft-hover);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .agent-prompt-heading button:disabled {
   color: #686c73;
   cursor: not-allowed;
   background: var(--control-fill);
-  border-color: var(--border);
 }
 .agent-prompt {
   max-height: 190px;
@@ -2632,13 +2649,12 @@ h1 {
   color: var(--muted-foreground);
   word-break: break-word;
   white-space: pre-wrap;
-  background: #0d0f12;
-  border: 1px dashed var(--border);
+  background: var(--field-fill);
+  border: 0;
   border-radius: 8px;
 }
 .agent-prompt.ready {
   color: var(--foreground);
-  border-style: solid;
 }
 .agent-copy-error {
   margin: -4px 0 0;
@@ -2652,7 +2668,7 @@ h1 {
   gap: 10px;
   padding: 11px;
   background: var(--elevated-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 10px;
 }
 .variant-setup-heading {
@@ -2682,7 +2698,7 @@ h1 {
   color: var(--primary-emphasis);
   cursor: pointer;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 7px;
 }
 .variant-setup-heading button {
@@ -2692,14 +2708,12 @@ h1 {
 .variant-setup-heading button:hover:not(:disabled),
 .capture-variants-button:hover:not(:disabled) {
   background: var(--primary-soft-hover);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .variant-setup-heading button:disabled,
 .capture-variants-button:disabled {
   color: #686c73;
   cursor: not-allowed;
   background: var(--control-fill);
-  border-color: var(--border);
 }
 .variant-setup label {
   display: flex;
@@ -2720,8 +2734,8 @@ h1 {
     monospace;
   color: var(--foreground);
   outline: none;
-  background: #0e1013;
-  border: 1px solid #34373d;
+  background: var(--field-fill);
+  border: 0;
   border-radius: 7px;
 }
 .variant-setup input::placeholder {
@@ -2758,7 +2772,7 @@ h1 {
   align-items: end;
   padding: 12px;
   background: var(--elevated-fill);
-  border: 1px solid #2d3035;
+  border: 0;
   border-radius: 10px;
 }
 .variant-target-app {
@@ -2785,8 +2799,8 @@ h1 {
     monospace;
   color: var(--foreground);
   white-space: nowrap;
-  background: #0e1013;
-  border: 1px solid #34373d;
+  background: var(--field-fill);
+  border: 0;
   border-radius: 7px;
 }
 .variant-capture-bar p {
@@ -2804,18 +2818,16 @@ h1 {
   color: var(--primary-emphasis);
   cursor: pointer;
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 7px;
 }
 .variant-capture-bar button:hover:not(:disabled) {
   background: var(--primary-soft-hover);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .variant-capture-bar button:disabled {
   color: #686c73;
   cursor: not-allowed;
   background: var(--control-fill);
-  border-color: var(--border);
 }
 .variant-compare-heading {
   display: flex;
@@ -2840,7 +2852,7 @@ h1 {
   color: #b9bdc5;
   white-space: nowrap;
   background: var(--control-fill);
-  border: 1px solid #4a4d53;
+  border: 0;
   border-radius: 7px;
 }
 .variant-grid {
@@ -2878,7 +2890,7 @@ h1 {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%237f8896' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 7px;
 }
 .variant-count-field select:hover:not(:disabled) {
@@ -2898,17 +2910,15 @@ h1 {
   text-align: left;
   cursor: pointer;
   background: var(--elevated-fill);
-  border: 1px solid #2d3035;
+  border: 0;
   border-radius: 14px;
 }
 .variant-tile:hover:not(:disabled) {
   background: var(--field-fill);
-  border-color: #4b4f56;
 }
 .variant-tile.selected {
   background: var(--primary-soft);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
-  box-shadow: 0 10px 35px rgb(0 0 0 / 28%);
+  box-shadow: none;
 }
 .variant-tile:disabled {
   cursor: default;
@@ -2992,16 +3002,15 @@ h1 {
 .secondary-action {
   color: var(--foreground);
   background: var(--control-fill);
-  border: 1px solid var(--input);
+  border: 0;
 }
 .secondary-action:hover:not(:disabled) {
   background: var(--control-hover-fill);
-  border-color: var(--muted-foreground);
 }
 .primary-action {
   color: var(--primary-foreground);
   background: var(--primary);
-  border: 1px solid var(--primary);
+  border: 0;
 }
 .primary-action:hover:not(:disabled) {
   background: var(--primary-hover);
@@ -3045,7 +3054,7 @@ h1 {
   color: #c0c4cb;
   white-space: nowrap;
   background: var(--control-fill);
-  border: 1px solid #4a4d53;
+  border: 0;
   border-radius: 7px;
 }
 .annotation-toolbar {
@@ -3084,19 +3093,17 @@ h1 {
   color: #b9bdc5;
   cursor: pointer;
   background: var(--control-fill);
-  border: 1px solid #34373d;
+  border: 0;
   border-radius: 7px;
 }
 .annotation-toolbar button:hover:not(:disabled),
 .annotation-actions button:hover:not(:disabled) {
   color: var(--foreground);
   background: var(--control-hover-fill);
-  border-color: #50535a;
 }
 .annotation-toolbar button.active {
   color: #fff0f2;
   background: #35191f;
-  border-color: #ff6f84;
 }
 .annotation-toolbar button:disabled,
 .annotation-actions button:disabled {
@@ -3125,7 +3132,7 @@ h1 {
   font-size: 13px;
   color: #ff8a9b;
   background: var(--control-fill);
-  border: 1px solid #3e4249;
+  border: 0;
   border-radius: 50%;
 }
 .annotation-canvas-scroll {
@@ -3233,12 +3240,11 @@ h1 {
   min-height: 88px;
   padding: 7px;
   background: var(--control-fill);
-  border: 1px solid #3a3d44;
+  border: 0;
   border-radius: 9px;
 }
 .annotation-note-list li.active {
   background: #21171b;
-  border-color: #ff6f84;
   box-shadow: 0 8px 26px rgb(0 0 0 / 34%);
 }
 .annotation-note-number {
@@ -3646,7 +3652,7 @@ h1 {
 .zoom-controls .fit-control {
   margin-left: 3px;
   border-radius: 0 7px 7px 0;
-  box-shadow: inset 1px 0 var(--border);
+  box-shadow: none;
 }
 .floating-inspector {
   position: absolute;
@@ -3673,7 +3679,7 @@ h1 {
   flex: 0 0 auto;
   padding: 16px 17px 15px;
   background: var(--panel-fill);
-  box-shadow: inset 0 -1px var(--border);
+  box-shadow: none;
 }
 .inspector-command-title {
   display: flex;
@@ -3751,7 +3757,7 @@ h1 {
   padding: 3px;
   margin-top: 13px;
   background: var(--field-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 9px;
 }
 .mode-switch button {
@@ -3812,7 +3818,7 @@ h1 {
   justify-content: flex-end;
   padding: 10px 14px 12px;
   background: var(--elevated-fill);
-  box-shadow: inset 0 1px var(--border);
+  box-shadow: none;
 }
 .end-live-action {
   width: auto;
@@ -3838,7 +3844,7 @@ h1 {
   margin-bottom: 14px;
   color: var(--muted-foreground);
   background: transparent;
-  box-shadow: inset 0 -1px var(--border);
+  box-shadow: none;
 }
 .agent-live-required > svg {
   margin-top: 1px;
@@ -3891,7 +3897,7 @@ h1 {
   padding: 28px 18px;
   text-align: center;
   background: var(--panel-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 12px;
 }
 .agent-waiting-orbit {
@@ -3901,7 +3907,7 @@ h1 {
   height: 44px;
   color: var(--primary-emphasis);
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 50%;
 }
 .agent-waiting-state strong {
@@ -3925,7 +3931,7 @@ h1 {
   gap: 5px;
   padding: 10px;
   background: var(--panel-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 9px;
 }
 .agent-variant-options {
@@ -3942,13 +3948,12 @@ h1 {
   text-align: left;
   cursor: pointer;
   background: var(--control-fill);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 8px;
 }
 .agent-variant-option:hover:not(:disabled),
 .agent-variant-option[data-state="checked"] {
   background: var(--primary-soft);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .agent-variant-option:disabled {
   cursor: default;
@@ -3988,7 +3993,7 @@ h1 {
   line-height: 1.4;
   color: var(--primary-emphasis);
   background: var(--primary-soft);
-  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 0;
   border-radius: 9px;
 }
 :where(.prompt-workbench) .handoff-selection button {
@@ -4019,8 +4024,8 @@ h1 {
   color: var(--muted-foreground);
   text-align: left;
   cursor: pointer;
-  background: var(--panel-fill);
-  border: 1px dashed var(--input);
+  background: var(--control-fill);
+  border: 0;
   border-radius: 10px;
   transition:
     color 140ms ease-out,
@@ -4036,7 +4041,6 @@ h1 {
 .selection-empty:hover {
   color: var(--primary-hover);
   background: var(--primary-soft);
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 .selection-empty strong {
   align-self: end;
@@ -4074,7 +4078,7 @@ h1 {
 }
 .prompt-workbench .variant-count-field {
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border: 0;
 }
 :where(.prompt-workbench) .variant-count-field small {
   line-height: 1.4;
@@ -4086,7 +4090,7 @@ h1 {
   padding: 14px 18px 18px;
   margin: 18px -18px 0;
   background: var(--elevated-fill);
-  box-shadow: inset 0 1px var(--border);
+  box-shadow: none;
 }
 .copy-prompt-action {
   display: inline-flex;
@@ -4208,23 +4212,11 @@ h1 {
 }
 .prompt-workbench-delight-trace .agent-live-required {
   position: relative;
-  border: 1px solid rgb(var(--primary-rgb) / 13%);
+  border: 0;
   border-radius: 11px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 3%);
-}
-.prompt-workbench-delight-trace .agent-live-required::before {
-  position: absolute;
-  top: -1px;
-  left: 15px;
-  width: 34px;
-  height: 1px;
-  content: "";
-  background: linear-gradient(90deg, transparent, rgb(var(--primary-rgb) / 50%), transparent);
-  box-shadow: 0 5px 16px rgb(var(--primary-rgb) / 15%);
+  box-shadow: none;
 }
 .prompt-workbench-delight-trace .selection-empty {
-  border-color: color-mix(in srgb, var(--primary) 13%, var(--border));
-  border-style: solid;
   border-radius: 11px;
 }
 .prompt-workbench-delight-trace .copy-prompt-action {
@@ -4555,7 +4547,7 @@ h1 {
 .canvas-annotation-toolbar button.active {
   color: #fff0f2;
   background: #35191f;
-  box-shadow: inset 0 0 0 1px #ff6f84;
+  box-shadow: none;
 }
 .canvas-annotation-toolbar button:disabled {
   cursor: not-allowed;
@@ -4613,7 +4605,7 @@ h1 {
   align-items: flex-start;
   justify-content: space-between;
   padding: 15px 15px 13px;
-  border-bottom: 1px solid var(--border);
+  border: 0;
 }
 .inspector-annotation-body > header > div {
   display: flex;
@@ -4658,12 +4650,14 @@ h1 {
   grid-template-columns: 26px minmax(0, 1fr);
   gap: 9px;
   align-items: start;
-  padding: 9px 5px 17px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  background: var(--subtle-fill);
+  border: 0;
+  border-radius: 9px;
 }
 .inspector-annotation-body li:last-child {
   padding-bottom: 9px;
-  border-bottom: 0;
+  border: 0;
 }
 .canvas-annotation-note-number {
   display: grid;
@@ -4700,7 +4694,7 @@ h1 {
   user-select: text;
   outline: none;
   background: var(--field-fill);
-  border: 1px solid var(--input);
+  border: 0;
   border-radius: 7px;
 }
 .inspector-annotation-note-input::placeholder {
@@ -4711,7 +4705,9 @@ h1 {
   box-shadow: 0 0 0 2px rgb(255 111 132 / 14%);
 }
 .inspector-annotation-note-input[aria-invalid="true"] {
-  border-color: #562e33;
+  outline: 2px solid var(--error);
+  outline-offset: 2px;
+  background: var(--error-surface);
 }
 .inspector-annotation-notes-empty {
   display: grid;
@@ -4726,12 +4722,6 @@ h1 {
   font-size: 10px;
   line-height: 1.45;
   color: var(--muted-foreground);
-}
-
-/* Light theme changes the desktop instruments while preserving Simulator imagery. */
-:root[data-theme="light"] .project-home-heading,
-:root[data-theme="light"] .active-project-heading {
-  border-color: var(--border);
 }
 :root[data-theme="light"] .project-home-heading p,
 :root[data-theme="light"] .project-identity code,
@@ -4755,12 +4745,9 @@ h1 {
 }
 :root[data-theme="light"] .project-row {
   background: var(--control-fill);
-  border-color: transparent;
 }
 :root[data-theme="light"] .project-row:hover,
-:root[data-theme="light"] .device-card:hover,
 :root[data-theme="light"] .icon-button,
-:root[data-theme="light"] .project-target-candidate:hover,
 :root[data-theme="light"] .inspector-actions button {
   background: var(--control-fill);
 }
@@ -4768,11 +4755,6 @@ h1 {
 :root[data-theme="light"] .empty-project-mark,
 :root[data-theme="light"] .device-card[data-state="checked"] {
   background: var(--primary-soft);
-}
-:root[data-theme="light"] .empty-project-mark,
-:root[data-theme="light"] .icon-button,
-:root[data-theme="light"] .project-target-candidate {
-  border-color: var(--border);
 }
 :root[data-theme="light"] .project-target-overlay {
   background: var(--overlay-fill);
@@ -4858,7 +4840,7 @@ h1 {
   }
   .canvas-annotation-action-group {
     padding-top: 4px;
-    border-top: 1px solid rgb(255 255 255 / 8%);
+    border-top: 0;
   }
 }
 @media (max-width: 1100px) {
@@ -4873,6 +4855,9 @@ h1 {
   }
 }
 @media (max-width: 900px) {
+  .simulator-picker-layout-rail .device-list {
+    grid-template-columns: 1fr;
+  }
   .simulator-list-panel {
     width: min(720px, calc(100vw - 32px));
   }
