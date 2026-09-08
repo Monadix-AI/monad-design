@@ -1,4 +1,0 @@
-interface:
-  display_name: "Monad Design Copy"
-  short_description: "Refine native copy in the running app"
-  default_prompt: "Use $monad-design-copy to refine the selected native UI within the current request."

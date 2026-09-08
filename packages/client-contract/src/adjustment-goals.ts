@@ -1,6 +1,6 @@
 import type { DesignReference } from './index';
 
-/** UI metadata and invocation routing only. Skill bodies ship with the CLI. */
+/** UI metadata and guide routing only. Guide bodies ship inside the Monad Design skill. */
 export const adjustmentGoals = [
   {
     key: 'typography',
@@ -67,7 +67,7 @@ export function requiredAdjustmentSkills(references: DesignReference[] = []) {
     .map((goal) => ({
       name: goal.skillName,
       version: references.find(({ id }) => id === `monad-goal-${goal.key}`)?.version ?? adjustmentSkillVersion,
-      relativePath: `../${goal.skillName}/SKILL.md`
+      relativePath: `references/adjustments/${goal.key}.md`
     }));
 }
 

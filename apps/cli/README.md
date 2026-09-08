@@ -54,18 +54,16 @@ establish end-to-end compatibility.
 Format and import references: [Kimi plugin manifest](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html),
 [Kimi Work Plugin Builder](https://www.kimi.com/en/help/plugins-and-skills/create).
 
-### Adjustment skills
+### Adjustment guides
 
-Installation includes the `monad-design` Live entrypoint and six sibling skills:
-`monad-design-typography`, `monad-design-layout`, `monad-design-callout`,
-`monad-design-color`, `monad-design-copy`, and `monad-design-motion`.
-The same pack is included in Kimi Work exports.
+Installation includes one self-contained `monad-design` skill. Its Typography,
+Layout, Callout, Color, Copy, and Motion guides live under that skill's
+`references/adjustments/` directory. The same structure is included in Kimi Work exports.
 
 Select adjustment goals in the editing panel and send the request. Core tells
-the agent which versioned skills to invoke before planning or editing. An agent
-without a skill invocation tool reads the corresponding `SKILL.md` files.
+the agent which versioned guides to read before planning or editing.
 Full instructions are loaded on demand rather than embedded in every request.
-If a skill is missing or outdated, update the installation and restart the agent
+If a guide is missing or outdated, update the installation and restart the agent
 session so the new skill catalog is available.
 
 ### TRAE

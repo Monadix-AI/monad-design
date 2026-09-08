@@ -3,7 +3,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repositoryRoot = resolve(root, '..', '..');
 const output = join(root, 'dist');
+const skillSource = join(repositoryRoot, '.agents', 'skills', 'monad-design');
 const releaseTargets = ['arm64', 'x64'].map((arch) => ({
   platform: 'darwin' as const,
   arch,
@@ -48,8 +50,7 @@ for (const target of releaseTargets) {
 }
 await cp(coreNativeAddonPath, join(output, 'assets', 'core', 'native', 'serve-sim-native.node'));
 await chmod(join(output, 'assets', 'core', 'native', 'serve-sim-native.node'), 0o755);
-await cp(join(root, 'assets', 'skill'), join(output, 'assets', 'skill'), { recursive: true });
-await cp(join(root, 'assets', 'adjustment-skills'), join(output, 'assets', 'adjustment-skills'), { recursive: true });
+await cp(skillSource, join(output, 'assets', 'skill'), { recursive: true });
 await writeFile(
   join(output, 'assets', 'release.json'),
   `${JSON.stringify(

@@ -4,7 +4,8 @@ import {
   type DesignLibrary,
   type DesignReference,
   designLibrarySchema,
-  designReferenceSchema
+  designReferenceSchema,
+  isAdjustmentGoal
 } from '@monaddesign/client-contract';
 import { useEffect, useRef, useState } from 'react';
 
@@ -95,10 +96,11 @@ export function useDesignLibrary(sessionKey: string | undefined, hasSelection: b
     }
   };
   const toggle = (entry: DesignReference) => {
+    const remaining = isAdjustmentGoal(entry) ? selected.filter((reference) => !isAdjustmentGoal(reference)) : selected;
     if (selected.some(({ id }) => id === entry.id)) setSelected(selected.filter(({ id }) => id !== entry.id));
-    else if (selected.length >= 4) setError('Use up to four references per change. Remove one before adding another.');
+    else if (remaining.length >= 4) setError('Use up to four references per change. Remove one before adding another.');
     else {
-      setSelected([...selected, structuredClone(entry)]);
+      setSelected([...remaining, structuredClone(entry)]);
       setError(null);
     }
   };
@@ -166,7 +168,15 @@ export function useDesignLibrary(sessionKey: string | undefined, hasSelection: b
     setSelected([]);
     setFocus('');
   };
+  const clearDraft = () => {
+    setSelected([]);
+    setFocus('');
+    setPreserve('');
+    setScope('screen');
+    setError(null);
+  };
   return {
+    clearDraft,
     entries: [...builtInDesignStyles, ...adjustmentGoalReferences, ...library.entries],
     selected,
     error,

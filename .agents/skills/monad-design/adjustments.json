@@ -1,0 +1,38 @@
+[
+  {
+    "key": "typography",
+    "name": "monad-design-typography",
+    "version": "2",
+    "relativePath": "references/adjustments/typography.md"
+  },
+  {
+    "key": "layout",
+    "name": "monad-design-layout",
+    "version": "2",
+    "relativePath": "references/adjustments/layout.md"
+  },
+  {
+    "key": "callout",
+    "name": "monad-design-callout",
+    "version": "2",
+    "relativePath": "references/adjustments/callout.md"
+  },
+  {
+    "key": "color",
+    "name": "monad-design-color",
+    "version": "2",
+    "relativePath": "references/adjustments/color.md"
+  },
+  {
+    "key": "copy",
+    "name": "monad-design-copy",
+    "version": "2",
+    "relativePath": "references/adjustments/copy.md"
+  },
+  {
+    "key": "motion",
+    "name": "monad-design-motion",
+    "version": "2",
+    "relativePath": "references/adjustments/motion.md"
+  }
+]

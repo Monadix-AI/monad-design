@@ -1,15 +1,17 @@
-# Adjustment skills
+# Adjustment guides
 
-The Inspector selects versioned skill identities. It does not bundle skill bodies into change requests. The short `DesignReference.instructions` field is UI description only; `skillName` identifies the companion skill. Core resolves a fixed goal allowlist and adds `requiredSkills` to MCP responses, with a name, version and path relative to the installed `monad-design` directory. Imported references cannot supply arbitrary invocation paths.
+The Inspector selects versioned guide identities. It does not bundle guide bodies into change requests. The short `DesignReference.instructions` field is UI description only; `skillName` preserves the stable adjustment identity. Core resolves a fixed goal allowlist and adds `requiredSkills` to MCP responses, with a name, version and internal path relative to the installed `monad-design` directory. Imported references cannot supply arbitrary paths.
 
-The Live entrypoint asks the agent to invoke the selected skills before planning/editing. Agents with no invocation tool read the specified `SKILL.md` files. A missing or mismatched version is reported rather than replaced by the UI description. Skill invocation is an agent action: the Core response requests it but cannot prove that an external agent obeyed. The publish summary records usage without treating it as verification evidence.
+`requiredSkills` remains the wire field name for compatibility; its entries now route to internal guides rather than separately installed skills.
+
+The Live entrypoint asks the agent to read the selected guides before planning/editing. A missing or mismatched version is reported rather than replaced by the UI description. Guide loading is an agent action: the Core response requests it but cannot prove that an external agent obeyed. The publish summary records usage without treating it as verification evidence.
 
 ## Source and installation
 
-- Canonical distribution content: `apps/cli/assets/adjustment-skills/monad-design-*/SKILL.md`.
-- Repository-discoverable copies: `.agents/skills/monad-design-*/SKILL.md`.
-- The main skill's `companion-skills.json` lists the six installed siblings. CLI build copies their assets; normal installation and Kimi Work export use the same bundle installer.
-- Keep canonical and repository copies identical. Bundle tests check names, versions, relative-path resolution, replacement and preservation of unrelated skills.
+- Canonical and repository-discoverable source: `.agents/skills/monad-design/`.
+- The main skill's `adjustments.json` lists the six internal guides under `references/adjustments/`.
+- CLI build copies this one source tree into the release. Normal installation and Kimi Work export install the same self-contained directory without sibling skills.
+- Release and installer tests check names, versions, internal-path resolution, replacement and preservation of unrelated skills.
 - The live request still uses the existing `designGuidance` scope/focus/preserve fields and four-reference limit. Multi-goal requests produce one integrated variant set.
 
 ## Variant direction contract
@@ -24,7 +26,7 @@ This is an agent instruction contract, not a server-side visual similarity detec
 
 Reviewed 2026-09-08. The following are references for the new Monad Design material, not runtime dependencies or instructions to install external plugins:
 
-- [Impeccable](https://github.com/pbakaus/impeccable), Paul Bakaus, Apache-2.0: the locally installed 4.0.4 `typeset`, `layout`, `colorize`, `clarify` and `animate` references, and `scripts/live/instructions.mjs`. Its action event explicitly directs the agent to read the corresponding command reference. Monad Design adopts that explicit dispatch pattern, with six independently discoverable skill entrypoints.
+- [Impeccable](https://github.com/pbakaus/impeccable), Paul Bakaus, Apache-2.0: the locally installed 4.0.4 `typeset`, `layout`, `colorize`, `clarify` and `animate` references, and `scripts/live/instructions.mjs`. Its action event explicitly directs the agent to read the corresponding command reference. Monad Design adopts the same progressive-disclosure pattern inside one discoverable skill.
 - [SwiftUI Agent Skill](https://github.com/twostraws/SwiftUI-Agent-Skill/blob/main/swiftui-pro/SKILL.md), Paul Hudson, MIT, and its [accessibility reference](https://github.com/twostraws/SwiftUI-Agent-Skill/blob/main/swiftui-pro/references/accessibility.md): useful emphasis on semantic text, assistive interaction and targeted reference loading. Monad Design retains the app's actual deployment target and supports UIKit, React Native/Expo and Flutter too.
 - [UX Writing Skill](https://github.com/content-designer/ux-writing-skill/blob/main/SKILL.md), Christopher Greer, MIT: useful attention to interface state, real recovery actions and wording in context. Monad Design's Copy and Callout guidance is independently written around existing handlers, localization resources and native variant comparisons; no universal readability score or fixed character count is imposed.
 

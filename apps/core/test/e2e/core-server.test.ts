@@ -361,7 +361,7 @@ describe('Core server', () => {
         requiredSkills: requiredAdjustmentSkills(adjustmentGoalReferences.slice(0, 2))
       });
       expect(JSON.stringify(agentView.content)).toContain(
-        'Before planning or editing this request, invoke these installed skills: monad-design-typography, monad-design-layout'
+        'Before planning or editing this request, load these Monad Design adjustment guides: monad-design-typography, monad-design-layout'
       );
       const waitingView = await client.callTool({
         name: 'wait_for_change',

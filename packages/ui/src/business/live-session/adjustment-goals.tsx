@@ -16,8 +16,8 @@ const goalIcons = [ALargeSmall, AlignStartVertical, MessageSquareText, Palette, 
 
 export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryController; disabled: boolean }) {
   const id = useId();
-  const selected = adjustmentGoalReferences.filter((goal) => library.selected.some(({ id }) => id === goal.id));
-  const full = library.selected.length >= 4;
+  const selected = adjustmentGoalReferences.find((goal) => library.selected.some(({ id }) => id === goal.id));
+  const full = !selected && library.selected.length >= 4;
 
   return (
     <fieldset
@@ -33,7 +33,7 @@ export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryC
           const reference = adjustmentGoalReferences[index];
           const Icon = goalIcons[index];
           if (!reference || !Icon) return null;
-          const active = selected.some(({ id }) => id === reference.id);
+          const active = selected?.id === reference.id;
           return (
             <button
               aria-pressed={active}
@@ -61,20 +61,9 @@ export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryC
         })}
       </div>
       <p id={`${id}-hint`}>
-        {full ? '4 attachments selected. Remove one to add another.' : 'Combine goals, then add direction if needed.'}
+        {selected?.instructions ??
+          (full ? '4 attachments selected. Remove one to choose a goal.' : 'Choose one goal to focus your adjustment.')}
       </p>
-      {selected.length > 0 && (
-        <details className="adjustment-goal-guidance">
-          <summary>Skills for this request · {selected.length}</summary>
-          {selected.map((goal) => (
-            <div key={goal.id}>
-              <strong>{goal.title}</strong>
-              <p>{goal.instructions}</p>
-              <small>{goal.skillName} · Loaded by your agent when sent</small>
-            </div>
-          ))}
-        </details>
-      )}
     </fieldset>
   );
 }

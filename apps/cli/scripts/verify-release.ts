@@ -23,7 +23,15 @@ interface ReleaseManifest {
   skill: string;
 }
 
+interface AdjustmentGuide {
+  key: string;
+  name: string;
+  version: string;
+  relativePath: string;
+}
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const sourceSkillRoot = resolve(root, '..', '..', '.agents', 'skills', 'monad-design');
 const packageManifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as PackageManifest;
 const releaseManifest = JSON.parse(
   await readFile(join(root, 'dist', 'assets', 'release.json'), 'utf8')
@@ -69,24 +77,42 @@ const nativeAddonPaths = [
   ...new Set(releaseManifest.targets.map(({ coreNativeAddon }) => join(root, 'dist', 'assets', coreNativeAddon)))
 ];
 const skillRoot = join(root, 'dist', 'assets', releaseManifest.skill);
-const companionNames: unknown = JSON.parse(await readFile(join(skillRoot, 'companion-skills.json'), 'utf8'));
-const expectedCompanions = JSON.parse(
-  await readFile(join(root, 'assets', 'skill', 'companion-skills.json'), 'utf8')
-) as string[];
-if (JSON.stringify(companionNames) !== JSON.stringify(expectedCompanions))
-  fail('bundled companion skill catalog is stale');
+const adjustmentGuides = JSON.parse(await readFile(join(skillRoot, 'adjustments.json'), 'utf8')) as AdjustmentGuide[];
+if (
+  !Array.isArray(adjustmentGuides) ||
+  adjustmentGuides.length === 0 ||
+  adjustmentGuides.some(
+    (guide) =>
+      typeof guide?.key !== 'string' ||
+      typeof guide.name !== 'string' ||
+      typeof guide.version !== 'string' ||
+      !/^references\/adjustments\/[a-z]+\.md$/u.test(guide.relativePath)
+  ) ||
+  new Set(adjustmentGuides.map(({ key }) => key)).size !== adjustmentGuides.length ||
+  new Set(adjustmentGuides.map(({ name }) => name)).size !== adjustmentGuides.length ||
+  new Set(adjustmentGuides.map(({ relativePath }) => relativePath)).size !== adjustmentGuides.length
+) {
+  fail('adjustments.json has an invalid guide catalog');
+}
 const requiredFiles = [
   cliPath,
   ...corePaths,
   ...nativeAddonPaths,
   join(skillRoot, 'SKILL.md'),
-  ...expectedCompanions.map((name) => join(root, 'dist', 'assets', 'adjustment-skills', name, 'SKILL.md'))
+  join(skillRoot, 'adjustments.json'),
+  ...adjustmentGuides.map(({ relativePath }) => join(skillRoot, relativePath))
 ];
 for (const path of requiredFiles) await access(path, constants.R_OK);
-for (const name of expectedCompanions) {
-  const built = await readFile(join(root, 'dist', 'assets', 'adjustment-skills', name, 'SKILL.md'), 'utf8');
-  const source = await readFile(join(root, 'assets', 'adjustment-skills', name, 'SKILL.md'), 'utf8');
-  if (built !== source) fail(`bundled skill ${name} is stale`);
+for (const path of ['SKILL.md', 'adjustments.json', ...adjustmentGuides.map(({ relativePath }) => relativePath)]) {
+  const built = await readFile(join(skillRoot, path), 'utf8');
+  const source = await readFile(join(sourceSkillRoot, path), 'utf8');
+  if (built !== source) fail(`bundled skill file ${path} is stale`);
+}
+for (const guide of adjustmentGuides) {
+  const body = await readFile(join(skillRoot, guide.relativePath), 'utf8');
+  if (!body.includes(`name: ${guide.name}\n`) || !body.includes(`version: "${guide.version}"\n`)) {
+    fail(`bundled adjustment guide ${guide.name} does not match its catalog entry`);
+  }
 }
 
 const cli = await readFile(cliPath, 'utf8');

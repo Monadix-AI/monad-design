@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { installSkillBundle } from './skill-installer';
+import { installMonadDesignSkill } from './skill-installer';
 
 interface KimiWorkPluginOptions {
   outputDirectory: string;
@@ -28,7 +28,7 @@ export const exportKimiWorkPlugin = async (options: KimiWorkPluginOptions) => {
   await mkdir(options.outputDirectory, { recursive: true });
   const directory = await mkdtemp(join(options.outputDirectory, 'monad-design-'));
   try {
-    await installSkillBundle(options.skillSourcePath, join(directory, 'skills', 'monad-design'), {
+    await installMonadDesignSkill(options.skillSourcePath, join(directory, 'skills', 'monad-design'), {
       includeOpenAiMetadata: false
     });
     const manifest = {

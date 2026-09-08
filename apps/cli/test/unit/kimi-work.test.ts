@@ -15,7 +15,7 @@ const fixture = async () => {
   roots.push(root);
   return {
     outputDirectory: join(root, 'exports'),
-    skillSourcePath: resolve(import.meta.dir, '../../assets/skill'),
+    skillSourcePath: resolve(import.meta.dir, '../../../../.agents/skills/monad-design'),
     version: '0.0.9',
     mcpUrl: 'http://127.0.0.1:54321/mcp'
   };
@@ -42,12 +42,13 @@ describe('Kimi Work native plugin export', () => {
       )
     ).toBe(false);
     expect(await readFile(join(directory, 'README.md'), 'utf8')).toContain('does not install or enable');
-    const companionNames = JSON.parse(
-      await readFile(join(options.skillSourcePath, 'companion-skills.json'), 'utf8')
-    ) as string[];
-    for (const name of companionNames) {
-      expect(await readFile(join(directory, manifest.skills, name, 'SKILL.md'), 'utf8')).toBe(
-        await readFile(join(options.skillSourcePath, '..', 'adjustment-skills', name, 'SKILL.md'), 'utf8')
+    const guides = JSON.parse(await readFile(join(skill, 'adjustments.json'), 'utf8')) as Array<{
+      relativePath: string;
+    }>;
+    expect(guides).toHaveLength(6);
+    for (const guide of guides) {
+      expect(await readFile(join(skill, guide.relativePath), 'utf8')).toBe(
+        await readFile(join(options.skillSourcePath, guide.relativePath), 'utf8')
       );
     }
   });

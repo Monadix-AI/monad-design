@@ -5,35 +5,30 @@ interface SkillInstallOptions {
   includeOpenAiMetadata?: boolean;
 }
 
-/** Install named companion skills beside the Live entrypoint so agents discover them normally. */
-export const installSkillBundle = async (
-  sourcePath: string,
-  destinationPath: string,
-  options: SkillInstallOptions = {}
-) => {
-  const names: unknown = JSON.parse(await readFile(join(sourcePath, 'companion-skills.json'), 'utf8'));
+interface AdjustmentGuide {
+  name: string;
+  version: string;
+  relativePath: string;
+}
+
+const readAdjustmentGuides = async (sourcePath: string) => {
+  const guides: unknown = JSON.parse(await readFile(join(sourcePath, 'adjustments.json'), 'utf8'));
   if (
-    !Array.isArray(names) ||
-    !names.length ||
-    names.some((name) => typeof name !== 'string' || !/^monad-design-[a-z]+$/u.test(name)) ||
-    new Set(names).size !== names.length
+    !Array.isArray(guides) ||
+    guides.length === 0 ||
+    guides.some(
+      (guide) =>
+        typeof guide?.name !== 'string' ||
+        !/^monad-design-[a-z]+$/u.test(guide.name) ||
+        typeof guide.version !== 'string' ||
+        !/^references\/adjustments\/[a-z]+\.md$/u.test(guide.relativePath)
+    ) ||
+    new Set(guides.map(({ name }: AdjustmentGuide) => name)).size !== guides.length ||
+    new Set(guides.map(({ relativePath }: AdjustmentGuide) => relativePath)).size !== guides.length
   ) {
-    throw new Error('Invalid Monad Design companion skill manifest.');
+    throw new Error('Invalid Monad Design adjustment guide manifest.');
   }
-  const companions = names.map((name: string) => ({
-    name,
-    source: join(sourcePath, '..', 'adjustment-skills', name),
-    destination: join(dirname(destinationPath), name)
-  }));
-  // Check the entire pack before replacing any installed entrypoint.
-  await readFile(join(sourcePath, 'SKILL.md'), 'utf8');
-  for (const companion of companions) {
-    const body = await readFile(join(companion.source, 'SKILL.md'), 'utf8');
-    if (!body.includes(`name: ${companion.name}\n`)) throw new Error(`Invalid companion skill: ${companion.name}`);
-  }
-  for (const companion of companions) await installSkillDirectory(companion.source, companion.destination, options);
-  await installSkillDirectory(sourcePath, destinationPath, options);
-  return [destinationPath, ...companions.map(({ destination }) => destination)];
+  return guides as AdjustmentGuide[];
 };
 
 export const installSkillDirectory = async (
@@ -77,6 +72,43 @@ export const installSkillDirectory = async (
   } finally {
     await rm(temporaryPath, { recursive: true, force: true });
   }
+};
+
+export const removeLegacyAdjustmentSkills = async (sourcePath: string, destinationPath: string) => {
+  const guides = await readAdjustmentGuides(sourcePath);
+  const removed: string[] = [];
+  for (const guide of guides) {
+    const legacyPath = join(dirname(destinationPath), guide.name);
+    let body: string;
+    try {
+      body = await readFile(join(legacyPath, 'SKILL.md'), 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    if (!new RegExp(`^name:\\s*${guide.name}\\s*$`, 'mu').test(body)) continue;
+    await rm(legacyPath, { recursive: true });
+    removed.push(legacyPath);
+  }
+  return removed;
+};
+
+export const installMonadDesignSkill = async (
+  sourcePath: string,
+  destinationPath: string,
+  options: SkillInstallOptions = {}
+) => {
+  await readFile(join(sourcePath, 'SKILL.md'), 'utf8');
+  const guides = await readAdjustmentGuides(sourcePath);
+  for (const guide of guides) {
+    const body = await readFile(join(sourcePath, guide.relativePath), 'utf8');
+    if (!body.includes(`name: ${guide.name}\n`) || !body.includes(`version: "${guide.version}"\n`)) {
+      throw new Error(`Invalid Monad Design adjustment guide: ${guide.name}`);
+    }
+  }
+  await installSkillDirectory(sourcePath, destinationPath, options);
+  await removeLegacyAdjustmentSkills(sourcePath, destinationPath);
+  return destinationPath;
 };
 
 export const removeLegacyMonadDesignSkill = async (legacyPath: string) => {

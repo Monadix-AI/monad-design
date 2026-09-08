@@ -1,35 +1,43 @@
 import { describe, expect, test } from 'bun:test';
-import { access, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { installSkillBundle, installSkillDirectory, removeLegacyMonadDesignSkill } from '../../src/skill-installer';
+import {
+  installMonadDesignSkill,
+  installSkillDirectory,
+  removeLegacyAdjustmentSkills,
+  removeLegacyMonadDesignSkill
+} from '../../src/skill-installer';
 
 describe('skill installation', () => {
-  test('installs the complete discoverable pack and preserves unrelated skills on replacement', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'monad-design-pack-'));
+  test('installs one self-contained skill and preserves unrelated skills on replacement', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-skill-'));
     try {
-      const source = resolve(import.meta.dir, '../../assets/skill');
+      const source = resolve(import.meta.dir, '../../../../.agents/skills/monad-design');
       const destination = join(root, 'skills', 'monad-design');
-      const names = JSON.parse(await readFile(join(source, 'companion-skills.json'), 'utf8')) as string[];
       await Bun.write(join(root, 'skills', 'unrelated', 'SKILL.md'), 'Keep me');
       for (const includeOpenAiMetadata of [true, false]) {
-        const installed = await installSkillBundle(source, destination, { includeOpenAiMetadata });
-        expect(installed).toHaveLength(7);
-        for (const name of names) {
-          const body = await readFile(join(destination, '..', name, 'SKILL.md'), 'utf8');
-          expect(body).toBe(await readFile(join(source, '..', 'adjustment-skills', name, 'SKILL.md'), 'utf8'));
-          expect(body).toBe(
-            await readFile(resolve(import.meta.dir, '../../../../.agents/skills', name, 'SKILL.md'), 'utf8')
-          );
-          expect(body).toContain('version: "2"');
-          expect(
-            await access(join(destination, '..', name, 'agents/openai.yaml')).then(
-              () => true,
-              () => false
-            )
-          ).toBe(includeOpenAiMetadata);
+        await installMonadDesignSkill(source, destination, { includeOpenAiMetadata });
+        const guides = JSON.parse(await readFile(join(destination, 'adjustments.json'), 'utf8')) as Array<{
+          name: string;
+          version: string;
+          relativePath: string;
+        }>;
+        expect(guides).toHaveLength(6);
+        for (const guide of guides) {
+          const body = await readFile(join(destination, guide.relativePath), 'utf8');
+          expect(body).toBe(await readFile(join(source, guide.relativePath), 'utf8'));
+          expect(body).toContain(`name: ${guide.name}`);
+          expect(body).toContain(`version: "${guide.version}"`);
         }
+        expect((await readdir(join(root, 'skills'))).sort()).toEqual(['monad-design', 'unrelated']);
+        expect(
+          await access(join(destination, 'agents/openai.yaml')).then(
+            () => true,
+            () => false
+          )
+        ).toBe(includeOpenAiMetadata);
       }
       expect(await readFile(join(root, 'skills', 'unrelated', 'SKILL.md'), 'utf8')).toBe('Keep me');
     } finally {
@@ -37,14 +45,12 @@ describe('skill installation', () => {
     }
   });
 
-  test('fails before replacing installed skills when a companion asset is missing', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'monad-design-pack-missing-'));
+  test('fails before replacing an installed skill when its source is missing', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-skill-missing-'));
     try {
-      const assets = join(root, 'assets');
-      await cp(resolve(import.meta.dir, '../../assets/skill'), join(assets, 'skill'), { recursive: true });
       const destination = join(root, 'installed', 'monad-design');
       await Bun.write(join(destination, 'SKILL.md'), 'Previous working entrypoint');
-      await expect(installSkillBundle(join(assets, 'skill'), destination)).rejects.toThrow();
+      await expect(installMonadDesignSkill(join(root, 'missing'), destination)).rejects.toThrow();
       expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toBe('Previous working entrypoint');
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -100,6 +106,25 @@ describe('skill installation', () => {
       )
     ).toBe(false);
     expect(await removeLegacyMonadDesignSkill(unrelated)).toBe(false);
+    expect(await readFile(join(unrelated, 'SKILL.md'), 'utf8')).toContain('another-skill');
+  });
+
+  test('removes managed sibling guides without deleting unrelated skill content', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'monad-design-adjustment-migration-'));
+    const source = resolve(import.meta.dir, '../../../../.agents/skills/monad-design');
+    const destination = join(root, 'skills', 'monad-design');
+    const managed = join(root, 'skills', 'monad-design-layout');
+    const unrelated = join(root, 'skills', 'monad-design-motion');
+    await Bun.write(join(managed, 'SKILL.md'), '---\nname: monad-design-layout\n---\n');
+    await Bun.write(join(unrelated, 'SKILL.md'), '---\nname: another-skill\n---\n');
+
+    expect(await removeLegacyAdjustmentSkills(source, destination)).toEqual([managed]);
+    expect(
+      await access(managed).then(
+        () => true,
+        () => false
+      )
+    ).toBe(false);
     expect(await readFile(join(unrelated, 'SKILL.md'), 'utf8')).toContain('another-skill');
   });
 });

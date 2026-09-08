@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import {
   adjustmentGoalReferences,
@@ -8,7 +10,7 @@ import {
 } from '../../src';
 
 describe('adjustment goal requests', () => {
-  test('transports skill identity and version without embedding the skill body', () => {
+  test('transports guide identity, version and internal path without embedding the body', () => {
     for (const reference of adjustmentGoalReferences) {
       if (!reference.skillName) throw new Error(`Missing skill name for ${reference.id}`);
       const parsed = submitAgentRequestSchema.parse({
@@ -29,7 +31,7 @@ describe('adjustment goal requests', () => {
         {
           name: reference.skillName,
           version: reference.version,
-          relativePath: `../${reference.skillName}/SKILL.md`
+          relativePath: `references/adjustments/${reference.id.replace('monad-goal-', '')}.md`
         }
       ]);
     }
@@ -46,6 +48,15 @@ describe('adjustment goal requests', () => {
       'monad-design-typography'
     );
     expect(requiredAdjustmentSkills([{ ...reference, version: 'old-version' }])[0]?.version).toBe('old-version');
+  });
+
+  test('matches the guides packaged inside the canonical skill', async () => {
+    const catalog = JSON.parse(
+      await readFile(resolve(import.meta.dir, '../../../../.agents/skills/monad-design/adjustments.json'), 'utf8')
+    ) as ReturnType<typeof requiredAdjustmentSkills>;
+    expect(requiredAdjustmentSkills(adjustmentGoalReferences)).toEqual(
+      catalog.map(({ name, version, relativePath }) => ({ name, version, relativePath }))
+    );
   });
 
   test('preserves authored requests and leaves unrelated references opt-in', () => {
