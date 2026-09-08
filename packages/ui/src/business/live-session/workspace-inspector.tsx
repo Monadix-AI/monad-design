@@ -1,10 +1,13 @@
-import type { ReactNode, Ref } from 'react';
+import type { DesignGuidance } from '@monaddesign/client-contract';
+import type { DesignLibraryController } from './design-library';
 
 import AiProgrammingIcon from '@hugeicons/core-free-icons/AiProgrammingIcon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import CheckmarkCircle01Icon from '@hugeicons/core-free-icons/CheckmarkCircle01Icon';
 import CursorRectangleSelection02Icon from '@hugeicons/core-free-icons/CursorRectangleSelection02Icon';
+import { MousePointer2, Pencil, ScanLine } from 'lucide-react';
 import { RadioGroup, ToggleGroup } from 'radix-ui';
+import { type ReactNode, type Ref } from 'react';
 
 import { Button } from '../../primitives/button';
 import { Label } from '../../primitives/label';
@@ -50,6 +53,8 @@ export interface LiveWorkspaceInspectorProps {
     | 'variants_ready'
     | 'working';
   confirmedVariant?: string;
+  designLibrary?: DesignLibraryController;
+  designGuidanceInFlight?: DesignGuidance;
   icons?: LiveWorkspaceInspectorIcons;
   isBusy?: boolean;
   isEndingLive?: boolean;
@@ -60,6 +65,7 @@ export interface LiveWorkspaceInspectorProps {
   onClearSelection: () => void;
   onDiscardVariant: () => void;
   onEndLive?: () => void;
+  onOpenReferences?: () => void;
   onModeChange: (mode: Exclude<LiveWorkspaceMode, 'variants'>) => void;
   onRequestChange: (request: string) => void;
   onSelectVariant: (variant: string) => void;
@@ -90,6 +96,7 @@ export function LiveWorkspaceInspector({
   agentError,
   agentStatus,
   confirmedVariant,
+  designLibrary,
   icons,
   isBusy = false,
   isEndingLive = false,
@@ -100,6 +107,7 @@ export function LiveWorkspaceInspector({
   onClearSelection,
   onDiscardVariant,
   onEndLive,
+  onOpenReferences,
   onModeChange,
   onRequestChange,
   onSelectVariant,
@@ -139,14 +147,18 @@ export function LiveWorkspaceInspector({
   const isReviewingVariants = agentStatus === 'variants_ready' || agentStatus === 'selection_confirmed';
   const selectionConfirmed = agentStatus === 'selection_confirmed';
   const activeVariant = variants.find(({ id }) => id === confirmedVariant || id === selectedVariant);
-  const modeLabel =
-    mode === 'annotate'
-      ? 'Annotating live view'
-      : mode === 'variants'
-        ? 'Reviewing variants'
-        : mode === 'select'
-          ? 'Selecting runtime element'
-          : 'Controlling app';
+  const agentConnected = Boolean(agentStatus && agentStatus !== 'closed');
+  const agentIndicator = !agentConnected
+    ? 'Agent offline'
+    : isAgentWorking
+      ? 'Agent working'
+      : selectionConfirmed
+        ? 'Agent finalizing'
+        : isReviewingVariants
+          ? 'Ready for review'
+          : canRequestAgent
+            ? 'Agent ready'
+            : 'Agent connected';
 
   return (
     <aside
@@ -154,41 +166,42 @@ export function LiveWorkspaceInspector({
       className={`floating-inspector compact ${mode === 'annotate' ? 'annotation-only' : ''}`}
       data-canvas-ui
     >
-      <header className="inspector-command-header">
-        <div className="inspector-command-title">
-          <div>
-            <strong>Live workspace</strong>
-            <span>{modeLabel}</span>
-          </div>
-          <span
-            className={`agent-connection-status ${agentStatus ? 'connected' : 'offline'}`}
-            title={agentStatusLabel(agentStatus)}
+      <ToggleGroup.Root
+        aria-label="Workspace mode"
+        className="mode-switch workspace-edit-tools"
+        onValueChange={(value) => {
+          if (value === 'annotate' || value === 'interact' || value === 'select') onModeChange(value);
+        }}
+        type="single"
+        value={mode === 'variants' ? 'interact' : mode}
+      >
+        {(['interact', 'select', 'annotate'] as const).map((value) => (
+          <ToggleGroup.Item
+            disabled={mode === 'variants' || isBusy}
+            key={value}
+            value={value}
           >
-            <i aria-hidden="true" />
-            {agentStatus ? 'Agent live' : 'Agent offline'}
-          </span>
-        </div>
-        <ToggleGroup.Root
-          aria-label="Workspace mode"
-          className="mode-switch"
-          onValueChange={(value) => {
-            if (value === 'annotate' || value === 'interact' || value === 'select') onModeChange(value);
-          }}
-          type="single"
-          value={mode === 'variants' ? 'interact' : mode}
+            {value === 'interact' ? (
+              <MousePointer2 aria-hidden="true" />
+            ) : value === 'select' ? (
+              <ScanLine aria-hidden="true" />
+            ) : (
+              <Pencil aria-hidden="true" />
+            )}
+            {value.slice(0, 1).toUpperCase() + value.slice(1)}
+          </ToggleGroup.Item>
+        ))}
+      </ToggleGroup.Root>
+      {onOpenReferences && Boolean(designLibrary?.selected.length) && !isAgentWorking && !isReviewingVariants && (
+        <button
+          className="sidebar-reference-summary"
+          onClick={onOpenReferences}
+          type="button"
         >
-          {(['interact', 'select', 'annotate'] as const).map((value) => (
-            <ToggleGroup.Item
-              disabled={mode === 'variants' || isBusy}
-              key={value}
-              value={value}
-            >
-              {value.slice(0, 1).toUpperCase() + value.slice(1)}
-            </ToggleGroup.Item>
-          ))}
-        </ToggleGroup.Root>
-      </header>
-
+          {designLibrary?.selected.length} design {designLibrary?.selected.length === 1 ? 'reference' : 'references'}{' '}
+          attached · View
+        </button>
+      )}
       {mode === 'annotate' ? (
         <section
           aria-label="Implementation notes"
@@ -199,7 +212,6 @@ export function LiveWorkspaceInspector({
         <section className="inspector-section prompt-workbench prompt-workbench-polished prompt-workbench-delight-trace prompt-workbench-animated-cascade">
           <div className="inspector-section-heading">
             <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
-            <span>{agentStatusLabel(agentStatus)}</span>
           </div>
           {!agentStatus && (
             <div
@@ -342,6 +354,12 @@ export function LiveWorkspaceInspector({
                   disabled={!canRequestAgent}
                   id="canvas-agent-request"
                   onChange={(event) => onRequestChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === '@' && designLibrary && onOpenReferences) {
+                      event.preventDefault();
+                      onOpenReferences?.();
+                    }
+                  }}
                   placeholder="Describe what should change and what must stay intact…"
                   rows={5}
                   value={request}
@@ -404,8 +422,16 @@ export function LiveWorkspaceInspector({
           )}
         </section>
       )}
-      {onEndLive && (
-        <section className="live-session-footer">
+      <footer className="live-session-footer">
+        <span
+          className={`agent-connection-status ${agentConnected ? 'connected' : 'offline'} ${isAgentWorking || selectionConfirmed ? 'working' : ''}`}
+          role="status"
+          title={agentStatusLabel(agentStatus)}
+        >
+          <i aria-hidden="true" />
+          {agentIndicator}
+        </span>
+        {onEndLive && (
           <Button
             className="end-live-action"
             disabled={isEndingLive}
@@ -415,8 +441,8 @@ export function LiveWorkspaceInspector({
           >
             {isEndingLive ? 'Ending live…' : 'End live'}
           </Button>
-        </section>
-      )}
+        )}
+      </footer>
     </aside>
   );
 }

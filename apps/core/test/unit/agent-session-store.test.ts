@@ -108,6 +108,43 @@ describe('agent session store', () => {
     ]);
   });
 
+  test('keeps reference snapshots immutable and restores them after a restart', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'design-reference-'));
+    try {
+      const persistencePath = join(directory, 'sessions.json');
+      const sessions = new AgentSessionStore(projectStore, { persistencePath });
+      const session = await sessions.create('/tmp/example');
+      sessions.connected(session.id, { udid: 'simulator-1', bundleIdentifier: 'com.example.app' });
+      const reference = {
+        id: 'style-1',
+        title: 'Editorial',
+        kind: 'style' as const,
+        source: 'Monad Design',
+        version: '1',
+        platform: 'any' as const,
+        instructions: 'Use generous spacing.'
+      };
+      await sessions.request(session.id, {
+        request: 'Polish the card',
+        variantCount: 1,
+        context: {
+          simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' },
+          designGuidance: { references: [reference], scope: 'screen', focus: 'Spacing', preserve: 'Navigation' }
+        }
+      });
+      reference.instructions = 'Changed after submission';
+      const restored = new AgentSessionStore(projectStore, { persistencePath });
+      expect(restored.get(session.id).changeRequest?.context.designGuidance?.references[0]?.instructions).toBe(
+        'Use generous spacing.'
+      );
+      expect(sessions.get(session.id).changeRequest?.context.designGuidance?.references[0]?.instructions).toBe(
+        'Use generous spacing.'
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   test('requires and persists framework adapters before opening the Simulator picker', async () => {
     const unconfigured = { ...project, targetApps: [{ bundleIdentifier: 'com.example.app', name: 'Example App' }] };
     let configured = false;

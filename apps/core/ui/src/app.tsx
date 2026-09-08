@@ -97,7 +97,6 @@ export function App() {
     variantTarget: session?.changeRequest ? captureTargetFromContext(session.changeRequest.context) : undefined
   });
   const {
-    annotationMode: isAnnotationMode,
     axError,
     capturingVariant,
     isStreamReady,
@@ -262,7 +261,7 @@ export function App() {
             designDocument={
               <Suspense fallback={null}>
                 <DesignDocumentCard
-                  collapse={isAnnotationMode || isSelectionMode}
+                  embedded
                   loadDocument={loadDesignDocument}
                   projectId={session.project.id}
                 />

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./design-document.css";
+@import "./business/live-session/design-library.css";
 @source ".";
 @source "../../../apps/desktop/src";
 @source "../../../apps/core/ui/src";
@@ -3675,48 +3676,17 @@ h1 {
   flex: 0 0 auto;
   padding: 16px 18px 15px;
 }
-.inspector-command-header {
-  flex: 0 0 auto;
-  padding: 16px 17px 15px;
-  background: var(--panel-fill);
-  box-shadow: none;
-}
-.inspector-command-title {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-.inspector-command-title > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.inspector-command-title strong {
-  font-size: 14px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-:where(.inspector-command-title > div > span) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 9px;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
 .agent-connection-status {
   display: inline-flex;
   flex: 0 0 auto;
   gap: 6px;
   align-items: center;
   min-height: 24px;
-  padding: 0 8px;
-  font-size: 9px;
-  font-weight: 650;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 500;
   color: var(--muted-foreground);
-  background: rgb(255 255 255 / 5%);
-  border-radius: 999px;
+  background: transparent;
 }
 .agent-connection-status i {
   width: 6px;
@@ -3726,6 +3696,9 @@ h1 {
 }
 .agent-connection-status.connected {
   color: var(--success-emphasis);
+}
+.agent-connection-status.working {
+  color: var(--primary-emphasis);
 }
 .agent-connection-status.offline {
   color: var(--muted-foreground);
@@ -3815,9 +3788,13 @@ h1 {
 .live-session-footer {
   display: flex;
   flex: 0 0 auto;
-  justify-content: flex-end;
-  padding: 10px 14px 12px;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 8px 14px;
   background: var(--elevated-fill);
+  border-top: 1px solid var(--border);
   box-shadow: none;
 }
 .end-live-action {
@@ -4132,16 +4109,6 @@ h1 {
 .floating-inspector.compact {
   width: 326px;
   border-radius: 13px;
-}
-.floating-inspector.compact .inspector-command-header {
-  padding: 11px 12px 10px;
-}
-.floating-inspector.compact :where(.inspector-command-title strong) {
-  font-size: 12px;
-}
-.floating-inspector.compact .agent-connection-status {
-  min-height: 22px;
-  padding-inline: 7px;
 }
 .floating-inspector.compact .mode-switch {
   margin-top: 9px;
@@ -4807,9 +4774,6 @@ h1 {
 }
 :root[data-theme="light"] .floating-inspector {
   box-shadow: var(--shadow-floating);
-}
-:root[data-theme="light"] .inspector-command-header {
-  background: var(--panel-fill);
 }
 :root[data-theme="light"] .inspector-actions button:hover:not(:disabled) {
   background: var(--control-hover-fill);

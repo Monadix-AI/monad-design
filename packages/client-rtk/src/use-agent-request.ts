@@ -2,6 +2,7 @@ import type {
   AccessibilitySnapshotResponse,
   AgentSessionSnapshot,
   AgentTurnContext,
+  DesignGuidance,
   IOSSimulator
 } from '@monaddesign/client-contract';
 import type { ClientApi } from './client-api';
@@ -18,6 +19,8 @@ export interface AgentRequestControllerOptions {
   activeSession: AgentSessionSnapshot | null;
   agentRequest: string;
   connected?: IOSSimulator;
+  designGuidance?: DesignGuidance;
+  onReferencesSubmitted?: () => void;
   connection: { bundleIdentifier: string } | null;
   runtimeClient: ClientApi | null;
   selectedElement?: AXElement;
@@ -32,6 +35,8 @@ export const useAgentRequest = ({
   activeSession,
   agentRequest,
   connected,
+  designGuidance,
+  onReferencesSubmitted,
   connection,
   runtimeClient,
   selectedElement,
@@ -55,7 +60,9 @@ export const useAgentRequest = ({
         })
       : null;
   const agentTurnPayload =
-    agentTurnContext && agentRequest.trim() ? serializeAgentTurn(agentRequest, agentTurnContext) : '';
+    agentTurnContext && agentRequest.trim()
+      ? serializeAgentTurn(agentRequest, { ...agentTurnContext, ...(designGuidance ? { designGuidance } : {}) })
+      : '';
 
   const copyAgentTurnPayload = async () => {
     if (!agentTurnPayload) return;
@@ -87,11 +94,12 @@ export const useAgentRequest = ({
       const next = await runtimeClient.submitAgentRequest(session.id, {
         request,
         variantCount,
-        context: await context(),
+        context: { ...(await context()), ...(designGuidance ? { designGuidance } : {}) },
         ...(annotationScreenshot ? { annotationScreenshot } : {})
       });
       onSessionChanged(next);
       onRequestChanged('');
+      onReferencesSubmitted?.();
       setVariantCount(1);
     } catch (sessionError) {
       const message = errorMessage(sessionError);
@@ -110,7 +118,7 @@ export const useAgentRequest = ({
       session: activeSession,
       request: agentRequest,
       context: async () => {
-        if (selectedElement) return agentTurnContext;
+        if (selectedElement && designGuidance?.scope !== 'screen') return agentTurnContext;
         if (!connected) throw new Error('The current Simulator screen is not available.');
         const currentSnapshot = await runtimeClient.accessibility();
         onSnapshotChanged(currentSnapshot);

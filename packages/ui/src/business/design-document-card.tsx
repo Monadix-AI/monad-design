@@ -205,11 +205,13 @@ const sanitizeHtml = (html: string) => {
 };
 
 export function DesignDocumentCard({
-  collapse,
+  collapse = false,
+  embedded = false,
   loadDocument,
   projectId
 }: {
-  collapse: boolean;
+  collapse?: boolean;
+  embedded?: boolean;
   loadDocument: (projectId: string) => Promise<ProjectDesignDocument>;
   projectId: string;
 }) {
@@ -257,7 +259,7 @@ export function DesignDocumentCard({
     return { ...parsed, ...sanitizeHtml(marked.parse(parsed.body, { gfm: true, breaks: false }) as string) };
   }, [document, lastSuccessful]);
 
-  if (!expanded)
+  if (!expanded && !embedded)
     return (
       <button
         aria-label="Open DESIGN.md preview"
@@ -275,23 +277,25 @@ export function DesignDocumentCard({
   return (
     <aside
       aria-label="DESIGN.md preview"
-      className="design-document-card expanded"
+      className={embedded ? 'design-document-card embedded expanded' : 'design-document-card expanded'}
       data-canvas-ui
       onWheel={(event) => event.stopPropagation()}
     >
-      <div className="design-document-header">
-        <FileText aria-hidden="true" />
-        <div>
-          <strong>DESIGN.md</strong>
+      {!embedded && (
+        <div className="design-document-header">
+          <FileText aria-hidden="true" />
+          <div>
+            <strong>DESIGN.md</strong>
+          </div>
+          <button
+            aria-label="Close DESIGN.md preview"
+            onClick={() => setExpanded(false)}
+            type="button"
+          >
+            <X />
+          </button>
         </div>
-        <button
-          aria-label="Close DESIGN.md preview"
-          onClick={() => setExpanded(false)}
-          type="button"
-        >
-          <X />
-        </button>
-      </div>
+      )}
       <div className="design-document-content">
         {!document && !error ? (
           <p className="design-document-state">

@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useDesktopApp } from '@/desktop-app-provider';
 
 export function DesignDocumentCard() {
-  const { activeProject, isAnnotationMode, isAXTreeOpen, runtimeClient } = useDesktopApp();
+  const { activeProject, runtimeClient } = useDesktopApp();
   const loadDocument = useCallback(
     (projectId: string) => {
       if (!runtimeClient) throw new Error('Core is not available.');
@@ -16,7 +16,7 @@ export function DesignDocumentCard() {
   if (!activeProject || !runtimeClient) return null;
   return (
     <SharedDesignDocumentCard
-      collapse={isAnnotationMode || isAXTreeOpen}
+      embedded
       loadDocument={loadDocument}
       projectId={activeProject.id}
     />

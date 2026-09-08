@@ -250,6 +250,25 @@ describe('Core server', () => {
 
   test('shares one live editing session between MCP and the paired companion', async () => {
     const { origin } = await startServer();
+    const referenceImage =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWZkAAAAASUVORK5CYII=';
+    const designGuidance = {
+      scope: 'screen',
+      focus: 'Spacing',
+      preserve: 'Navigation',
+      references: [
+        {
+          id: 'test-reference',
+          title: 'Card reference',
+          kind: 'reference',
+          source: 'card.png',
+          version: '1',
+          platform: 'any',
+          instructions: 'Borrow spacing only.',
+          image: referenceImage
+        }
+      ]
+    };
     expect((await fetch(`${origin}/v1/agent-session/active`)).status).toBe(200);
 
     const client = new Client({ name: 'monad-design-test', version: '1.0.0' });
@@ -313,6 +332,7 @@ describe('Core server', () => {
           request: 'Increase the title contrast.',
           variantCount: 2,
           context: {
+            designGuidance,
             simulator: { udid: 'simulator-1', bundleIdentifier: 'com.example.app' },
             currentScreen: { screen: { width: 390, height: 844 }, elements: [] }
           }
@@ -321,7 +341,28 @@ describe('Core server', () => {
       expect(requestResponse.status).toBe(200);
       expect(await requestResponse.json()).toMatchObject({
         status: 'change_requested',
-        changeRequest: { request: 'Increase the title contrast.', variantCount: 2 }
+        changeRequest: { request: 'Increase the title contrast.', variantCount: 2, context: { designGuidance } }
+      });
+
+      const agentView = await client.callTool({
+        name: 'get_live_session',
+        arguments: { sessionId: active.session.id }
+      });
+      expect(agentView.content).toContainEqual({
+        type: 'image',
+        mimeType: 'image/png',
+        data: referenceImage.split(',')[1]
+      });
+      expect(JSON.stringify(agentView.structuredContent)).not.toContain('iVBOR');
+      expect(JSON.stringify(agentView.structuredContent)).toContain('Borrow spacing only.');
+      const waitingView = await client.callTool({
+        name: 'wait_for_change',
+        arguments: { sessionId: active.session.id, afterRevision: 0, waitMs: 0 }
+      });
+      expect(waitingView.content).toContainEqual({
+        type: 'image',
+        mimeType: 'image/png',
+        data: referenceImage.split(',')[1]
       });
 
       const projectsResource = await client.readResource({ uri: 'monaddesign://projects' });

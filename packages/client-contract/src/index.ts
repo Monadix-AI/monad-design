@@ -233,8 +233,39 @@ export const agentSessionStatusSchema = z.enum([
 ]);
 export type AgentSessionStatus = z.infer<typeof agentSessionStatusSchema>;
 
+// Request-local copies keep library updates from changing an in-flight request.
+export const designReferenceSchema = z.object({
+  id: z.string().min(1).max(120),
+  title: z.string().trim().min(1).max(120),
+  kind: z.enum(['style', 'skill', 'reference']),
+  source: z.string().min(1).max(500),
+  version: z.string().min(1).max(120),
+  platform: z.enum(['any', 'native', 'web', 'unknown']),
+  instructions: z.string().trim().min(1).max(30_000),
+  image: z
+    .string()
+    .max(350_000)
+    .regex(/^data:image\/(?:png;base64,iVBORw0KGgo|jpeg;base64,\/9j\/)[A-Za-z0-9+/=\r\n]+$/u)
+    .optional()
+});
+export type DesignReference = z.infer<typeof designReferenceSchema>;
+export const designLibrarySchema = z.object({
+  entries: z.array(designReferenceSchema).max(40),
+  favorites: z.array(z.string().max(120)).max(100),
+  recent: z.array(z.string().max(120)).max(12)
+});
+export type DesignLibrary = z.infer<typeof designLibrarySchema>;
+export const designGuidanceSchema = z.object({
+  references: z.array(designReferenceSchema).min(1).max(4),
+  scope: z.enum(['selected_element', 'screen']),
+  focus: z.string().trim().max(1000),
+  preserve: z.string().trim().max(1000)
+});
+export type DesignGuidance = z.infer<typeof designGuidanceSchema>;
+
 const agentElementSchema = z.record(z.string(), z.unknown());
 const agentTurnInputContextSchema = z.object({
+  designGuidance: designGuidanceSchema.optional(),
   simulator: z.object({
     udid: z.string().min(1),
     bundleIdentifier: z.string().min(1),

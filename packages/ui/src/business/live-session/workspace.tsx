@@ -1,8 +1,11 @@
+import { ChevronDown, FileText, Images } from 'lucide-react';
+import { Collapsible } from 'radix-ui';
 import { type HTMLAttributes, type ReactNode, type Ref, useState } from 'react';
 
 import { CanvasZoomControls, type CanvasZoomControlsProps } from '../canvas-controls';
 import { VariantComparison, type VariantComparisonProps } from '../variant-comparison';
 import { LiveWorkspaceFrame } from './app-frame';
+import { DesignGuidanceReview, DesignLibraryPicker } from './design-library';
 import { LiveSimulatorWorkspaceCanvas, type LiveSimulatorWorkspaceCanvasProps } from './simulator-workspace-canvas';
 import {
   LiveWorkspaceInspector,
@@ -27,6 +30,7 @@ export interface LiveWorkspaceProps {
   mode: LiveWorkspaceMode;
   preview?: ReactNode;
   simulator?: LiveSimulatorWorkspaceCanvasProps;
+  showReferences?: boolean;
   variantComparison?: VariantComparisonProps;
   zoomControls: Omit<CanvasZoomControlsProps, 'mode'>;
 }
@@ -48,10 +52,16 @@ export function LiveWorkspace({
   mode,
   preview,
   simulator,
+  showReferences = false,
   variantComparison,
   zoomControls
 }: LiveWorkspaceProps) {
   const [annotationNotesHost, setAnnotationNotesHost] = useState<HTMLDivElement | null>(null);
+  const [designOpen, setDesignOpen] = useState(false);
+  const [referencesOpen, setReferencesOpen] = useState(false);
+  const reviewingGuidance = ['change_requested', 'working', 'variants_ready', 'selection_confirmed'].includes(
+    inspector.agentStatus ?? ''
+  );
   const canvasMode = mode === 'select' ? 'interact' : mode;
   const workspaceCanvas =
     mode === 'variants'
@@ -72,14 +82,50 @@ export function LiveWorkspace({
       heading={heading}
       inspector={
         <>
-          {designDocument}
           {preview ?? (variantComparison ? <VariantComparison {...variantComparison} /> : null)}
+          <div
+            className="workspace-support-panels"
+            data-canvas-ui
+          >
+            <WorkspaceSupportPanel
+              icon={<FileText />}
+              onOpenChange={setDesignOpen}
+              open={designOpen}
+              title="DESIGN.md"
+            >
+              {designDocument ?? <p className="sidebar-empty-state">Connect a project to view its DESIGN.md.</p>}
+            </WorkspaceSupportPanel>
+            {showReferences && (
+              <WorkspaceSupportPanel
+                icon={<Images />}
+                onOpenChange={setReferencesOpen}
+                open={referencesOpen}
+                title="References"
+              >
+                <div className="workspace-reference-panel-body">
+                  {reviewingGuidance && inspector.designGuidanceInFlight ? (
+                    <DesignGuidanceReview guidance={inspector.designGuidanceInFlight} />
+                  ) : inspector.designLibrary ? (
+                    <DesignLibraryPicker
+                      disabled={inspector.agentStatus !== 'awaiting_request' || Boolean(inspector.isSendingRequest)}
+                      hasSelection={Boolean(inspector.selectedElement)}
+                      library={inspector.designLibrary}
+                      onDone={() => setReferencesOpen(false)}
+                    />
+                  ) : (
+                    <p className="sidebar-empty-state">Connect a project to use design references.</p>
+                  )}
+                </div>
+              </WorkspaceSupportPanel>
+            )}
+          </div>
           <LiveWorkspaceInspector
             {...inspector}
             annotationNotesHostRef={setAnnotationNotesHost}
             isEndingLive={activeSession?.isEnding}
             mode={mode}
             onEndLive={activeSession?.onEnd}
+            onOpenReferences={showReferences ? () => setReferencesOpen(true) : undefined}
           />
           <CanvasZoomControls
             {...zoomControls}
@@ -89,5 +135,39 @@ export function LiveWorkspace({
       }
       mode={canvasMode}
     />
+  );
+}
+
+function WorkspaceSupportPanel({
+  title,
+  icon,
+  open,
+  onOpenChange,
+  children
+}: {
+  title: string;
+  icon: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible.Root
+      className="workspace-support-panel"
+      onOpenChange={onOpenChange}
+      open={open}
+    >
+      <Collapsible.Trigger className="workspace-support-trigger">
+        {icon}
+        <span>{title}</span>
+        <ChevronDown className="workspace-support-chevron" />
+      </Collapsible.Trigger>
+      <Collapsible.Content
+        className="workspace-support-content"
+        forceMount
+      >
+        {children}
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 }

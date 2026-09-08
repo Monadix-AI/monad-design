@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { type AccessibilityPathSetter, useAccessibility } from './use-accessibility';
 import { useAgentRequest } from './use-agent-request';
+import { useDesignLibrary } from './use-design-library';
 import { type SimulatorRuntimeConnection, useSimulatorRuntime } from './use-simulator-runtime';
 import { useVariantCapture, type VariantCaptureControllerOptions } from './use-variant-capture';
 
@@ -83,7 +84,10 @@ export function useLiveWorkspaceController({
     onSelectedPathChange: setSelectedPath,
     runtimeClient: client
   });
+  const designLibrary = useDesignLibrary(session?.id, Boolean(accessibility.selectedElement));
   const request = useAgentRequest({
+    designGuidance: designLibrary.guidance,
+    onReferencesSubmitted: designLibrary.submitted,
     activeSession: session,
     agentRequest,
     connected,
@@ -198,6 +202,8 @@ export function useLiveWorkspaceController({
         : 'interact';
   const isSimulatorInputDisabled = annotationMode || selectionMode;
   const inspector = {
+    designLibrary,
+    designGuidanceInFlight: session?.changeRequest?.context.designGuidance,
     agentError: request.agentSessionError,
     agentStatus: session?.status,
     confirmedVariant: session?.confirmedSelection?.variant,

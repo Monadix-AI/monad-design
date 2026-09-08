@@ -28,6 +28,43 @@ const zoomControls: LiveWorkspaceProps['zoomControls'] = {
 };
 
 describe('live workspace', () => {
+  test('hides references by default while keeping canvas editing modes', () => {
+    const library = {
+      entries: [],
+      selected: [],
+      favorites: [],
+      recent: [],
+      error: null,
+      scope: 'screen' as const,
+      focus: '',
+      preserve: '',
+      setScope: () => {},
+      setFocus: () => {},
+      setPreserve: () => {},
+      toggle: () => {},
+      toggleFavorite: () => {},
+      remove: () => {},
+      importFile: async () => {}
+    };
+    for (const mode of ['interact', 'select', 'annotate'] as const) {
+      const markup = renderToStaticMarkup(
+        <LiveWorkspace
+          inspector={{ ...inspector, designLibrary: library }}
+          mode={mode}
+          zoomControls={zoomControls}
+        />
+      );
+      expect(markup).toContain('DESIGN.md');
+      expect(markup).not.toContain('References');
+      expect(markup).toContain('aria-expanded="false"');
+      expect(markup).not.toContain('role="tablist"');
+      expect(markup).toContain('Workspace mode');
+      expect(markup).toContain('Agent ready');
+      if (mode === 'annotate') expect(markup).toContain('Implementation notes');
+      else expect(markup).toContain('Change request');
+    }
+  });
+
   test('shows only the comparison preview in variants mode', () => {
     const markup = renderToStaticMarkup(
       <LiveWorkspace
