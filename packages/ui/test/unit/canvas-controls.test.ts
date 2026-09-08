@@ -3,7 +3,8 @@ import { describe, expect, test } from 'bun:test';
 import {
   canvasModeShowsSelectionOverlay,
   fitLiveWorkspaceCanvas,
-  liveSimulatorDeviceFrame
+  liveSimulatorDeviceFrame,
+  webDeviceControlsReservedHeight
 } from '../../src/business/canvas-controls';
 
 const deviceChrome = {
@@ -68,12 +69,33 @@ describe('default Simulator size', () => {
   test('keeps native logical size on a large canvas', () => {
     expect(fitLiveWorkspaceCanvas({ width: 2000, height: 1600 }, { width: 430, height: 920 }).scale).toBe(1);
   });
-  test('fits a laptop canvas with space for controls and the inspector', () => {
-    const { scale } = fitLiveWorkspaceCanvas({ width: 1280, height: 800 }, { width: 430, height: 920 });
-    expect(scale).toBeGreaterThan(0.6);
-    expect(scale).toBeLessThan(0.7);
+  for (const device of [
+    { width: 430, height: 920 },
+    { width: 920, height: 430 },
+    { width: 2000, height: 2000 }
+  ]) {
+    test(`keeps ${device.width}x${device.height} inside the unobstructed canvas`, () => {
+      const viewport = { width: 1280, height: 800 };
+      const insets = { top: 190, left: 100, right: 400, bottom: 90 };
+      const { scale, offset } = fitLiveWorkspaceCanvas(viewport, device, insets);
+      const center = { x: viewport.width / 2 + offset.x, y: viewport.height / 2 + offset.y };
+      expect(center.x - (device.width * scale) / 2).toBeGreaterThanOrEqual(insets.left);
+      expect(center.x + (device.width * scale) / 2).toBeLessThanOrEqual(viewport.width - insets.right);
+      expect(center.y - (device.height * scale) / 2).toBeGreaterThanOrEqual(insets.top);
+      expect(center.y + (device.height * scale) / 2 + webDeviceControlsReservedHeight).toBeLessThanOrEqual(
+        viewport.height - insets.bottom
+      );
+    });
+  }
+  test('can fit below manual minimum zoom instead of covering controls', () => {
+    expect(fitLiveWorkspaceCanvas({ width: 800, height: 560 }, { width: 2000, height: 2000 }).scale).toBeLessThan(0.25);
   });
-  test('never initializes below the minimum zoom', () => {
-    expect(fitLiveWorkspaceCanvas({ width: 500, height: 400 }, { width: 2000, height: 2000 }).scale).toBe(0.25);
+  test('recenters and shrinks when a support panel consumes more space', () => {
+    const viewport = { width: 1440, height: 900 };
+    const device = { width: 920, height: 430 };
+    const closed = fitLiveWorkspaceCanvas(viewport, device);
+    const open = fitLiveWorkspaceCanvas(viewport, device, { top: 190, left: 88, right: 744, bottom: 80 });
+    expect(open.scale).toBeLessThan(closed.scale);
+    expect(open.offset.x).toBeLessThan(closed.offset.x);
   });
 });

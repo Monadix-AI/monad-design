@@ -2,7 +2,9 @@ import { clampCanvasOffset, maximumCanvasScale, minimumCanvasScale } from '@mona
 import { type PointerEvent, useCallback, useEffect, useRef, useState, type WheelEvent } from 'react';
 
 import {
+  type CanvasFitInsets,
   type CanvasMode,
+  canvasFitGap,
   fitLiveWorkspaceCanvas,
   liveWorkspaceCanvasPlacement,
   webDeviceControlsReservedHeight
@@ -20,6 +22,33 @@ export const canvasModeAllowsViewportNavigation = (mode: CanvasMode) => {
 export const canvasEventTargetsUi = (target: EventTarget | null) => {
   const closest = (target as { closest?: (selector: string) => Element | null } | null)?.closest;
   return typeof closest === 'function' && Boolean(closest.call(target, '[data-canvas-ui]'));
+};
+
+const canvasFitSelectors = {
+  top: '.canvas-page-heading, .workspace-support-panel[data-state="closed"]',
+  left: '.workspace-tool-rail',
+  right: '.floating-inspector, .workspace-support-panel[data-state="open"]',
+  bottom: '.zoom-controls, .canvas-error'
+} as const;
+const canvasFitSelector = Object.values(canvasFitSelectors).join(', ');
+
+export const measureCanvasFitInsets = (viewport: HTMLElement): CanvasFitInsets => {
+  const bounds = viewport.getBoundingClientRect();
+  const insets = { top: canvasFitGap, right: canvasFitGap, bottom: canvasFitGap, left: canvasFitGap };
+  for (const edge of Object.keys(canvasFitSelectors) as (keyof CanvasFitInsets)[]) {
+    for (const element of viewport.querySelectorAll<HTMLElement>(canvasFitSelectors[edge])) {
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const occupied = {
+        top: rect.bottom - bounds.top,
+        right: bounds.right - rect.left,
+        bottom: bounds.bottom - rect.top,
+        left: rect.right - bounds.left
+      };
+      insets[edge] = Math.max(insets[edge], occupied[edge] + canvasFitGap);
+    }
+  }
+  return insets;
 };
 
 interface CanvasViewportSnapshot {
@@ -144,7 +173,8 @@ export function useCanvasViewport({
     }
     const nextView = fitLiveWorkspaceCanvas(
       { width: viewport.clientWidth, height: viewport.clientHeight },
-      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight }
+      { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight },
+      measureCanvasFitInsets(viewport)
     );
     commitView(nextView.scale, nextView.offset);
   }, [commitView, deviceFrame.frameHeight, deviceFrame.frameWidth, mode]);
@@ -155,18 +185,36 @@ export function useCanvasViewport({
     if (!resetKey) return;
     viewChanged.current = false;
     temporaryView.current = null;
-    const frame = window.requestAnimationFrame(() => fitRef.current());
-    const observer = new ResizeObserver(() => {
-      if (!viewChanged.current) {
-        fitRef.current();
-        return;
-      }
-      commitViewRef.current(scaleRef.current, constrainOffsetRef.current(offsetRef.current, scaleRef.current));
-    });
-    if (canvas.current) observer.observe(canvas.current);
+    let frame = 0;
+    const update = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (!viewChanged.current) fitRef.current();
+        else commitViewRef.current(scaleRef.current, constrainOffsetRef.current(offsetRef.current, scaleRef.current));
+      });
+    };
+    const observer = new ResizeObserver(update);
+    const observeControls = () => {
+      observer.disconnect();
+      if (!canvas.current) return;
+      observer.observe(canvas.current);
+      for (const element of canvas.current.querySelectorAll(canvasFitSelector)) observer.observe(element);
+      update();
+    };
+    const mutations = new MutationObserver(observeControls);
+    if (canvas.current) {
+      mutations.observe(canvas.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-state']
+      });
+    }
+    observeControls();
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
+      mutations.disconnect();
     };
   }, [resetKey]);
 
@@ -185,7 +233,8 @@ export function useCanvasViewport({
 
   useEffect(() => {
     if (!resetKey) return;
-    commitView(scaleRef.current, constrainOffset(offsetRef.current, scaleRef.current));
+    if (!viewChanged.current) fitRef.current();
+    else commitView(scaleRef.current, constrainOffset(offsetRef.current, scaleRef.current));
   }, [commitView, constrainOffset, resetKey]);
 
   const changeScale = (nextScale: number) => {
@@ -284,7 +333,10 @@ export function useCanvasViewport({
     canvas,
     changeScale,
     finishPointer,
-    fit: fitCanvas,
+    fit: () => {
+      viewChanged.current = false;
+      fitCanvas();
+    },
     handlePointerDown,
     handlePointerMove,
     handleWheel,

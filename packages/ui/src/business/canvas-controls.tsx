@@ -1,3 +1,4 @@
+import type { SimulatorOrientation } from '@monaddesign/simulator';
 import type { ReactNode } from 'react';
 
 import {
@@ -11,38 +12,41 @@ import {
   ZoomOutIcon
 } from '@hugeicons/core-free-icons';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
-import { fitCanvasScale, minimumCanvasScale, type SimulatorOrientation } from '@monaddesign/simulator';
 
 import { ActionIcon } from './action-icon';
 
 export type CanvasMode = 'annotate' | 'interact' | 'variants';
-export const webDeviceControlsReservedHeight = 64;
+export const webDeviceControlsReservedHeight = 76;
 export const liveWorkspaceInspectorReservedWidth = 380;
 
 export const canvasModeShowsSelectionOverlay = (mode: CanvasMode, selectionMode: boolean) =>
   mode === 'interact' && selectionMode;
 
+export interface CanvasFitInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export const canvasFitGap = 24;
+
 export const fitLiveWorkspaceCanvas = (
   viewport: { height: number; width: number },
-  device: { height: number; width: number }
-) => ({
-  offset: {
-    x: -liveWorkspaceInspectorReservedWidth / 2,
-    y: -webDeviceControlsReservedHeight / 2
-  },
-  scale: Math.max(
-    minimumCanvasScale,
-    fitCanvasScale(
-      viewport,
-      { width: device.width, height: device.height + webDeviceControlsReservedHeight },
-      {
-        horizontalReserve: liveWorkspaceInspectorReservedWidth,
-        maximumScale: 1,
-        verticalReserve: 180
-      }
-    )
-  )
-});
+  device: { height: number; width: number },
+  insets: CanvasFitInsets = { top: 190, right: 380, bottom: 80, left: 88 }
+) => {
+  // Floating controls stay at CSS pixel size, independently of the device zoom.
+  const width = Math.max(1, viewport.width - insets.left - insets.right);
+  const height = Math.max(1, viewport.height - insets.top - insets.bottom - webDeviceControlsReservedHeight);
+  return {
+    offset: {
+      x: (insets.left - insets.right) / 2,
+      y: (insets.top - insets.bottom - webDeviceControlsReservedHeight) / 2
+    },
+    scale: Math.min(1, width / device.width, height / device.height)
+  };
+};
 
 export const liveWorkspaceCanvasPlacement = (mode: CanvasMode) => ({
   left: mode === 'variants' ? '18%' : '50%',
@@ -139,7 +143,7 @@ export function SimulatorDeviceControls({
   return (
     <fieldset
       className="device-controls"
-      style={{ transform: `translateX(-50%) scale(${1 / scale})` }}
+      style={{ top: `calc(100% + ${canvasFitGap / scale}px)`, transform: `translateX(-50%) scale(${1 / scale})` }}
     >
       <legend className="sr-only">Simulator controls</legend>
       <button
