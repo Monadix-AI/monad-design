@@ -39,6 +39,7 @@ export function App() {
     simulators
   } = useCoreLiveSession(coreClient, setErrorMessage, isChoosingSimulator);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectLabel, setConnectLabel] = useState('');
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
   const [agentRequest, setAgentRequest] = useState('');
@@ -170,13 +171,16 @@ export function App() {
       .finally(() => setIsRestoringConnection(false));
   }, [isChoosingSimulator, refreshSession, session, setIsStreamReady, simulators]);
 
-  const connectSimulator = async () => {
+  const connectSimulator = async (rebuild = false) => {
     if (!session || connectingSimulator.current) return;
     connectingSimulator.current = true;
     setIsConnecting(true);
     try {
       setErrorMessage('');
-      await coreClient.connect(session.project.id, selectedUdid, selectedBundleIdentifier);
+      await coreClient.connect(session.project.id, selectedUdid, selectedBundleIdentifier, {
+        rebuild,
+        onProgress: setConnectLabel
+      });
       const nextSession = await coreClient.connectAgentSession(session.id, {
         udid: selectedUdid,
         bundleIdentifier: selectedBundleIdentifier
@@ -233,6 +237,7 @@ export function App() {
           </section>
         ) : session.status === 'selecting_simulator' || !session.connection || isChoosingSimulator ? (
           <LiveSessionSimulatorPicker
+            connectLabel={isConnecting ? connectLabel : undefined}
             error={error}
             isConnecting={isConnecting}
             isScanning={isScanning}

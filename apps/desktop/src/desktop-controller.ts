@@ -52,6 +52,7 @@ export function useDesktopController() {
   const [selectedTargetBundleIdentifier, setSelectedTargetBundleIdentifier] = useState('');
   const [connection, setConnection] = useState<ActiveConnection | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectLabel, setConnectLabel] = useState('');
   const isAXTreeOpen = useStore(workspaceStore, (state) => state.selectionMode);
   const setIsAXTreeOpen = useStore(workspaceStore, (state) => state.setSelectionMode);
   const selectedAXPath = useStore(workspaceStore, (state) => state.selectedElementPath);
@@ -326,18 +327,21 @@ export function useDesktopController() {
     setError(null);
   };
 
-  const connect = async () => {
+  const connect = async (rebuild = false) => {
     if (!selectedUdid || !activeProject || !selectedTargetBundleIdentifier || !runtimeClient) return;
     setIsConnecting(true);
     setIsStreamReady(false);
     setError(null);
+    let didConnect = false;
     try {
       const selectedSimulator = orderedSimulators.find(({ udid }) => udid === selectedUdid);
       const connectedRuntime = await runtimeClient.connect(
         activeProject.id,
         selectedUdid,
-        selectedTargetBundleIdentifier
+        selectedTargetBundleIdentifier,
+        { rebuild, onProgress: setConnectLabel }
       );
+      didConnect = true;
       if (selectedSimulator?.screen && selectedSimulator.screen.scale > 0) {
         initializeScreen({
           width: selectedSimulator.screen.width,
@@ -381,10 +385,9 @@ export function useDesktopController() {
         setLogicalScreenSize(snapshot.screen);
       }
     } catch (connectError) {
-      await runtimeClient.disconnect().catch(() => undefined);
-      setConnection(null);
       setError(errorMessage(connectError));
-      void navigate({ to: '/' });
+      if (didConnect) await runtimeClient.disconnect().catch(() => undefined);
+      setConnection(null);
       void scan();
     } finally {
       setIsConnecting(false);
@@ -447,6 +450,7 @@ export function useDesktopController() {
     isAXTreeOpen,
     isAnnotationMode,
     isConnecting,
+    connectLabel,
     isLandscape,
     isLoadingProjects,
     isOpeningProject,

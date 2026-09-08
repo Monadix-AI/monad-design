@@ -30,6 +30,7 @@ import type {
   ReportVariantCaptureFailureRequest,
   ScreenshotResponse,
   SimulatorConnectionResponse,
+  SimulatorConnectStatus,
   SubmitAgentRequest
 } from '@monaddesign/client-contract';
 
@@ -67,6 +68,9 @@ export interface CoreTreaty {
     projects: ProjectsTreaty;
     simulators: {
       get(): TreatyResponse<ListSimulatorsResponse>;
+      'connect-status': {
+        get(options: { query: Omit<ConnectSimulatorRequest, 'rebuild'> }): TreatyResponse<SimulatorConnectStatus>;
+      };
       connect: { post(body: ConnectSimulatorRequest): TreatyResponse<SimulatorConnectionResponse> };
     };
     simulator: {

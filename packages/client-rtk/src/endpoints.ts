@@ -30,6 +30,7 @@ import type {
   ReportVariantCaptureFailureRequest,
   ScreenshotResponse,
   SimulatorConnectionResponse,
+  SimulatorConnectStatus,
   SubmitAgentRequest
 } from '@monaddesign/client-contract';
 
@@ -50,6 +51,13 @@ export type ListProjectsResult = Omit<ListProjectsResponse, 'projects'> & {
 
 export type ListSimulatorsResult = Omit<ListSimulatorsResponse, 'simulators'> & {
   simulators: ReturnType<typeof simulatorAdapter.getInitialState>;
+};
+
+const normalizeSimulatorList = (raw: ListSimulatorsResponse): ListSimulatorsResult => {
+  if (!Array.isArray(raw?.simulators)) {
+    throw new Error('Core returned an invalid Simulator list. Refresh Monad Design and try again.');
+  }
+  return { ...raw, simulators: simulatorAdapter.setAll(simulatorAdapter.getInitialState(), raw.simulators) };
 };
 
 export const coreEndpoints = coreApi.injectEndpoints({
@@ -142,11 +150,12 @@ export const coreEndpoints = coreApi.injectEndpoints({
     }),
     listSimulators: builder.query<ListSimulatorsResult, void>({
       queryFn: (_arg, api: { extra: unknown }) =>
-        runTreaty(
-          () => clientOf(api).v1.simulators.get(),
-          (raw) => ({ ...raw, simulators: simulatorAdapter.setAll(simulatorAdapter.getInitialState(), raw.simulators) })
-        ),
+        runTreaty(() => clientOf(api).v1.simulators.get(), normalizeSimulatorList),
       providesTags: ['Simulators']
+    }),
+    getSimulatorConnectStatus: builder.query<SimulatorConnectStatus, Omit<ConnectSimulatorRequest, 'rebuild'>>({
+      queryFn: (query, api: { extra: unknown }) =>
+        runTreaty(() => clientOf(api).v1.simulators['connect-status'].get({ query }))
     }),
     connectSimulator: builder.mutation<SimulatorConnectionResponse, ConnectSimulatorRequest>({
       queryFn: (body, api: { extra: unknown }) => runTreaty(() => clientOf(api).v1.simulators.connect.post(body)),
@@ -195,6 +204,7 @@ export const {
   useGetHealthQuery,
   useGetProjectIconsQuery,
   useGetSimulatorAppearanceQuery,
+  useGetSimulatorConnectStatusQuery,
   useLaunchSimulatorAppMutation,
   useLaunchSimulatorVariantMutation,
   useLazyCaptureSimulatorScreenshotQuery,

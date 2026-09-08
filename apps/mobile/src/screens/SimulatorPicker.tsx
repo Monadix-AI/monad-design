@@ -5,6 +5,7 @@ import {
   simulatorSelectors,
   useConnectSimulatorMutation,
   useGetProjectIconsQuery,
+  useGetSimulatorConnectStatusQuery,
   useListSimulatorsQuery
 } from '@monaddesign/client-rtk/endpoints';
 import {
@@ -46,6 +47,17 @@ export function SimulatorPicker({
   const [selected, setSelected] = useState('');
   const [selectedTarget, setSelectedTarget] = useState(project.targetApps[0]?.bundleIdentifier ?? '');
   const [actionError, setActionError] = useState<string | null>(null);
+  const { currentData: connectStatus } = useGetSimulatorConnectStatusQuery(
+    { projectId: project.id, udid: selected, bundleIdentifier: selectedTarget },
+    { skip: !connectState.isLoading, pollingInterval: 500, refetchOnMountOrArgChange: true }
+  );
+  const connectionLabel = {
+    preparing: 'Preparing Simulator…',
+    checking: 'Checking app installation…',
+    building: 'Building Debug app…',
+    installing: 'Installing app…',
+    connecting: 'Connecting…'
+  }[connectStatus?.phase ?? 'preparing'];
   const busy = isLoading || isFetching || connectState.isLoading;
   const error = actionError ?? (queryError ? errorMessage(queryError) : null);
 
@@ -68,14 +80,15 @@ export function SimulatorPicker({
   }, [simulators]);
 
   const selectedSimulator = simulators.find(({ udid }) => udid === selected);
-  const connect = async () => {
+  const connect = async (rebuild = false) => {
     if (!selectedSimulator || !selectedTarget) return;
     setActionError(null);
     try {
       const connection = await connectSimulator({
         projectId: project.id,
         udid: selectedSimulator.udid,
-        bundleIdentifier: selectedTarget
+        bundleIdentifier: selectedTarget,
+        rebuild
       }).unwrap();
       const nextHistory = recordUsedSimulator({ [project.id]: usedSimulatorUdids }, project.id, selectedSimulator.udid);
       setUsedSimulatorUdids(nextHistory[project.id] ?? []);
@@ -121,7 +134,7 @@ export function SimulatorPicker({
         <View style={styles.pickerIntro}>
           <Text style={styles.pickerTitle}>{project.name}</Text>
           <Text style={styles.pickerHint}>
-            Choose an app and a Simulator. The Mac launches that target before streaming it.
+            Choose an app and a Simulator. The Mac builds and installs missing apps before connecting.
           </Text>
         </View>
         <Text style={styles.pickerSectionLabel}>TARGET APP</Text>
@@ -129,6 +142,7 @@ export function SimulatorPicker({
           {project.targetApps.map((app) => (
             <GlassControl
               contentStyle={styles.targetAppContent}
+              disabled={busy}
               key={app.bundleIdentifier}
               onPress={() => setSelectedTarget(app.bundleIdentifier)}
               style={[styles.targetAppCard, selectedTarget === app.bundleIdentifier && styles.targetAppCardSelected]}
@@ -175,6 +189,7 @@ export function SimulatorPicker({
             {simulators.map((item) => (
               <GlassControl
                 contentStyle={styles.deviceCardContent}
+                disabled={busy}
                 key={item.udid}
                 onPress={() => setSelected(item.udid)}
                 style={styles.deviceCard}
@@ -231,13 +246,13 @@ export function SimulatorPicker({
             />
           )}
           <Text style={styles.connectText}>
-            {busy
-              ? selectedSimulator?.state === 'Shutdown'
-                ? 'Starting Simulator & app…'
-                : 'Opening target app…'
-              : selectedSimulator?.state === 'Shutdown'
-                ? 'Start & open app'
-                : 'Open target app'}
+            {connectState.isLoading
+              ? connectionLabel
+              : busy
+                ? 'Loading Simulators…'
+                : selectedSimulator?.state === 'Shutdown'
+                  ? 'Start & open app'
+                  : 'Open target app'}
           </Text>
         </GlassControl>
       </View>

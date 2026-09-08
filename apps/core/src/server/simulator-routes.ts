@@ -14,7 +14,8 @@ import {
   screenshotResponseSchema,
   setAppearanceRequestSchema,
   setPasteboardRequestSchema,
-  simulatorConnectionSchema
+  simulatorConnectionSchema,
+  simulatorConnectStatusSchema
 } from '@monaddesign/client-contract';
 import { Elysia } from 'elysia';
 
@@ -44,11 +45,19 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
       async () => ({ simulators: await listAvailableSimulators(simulatorBridge.connection?.udid ?? null) }),
       { response: { 200: listSimulatorsResponseSchema } }
     )
+    .get(
+      '/simulators/connect-status',
+      ({ query }) => simulatorService.status(query.projectId, query.udid, query.bundleIdentifier),
+      {
+        query: connectSimulatorRequestSchema.omit({ rebuild: true }),
+        response: { 200: simulatorConnectStatusSchema }
+      }
+    )
     .post(
       '/simulators/connect',
-      ({ body: { bundleIdentifier, projectId, udid } }) =>
+      ({ body: { bundleIdentifier, projectId, udid, rebuild } }) =>
         conflict(async () => {
-          const connection = await simulatorService.connect(projectId, udid, bundleIdentifier);
+          const connection = await simulatorService.connect(projectId, udid, bundleIdentifier, rebuild);
           return {
             udid: connection.udid,
             projectId: connection.projectId,

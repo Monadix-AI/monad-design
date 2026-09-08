@@ -47,6 +47,7 @@ export function SimulatorsRoute() {
     detectProjectTargets,
     error,
     isConnecting,
+    connectLabel,
     isLoadingProjects,
     isOpeningProject,
     isRuntimeReady,
@@ -464,6 +465,7 @@ export function SimulatorsRoute() {
   const renderSimulatorPicker = (previewClassName?: string) => (
     <LiveSessionSimulatorPicker
       className={previewClassName}
+      connectLabel={isConnecting ? connectLabel : undefined}
       error={
         error ? (
           <p

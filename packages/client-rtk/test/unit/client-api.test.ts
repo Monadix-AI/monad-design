@@ -79,6 +79,30 @@ describe('ClientApi', () => {
     expect(signals.every((signal) => !signal.aborted)).toBe(true);
   });
 
+  test('forwards cancellation to active requests', async () => {
+    const controller = new AbortController();
+    const requestSignals: AbortSignal[] = [];
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const requestSignal = init?.signal;
+      if (requestSignal) requestSignals.push(requestSignal);
+      return await new Promise<Response>((_resolve, reject) => {
+        if (requestSignal?.aborted) {
+          reject(requestSignal.reason);
+          return;
+        }
+        requestSignal?.addEventListener('abort', () => reject(requestSignal.reason), { once: true });
+      });
+    }) as typeof fetch;
+    const api = new ClientApi({ origin: 'http://127.0.0.1:41765/' }, { signal: controller.signal });
+
+    const request = api.health();
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ raw: { name: 'AbortError' } });
+    expect(requestSignals[0]?.aborted).toBe(true);
+  });
+
   test('disposes cached requests', async () => {
     globalThis.fetch = (async (_url: string | URL | Request, _init?: RequestInit) =>
       Response.json({ projects: [] })) as typeof fetch;
@@ -91,4 +115,59 @@ describe('ClientApi', () => {
 
     expect(Object.keys(api.store.getState().coreApi.queries)).toHaveLength(0);
   });
+
+  test('reports a malformed simulator response without leaking an internal property error', async () => {
+    globalThis.fetch = (async (_url: string | URL | Request, _init?: RequestInit) =>
+      Response.json({ devices: [] })) as typeof fetch;
+    const api = new ClientApi({ origin: 'http://127.0.0.1:41765/' });
+
+    await expect(api.simulators()).rejects.toMatchObject({
+      message: 'Core returned an invalid Simulator list. Refresh Monad Design and try again.'
+    });
+  });
+});
+
+test('connect reports build progress, sends rebuild and stops polling after completion', async () => {
+  let finish: (value: Response) => void = () => {};
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const requests: Array<{ url: string; body?: BodyInit | null }> = [];
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({ url: String(url), body: init?.body });
+    if (String(url).includes('connect-status')) return Response.json({ phase: 'building' });
+    return pending;
+  }) as typeof fetch;
+  const api = new ClientApi({ origin: 'http://127.0.0.1:41765' });
+  const labels: string[] = [];
+  const connected = api.connect('project', 'device', 'com.example.app', {
+    rebuild: true,
+    onProgress: (label) => labels.push(label)
+  });
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(labels).toEqual(['Preparing Simulator…', 'Building Debug app…']);
+    expect(JSON.parse(String(requests[0]?.body))).toEqual({
+      projectId: 'project',
+      udid: 'device',
+      bundleIdentifier: 'com.example.app',
+      rebuild: true
+    });
+    finish(
+      Response.json({
+        udid: 'device',
+        projectId: 'project',
+        bundleIdentifier: 'com.example.app',
+        streamPath: '/v1/simulator/stream',
+        inputPath: '/v1/simulator/input'
+      })
+    );
+    await connected;
+    const count = requests.length;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(requests).toHaveLength(count);
+  } finally {
+    finish(Response.json({}));
+    api.dispose();
+  }
 });

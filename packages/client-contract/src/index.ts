@@ -178,8 +178,13 @@ export type ListSimulatorsResponse = z.infer<typeof listSimulatorsResponseSchema
 export const connectSimulatorRequestSchema = z.object({
   projectId: z.string().min(1),
   udid: z.string().min(1),
-  bundleIdentifier: z.string().min(1)
+  bundleIdentifier: z.string().min(1),
+  rebuild: z.boolean().optional()
 });
+export const simulatorConnectStatusSchema = z.object({
+  phase: z.enum(['preparing', 'checking', 'building', 'installing', 'connecting'])
+});
+export type SimulatorConnectStatus = z.infer<typeof simulatorConnectStatusSchema>;
 export type ConnectSimulatorRequest = z.infer<typeof connectSimulatorRequestSchema>;
 export const simulatorConnectionSchema = z.object({
   udid: z.string(),

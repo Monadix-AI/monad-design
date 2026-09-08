@@ -5,6 +5,7 @@ import type {
   ConnectAgentSessionRequest,
   LaunchVariantRequest,
   ReportVariantCaptureFailureRequest,
+  SimulatorConnectStatus,
   SubmitAgentRequest
 } from '@monaddesign/client-contract';
 
@@ -23,6 +24,7 @@ export interface ClientConnection {
 
 export interface ClientApiOptions {
   requestTimeoutMilliseconds?: number;
+  signal?: AbortSignal;
 }
 
 const normalizeOrigin = (value: string) => {
@@ -37,6 +39,7 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
   constructor(connection: TConnection, options: ClientApiOptions = {}) {
     const accessToken = connection.accessToken?.trim();
     const requestTimeoutMilliseconds = options.requestTimeoutMilliseconds;
+    const signal = options.signal;
     this.connection = {
       ...connection,
       origin: normalizeOrigin(connection.origin),
@@ -46,11 +49,18 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
     this.store = createClientStore(
       createCoreTreaty({
         baseUrl: this.connection.origin,
-        ...(accessToken || requestTimeoutMilliseconds
+        ...(accessToken || requestTimeoutMilliseconds || signal
           ? {
               config: {
-                ...(requestTimeoutMilliseconds
-                  ? { onRequest: () => ({ signal: AbortSignal.timeout(requestTimeoutMilliseconds) }) }
+                ...(requestTimeoutMilliseconds || signal
+                  ? {
+                      onRequest: () => ({
+                        signal:
+                          signal && requestTimeoutMilliseconds
+                            ? AbortSignal.any([signal, AbortSignal.timeout(requestTimeoutMilliseconds)])
+                            : (signal ?? AbortSignal.timeout(requestTimeoutMilliseconds as number))
+                      })
+                    }
                   : {}),
                 ...(accessToken
                   ? { headers: { authorization: `Bearer ${accessToken}`, 'x-monad-design-client-kind': 'desktop' } }
@@ -189,10 +199,56 @@ export class ClientApi<TConnection extends ClientConnection = ClientConnection> 
     return simulatorSelectors.selectAll(page.simulators);
   }
 
-  connect(projectId: string, udid: string, bundleIdentifier: string) {
-    return this.store
-      .dispatch(coreEndpoints.endpoints.connectSimulator.initiate({ projectId, udid, bundleIdentifier }))
-      .unwrap();
+  async connect(
+    projectId: string,
+    udid: string,
+    bundleIdentifier: string,
+    options: {
+      rebuild?: boolean;
+      onProgress?: (label: string) => void;
+    } = {}
+  ) {
+    const query = { projectId, udid, bundleIdentifier };
+    const labels: Record<SimulatorConnectStatus['phase'], string> = {
+      preparing: 'Preparing Simulator…',
+      checking: 'Checking app installation…',
+      building: 'Building Debug app…',
+      installing: 'Installing app…',
+      connecting: 'Connecting…'
+    };
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const status = await this.store
+          .dispatch(
+            coreEndpoints.endpoints.getSimulatorConnectStatus.initiate(query, {
+              forceRefetch: true,
+              subscribe: false
+            })
+          )
+          .unwrap();
+        if (!stopped) options.onProgress?.(labels[status.phase]);
+      } catch {
+        /* The connect request owns error reporting. */
+      }
+      if (!stopped) timer = setTimeout(() => void poll(), 500);
+    };
+    options.onProgress?.(labels.preparing);
+    if (options.onProgress) timer = setTimeout(() => void poll(), 500);
+    try {
+      return await this.store
+        .dispatch(
+          coreEndpoints.endpoints.connectSimulator.initiate({
+            ...query,
+            ...(options.rebuild ? { rebuild: true } : {})
+          })
+        )
+        .unwrap();
+    } finally {
+      stopped = true;
+      clearTimeout(timer);
+    }
   }
 
   disconnect() {

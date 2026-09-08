@@ -439,6 +439,8 @@ export const launchSimulatorApp = async (udid: string, bundleId: unknown) => {
   };
 };
 
+export class SimulatorAppNotInstalledError extends Error {}
+
 const checkSimulatorAppInstalled = createSharedOperation(
   async (udid: string, validBundleId: string) => {
     try {
@@ -446,9 +448,17 @@ const checkSimulatorAppInstalled = createSharedOperation(
         encoding: 'utf8',
         timeout: 20_000
       });
-    } catch {
-      throw new Error(
-        `The target app ${validBundleId} is not installed on the selected Simulator. Build and install its Debug app, then connect again.`
+    } catch (error) {
+      const failure = error as Error & { stderr?: string; killed?: boolean };
+      if (failure.killed) {
+        throw new Error(
+          'The selected Simulator did not respond while checking app installation (20 seconds). Restart this Simulator and try connecting again.'
+        );
+      }
+      if (!/NSPOSIXErrorDomain, code=2|No such file or directory|not installed/i.test(failure.stderr ?? ''))
+        throw error;
+      throw new SimulatorAppNotInstalledError(
+        `The target app ${validBundleId} is not installed on the selected Simulator.`
       );
     }
     return validBundleId;
