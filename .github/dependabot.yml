@@ -7,6 +7,12 @@ updates:
     groups:
       development-dependencies:
         dependency-type: development
+    ignore:
+      # Keep aligned with the package-specific pin in .syncpackrc.json.
+      # This is safe at the repository level because only apps/mobile declares react-native.
+      - dependency-name: react-native
+        versions:
+          - ">0.86.3"
     open-pull-requests-limit: 10
 
   - package-ecosystem: github-actions
