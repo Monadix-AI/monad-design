@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+export {
+  adjustmentGoalReferences,
+  adjustmentGoals,
+  adjustmentSkillNames,
+  adjustmentSkillVersion,
+  isAdjustmentGoal,
+  requiredAdjustmentSkills,
+  resolveAdjustmentRequest
+} from './adjustment-goals';
+
 export const requestIdSchema = z.string().min(1).max(128);
 export const paginationQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -242,6 +252,16 @@ export const designReferenceSchema = z.object({
   version: z.string().min(1).max(120),
   platform: z.enum(['any', 'native', 'web', 'unknown']),
   instructions: z.string().trim().min(1).max(30_000),
+  skillName: z
+    .enum([
+      'monad-design-typography',
+      'monad-design-layout',
+      'monad-design-callout',
+      'monad-design-color',
+      'monad-design-copy',
+      'monad-design-motion'
+    ])
+    .optional(),
   image: z
     .string()
     .max(350_000)

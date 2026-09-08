@@ -25,7 +25,7 @@ import { exportKimiWorkPlugin } from './kimi-work';
 import { installCoreLaunchAgent, unloadCoreLaunchAgent } from './launch-agent';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
-import { installSkillDirectory, removeLegacyMonadDesignSkill } from './skill-installer';
+import { installSkillBundle, removeLegacyMonadDesignSkill } from './skill-installer';
 
 export interface InstallCommandOptions {
   kimiWork?: boolean;
@@ -117,7 +117,7 @@ const installAgent = async (
         })();
 
   const skillPath = skillInstallDirectory(agent, scope, projectRoot ?? undefined);
-  await installSkillDirectory(skillSourcePath, skillPath, { includeOpenAiMetadata: agent === 'codex' });
+  await installSkillBundle(skillSourcePath, skillPath, { includeOpenAiMetadata: agent === 'codex' });
   await removeLegacyMonadDesignSkill(join(dirname(skillPath), 'monad-design-live'));
   return { mcpPath, skillPath };
 };

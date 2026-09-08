@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { adjustmentGoalReferences, requiredAdjustmentSkills } from '@monaddesign/client-contract';
 
 import { ProjectStore } from '../../src/project-store';
 import { CoreServer } from '../../src/server/core-server';
@@ -257,6 +258,7 @@ describe('Core server', () => {
       focus: 'Spacing',
       preserve: 'Navigation',
       references: [
+        ...adjustmentGoalReferences.slice(0, 2),
         {
           id: 'test-reference',
           title: 'Card reference',
@@ -355,6 +357,12 @@ describe('Core server', () => {
       });
       expect(JSON.stringify(agentView.structuredContent)).not.toContain('iVBOR');
       expect(JSON.stringify(agentView.structuredContent)).toContain('Borrow spacing only.');
+      expect(agentView.structuredContent).toMatchObject({
+        requiredSkills: requiredAdjustmentSkills(adjustmentGoalReferences.slice(0, 2))
+      });
+      expect(JSON.stringify(agentView.content)).toContain(
+        'Before planning or editing this request, invoke these installed skills: monad-design-typography, monad-design-layout'
+      );
       const waitingView = await client.callTool({
         name: 'wait_for_change',
         arguments: { sessionId: active.session.id, afterRevision: 0, waitMs: 0 }
@@ -363,6 +371,17 @@ describe('Core server', () => {
         type: 'image',
         mimeType: 'image/png',
         data: referenceImage.split(',')[1]
+      });
+      expect(waitingView.structuredContent).toMatchObject({
+        requiredSkills: requiredAdjustmentSkills(adjustmentGoalReferences.slice(0, 2))
+      });
+      const requestedSession = (agentView.structuredContent as { session: { changeRequest: { id: string } } }).session;
+      const claimed = await client.callTool({
+        name: 'claim_change',
+        arguments: { sessionId: active.session.id, requestId: requestedSession.changeRequest.id }
+      });
+      expect(claimed.structuredContent).toMatchObject({
+        requiredSkills: requiredAdjustmentSkills(adjustmentGoalReferences.slice(0, 2))
       });
 
       const projectsResource = await client.readResource({ uri: 'monaddesign://projects' });

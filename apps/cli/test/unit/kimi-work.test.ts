@@ -42,6 +42,14 @@ describe('Kimi Work native plugin export', () => {
       )
     ).toBe(false);
     expect(await readFile(join(directory, 'README.md'), 'utf8')).toContain('does not install or enable');
+    const companionNames = JSON.parse(
+      await readFile(join(options.skillSourcePath, 'companion-skills.json'), 'utf8')
+    ) as string[];
+    for (const name of companionNames) {
+      expect(await readFile(join(directory, manifest.skills, name, 'SKILL.md'), 'utf8')).toBe(
+        await readFile(join(options.skillSourcePath, '..', 'adjustment-skills', name, 'SKILL.md'), 'utf8')
+      );
+    }
   });
 
   test('repeated exports preserve previously imported source directories', async () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monad Design Callout"
+  short_description: "Refine native callout in the running app"
+  default_prompt: "Use $monad-design-callout to refine the selected native UI within the current request."

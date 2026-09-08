@@ -5,6 +5,7 @@ import AiProgrammingIcon from '@hugeicons/core-free-icons/AiProgrammingIcon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import CheckmarkCircle01Icon from '@hugeicons/core-free-icons/CheckmarkCircle01Icon';
 import CursorRectangleSelection02Icon from '@hugeicons/core-free-icons/CursorRectangleSelection02Icon';
+import { isAdjustmentGoal, resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { MousePointer2, Pencil, ScanLine } from 'lucide-react';
 import { RadioGroup, ToggleGroup } from 'radix-ui';
 import { type ReactNode, type Ref } from 'react';
@@ -13,6 +14,7 @@ import { Button } from '../../primitives/button';
 import { Label } from '../../primitives/label';
 import { Textarea } from '../../primitives/textarea';
 import { ActionIcon } from '../action-icon';
+import { AdjustmentGoals } from './adjustment-goals';
 
 export type LiveWorkspaceMode = 'annotate' | 'interact' | 'select' | 'variants';
 
@@ -97,6 +99,7 @@ export function LiveWorkspaceInspector({
   agentStatus,
   confirmedVariant,
   designLibrary,
+  designGuidanceInFlight,
   icons,
   isBusy = false,
   isEndingLive = false,
@@ -143,6 +146,8 @@ export function LiveWorkspaceInspector({
     ...icons
   };
   const canRequestAgent = agentStatus === 'awaiting_request';
+  const hasAdjustmentGoals = designLibrary?.selected.some(isAdjustmentGoal) ?? false;
+  const effectiveRequest = resolveAdjustmentRequest(request, designLibrary?.selected);
   const isAgentWorking = agentStatus === 'change_requested' || agentStatus === 'working';
   const isReviewingVariants = agentStatus === 'variants_ready' || agentStatus === 'selection_confirmed';
   const selectionConfirmed = agentStatus === 'selection_confirmed';
@@ -213,6 +218,20 @@ export function LiveWorkspaceInspector({
           <div className="inspector-section-heading">
             <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
           </div>
+          {(isAgentWorking || isReviewingVariants) && designGuidanceInFlight?.references.some(isAdjustmentGoal) && (
+            <details className="adjustment-goal-guidance">
+              <summary>
+                Requested goals · {designGuidanceInFlight.scope === 'screen' ? 'Current screen' : 'Selected element'}
+              </summary>
+              {designGuidanceInFlight.references.filter(isAdjustmentGoal).map((goal) => (
+                <div key={goal.id}>
+                  <strong>{goal.title}</strong>
+                  <p>{goal.instructions}</p>
+                  {goal.skillName && <small>{goal.skillName}</small>}
+                </div>
+              ))}
+            </details>
+          )}
           {!agentConnected && (
             <div
               className="agent-live-required"
@@ -344,6 +363,12 @@ export function LiveWorkspaceInspector({
 
           {!isAgentWorking && !isReviewingVariants && (
             <div className="request-composer">
+              {designLibrary && (
+                <AdjustmentGoals
+                  disabled={!canRequestAgent || isBusy || isSendingRequest}
+                  library={designLibrary}
+                />
+              )}
               <Label
                 className="handoff-request"
                 htmlFor="canvas-agent-request"
@@ -360,7 +385,11 @@ export function LiveWorkspaceInspector({
                       onOpenReferences?.();
                     }
                   }}
-                  placeholder="Describe what should change and what must stay intact…"
+                  placeholder={
+                    hasAdjustmentGoals
+                      ? 'Optional: describe the result you want and what must stay intact…'
+                      : 'Describe what should change and what must stay intact…'
+                  }
                   rows={5}
                   value={request}
                 />
@@ -395,7 +424,7 @@ export function LiveWorkspaceInspector({
               <Button
                 aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
                 className="copy-prompt-action"
-                disabled={!canRequestAgent || !request.trim() || isSendingRequest}
+                disabled={!canRequestAgent || !effectiveRequest.trim() || isSendingRequest || isBusy}
                 onClick={onSendRequest}
                 type="button"
               >

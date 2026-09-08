@@ -68,13 +68,26 @@ const corePaths = releaseManifest.targets.map(({ core }) => join(root, 'dist', '
 const nativeAddonPaths = [
   ...new Set(releaseManifest.targets.map(({ coreNativeAddon }) => join(root, 'dist', 'assets', coreNativeAddon)))
 ];
+const skillRoot = join(root, 'dist', 'assets', releaseManifest.skill);
+const companionNames: unknown = JSON.parse(await readFile(join(skillRoot, 'companion-skills.json'), 'utf8'));
+const expectedCompanions = JSON.parse(
+  await readFile(join(root, 'assets', 'skill', 'companion-skills.json'), 'utf8')
+) as string[];
+if (JSON.stringify(companionNames) !== JSON.stringify(expectedCompanions))
+  fail('bundled companion skill catalog is stale');
 const requiredFiles = [
   cliPath,
   ...corePaths,
   ...nativeAddonPaths,
-  join(root, 'dist', 'assets', releaseManifest.skill, 'SKILL.md')
+  join(skillRoot, 'SKILL.md'),
+  ...expectedCompanions.map((name) => join(root, 'dist', 'assets', 'adjustment-skills', name, 'SKILL.md'))
 ];
 for (const path of requiredFiles) await access(path, constants.R_OK);
+for (const name of expectedCompanions) {
+  const built = await readFile(join(root, 'dist', 'assets', 'adjustment-skills', name, 'SKILL.md'), 'utf8');
+  const source = await readFile(join(root, 'assets', 'adjustment-skills', name, 'SKILL.md'), 'utf8');
+  if (built !== source) fail(`bundled skill ${name} is stale`);
+}
 
 const cli = await readFile(cliPath, 'utf8');
 if (!cli.startsWith('#!/usr/bin/env node\n')) fail('dist/cli.js is missing its Node.js shebang');

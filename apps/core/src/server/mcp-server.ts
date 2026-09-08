@@ -12,6 +12,7 @@ import {
   McpServer,
   originValidationResponse
 } from '@modelcontextprotocol/server';
+import { requiredAdjustmentSkills } from '@monaddesign/client-contract';
 import { z } from 'zod';
 
 import { findGitProjectRoot } from '../git-project-root';
@@ -28,15 +29,24 @@ const frameworkVariantValues = ['original', 'v1', 'v2', 'v3', 'v4', 'v5'] as con
 const defaultWaitMs = 120_000;
 
 const structuredResult = (value: Record<string, unknown>, references: DesignReference[] = []) => {
+  const requiredSkills = requiredAdjustmentSkills(references);
   // Image content is sent natively to vision-capable agents, not as base64 prose.
   const structuredContent = JSON.parse(
-    JSON.stringify(value, (key, item) =>
+    JSON.stringify({ ...value, ...(requiredSkills.length ? { requiredSkills } : {}) }, (key, item) =>
       key === 'image' && typeof item === 'string' && item.startsWith('data:image/') ? '[Attached image content]' : item
     )
   ) as Record<string, unknown>;
   return {
     content: [
       { type: 'text' as const, text: JSON.stringify(structuredContent, null, 2) },
+      ...(requiredSkills.length
+        ? [
+            {
+              type: 'text' as const,
+              text: `Before planning or editing this request, invoke these installed skills: ${requiredSkills.map(({ name }) => name).join(', ')}. If the agent has no skill invocation tool, read each requiredSkills.relativePath relative to the installed monad-design SKILL.md directory. Match the requested version to the skill metadata; report a missing or mismatched skill instead of substituting the short UI description. Load each skill once per request, combine their guidance, and keep the monad-design claim, publish, review and complete workflow in control. Before editing, present one distinct direction per variant: ID, strategy, user benefit, decisive changes and tradeoff. Compare directions pairwise and replace overlapping strategies; cosmetic parameter tweaks do not count as distinct alternatives. Include each ID, direction and actual difference in publish_variants.summary. If the constraints cannot support the requested count, report that instead of generating near-duplicates. Follow the main skill's variant direction contract.`
+            }
+          ]
+        : []),
       ...(references.length
         ? [
             {

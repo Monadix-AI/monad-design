@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monad Design Motion"
+  short_description: "Refine native motion in the running app"
+  default_prompt: "Use $monad-design-motion to refine the selected native UI within the current request."

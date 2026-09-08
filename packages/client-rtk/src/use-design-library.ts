@@ -1,4 +1,5 @@
 import {
+  adjustmentGoalReferences,
   type DesignGuidance,
   type DesignLibrary,
   type DesignReference,
@@ -166,7 +167,7 @@ export function useDesignLibrary(sessionKey: string | undefined, hasSelection: b
     setFocus('');
   };
   return {
-    entries: [...builtInDesignStyles, ...library.entries],
+    entries: [...builtInDesignStyles, ...adjustmentGoalReferences, ...library.entries],
     selected,
     error,
     favorites: library.favorites,

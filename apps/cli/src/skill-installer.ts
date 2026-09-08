@@ -5,6 +5,37 @@ interface SkillInstallOptions {
   includeOpenAiMetadata?: boolean;
 }
 
+/** Install named companion skills beside the Live entrypoint so agents discover them normally. */
+export const installSkillBundle = async (
+  sourcePath: string,
+  destinationPath: string,
+  options: SkillInstallOptions = {}
+) => {
+  const names: unknown = JSON.parse(await readFile(join(sourcePath, 'companion-skills.json'), 'utf8'));
+  if (
+    !Array.isArray(names) ||
+    !names.length ||
+    names.some((name) => typeof name !== 'string' || !/^monad-design-[a-z]+$/u.test(name)) ||
+    new Set(names).size !== names.length
+  ) {
+    throw new Error('Invalid Monad Design companion skill manifest.');
+  }
+  const companions = names.map((name: string) => ({
+    name,
+    source: join(sourcePath, '..', 'adjustment-skills', name),
+    destination: join(dirname(destinationPath), name)
+  }));
+  // Check the entire pack before replacing any installed entrypoint.
+  await readFile(join(sourcePath, 'SKILL.md'), 'utf8');
+  for (const companion of companions) {
+    const body = await readFile(join(companion.source, 'SKILL.md'), 'utf8');
+    if (!body.includes(`name: ${companion.name}\n`)) throw new Error(`Invalid companion skill: ${companion.name}`);
+  }
+  for (const companion of companions) await installSkillDirectory(companion.source, companion.destination, options);
+  await installSkillDirectory(sourcePath, destinationPath, options);
+  return [destinationPath, ...companions.map(({ destination }) => destination)];
+};
+
 export const installSkillDirectory = async (
   sourcePath: string,
   destinationPath: string,

@@ -1,0 +1,80 @@
+.adjustment-goals {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.adjustment-goals legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.adjustment-goal-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.adjustment-goal-option {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--foreground);
+  cursor: pointer;
+  background: var(--control-fill);
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.adjustment-goal-option:hover:not(:disabled) {
+  background: var(--control-hover-fill);
+}
+.adjustment-goal-option[aria-pressed="true"] {
+  color: var(--primary-emphasis);
+  background: var(--primary-soft);
+}
+.adjustment-goal-option:focus-visible,
+.adjustment-goal-guidance summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.adjustment-goal-option:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.adjustment-goal-option svg {
+  flex-shrink: 0;
+}
+.adjustment-goal-check {
+  width: 10px;
+}
+.adjustment-goals > p,
+.adjustment-goal-guidance {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.adjustment-goal-guidance summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.adjustment-goal-guidance[open] {
+  max-height: 180px;
+  overflow: auto;
+}
+.adjustment-goal-guidance strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--foreground);
+}
+.adjustment-goal-guidance p {
+  margin: 4px 0 0;
+  white-space: pre-line;
+}

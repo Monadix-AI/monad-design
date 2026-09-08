@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./design-document.css";
 @import "./business/live-session/design-library.css";
+@import "./business/live-session/adjustment-goals.css";
 @source ".";
 @source "../../../apps/desktop/src";
 @source "../../../apps/core/ui/src";

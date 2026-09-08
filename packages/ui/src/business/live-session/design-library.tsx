@@ -1,5 +1,6 @@
 import type { DesignGuidance, DesignReference } from '@monaddesign/client-contract';
 
+import { isAdjustmentGoal } from '@monaddesign/client-contract';
 import { Bookmark, Check, ChevronDown, FileText, Image, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 
@@ -284,7 +285,7 @@ export function DesignLibraryPicker({
                   {entry.platform === 'unknown' && (
                     <p>Platform compatibility has not been verified. Review the guidance before using it.</p>
                   )}
-                  {entry.kind !== 'style' && (
+                  {entry.kind !== 'style' && !isAdjustmentGoal(entry) && (
                     <Button
                       onClick={() => library.remove(entry.id)}
                       size="sm"

@@ -7,6 +7,7 @@ import type {
 } from '@monaddesign/client-contract';
 import type { ClientApi } from './client-api';
 
+import { resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { buildAgentTurnContext, serializeAgentTurn } from '@monaddesign/simulator';
 import { useState } from 'react';
 
@@ -50,6 +51,7 @@ export const useAgentRequest = ({
   const [variantCount, setVariantCount] = useState(1);
   const [agentSessionError, setAgentSessionError] = useState<string | null>(null);
   const bundleIdentifier = connection?.bundleIdentifier ?? activeSession?.connection?.bundleIdentifier;
+  const effectiveRequest = resolveAdjustmentRequest(agentRequest, designGuidance?.references);
   const agentTurnContext =
     connected && bundleIdentifier
       ? buildAgentTurnContext({
@@ -60,8 +62,8 @@ export const useAgentRequest = ({
         })
       : null;
   const agentTurnPayload =
-    agentTurnContext && agentRequest.trim()
-      ? serializeAgentTurn(agentRequest, { ...agentTurnContext, ...(designGuidance ? { designGuidance } : {}) })
+    agentTurnContext && effectiveRequest.trim()
+      ? serializeAgentTurn(effectiveRequest, { ...agentTurnContext, ...(designGuidance ? { designGuidance } : {}) })
       : '';
 
   const copyAgentTurnPayload = async () => {
@@ -111,12 +113,17 @@ export const useAgentRequest = ({
   };
 
   const sendAgentRequest = async () => {
-    if (activeSession?.status !== 'awaiting_request' || !agentRequest.trim() || !agentTurnContext || !runtimeClient) {
+    if (
+      activeSession?.status !== 'awaiting_request' ||
+      !effectiveRequest.trim() ||
+      !agentTurnContext ||
+      !runtimeClient
+    ) {
       return;
     }
     await submitAgentTurn({
       session: activeSession,
-      request: agentRequest,
+      request: effectiveRequest,
       context: async () => {
         if (selectedElement && designGuidance?.scope !== 'screen') return agentTurnContext;
         if (!connected) throw new Error('The current Simulator screen is not available.');

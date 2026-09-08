@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monad Design Typography"
+  short_description: "Refine native typography in the running app"
+  default_prompt: "Use $monad-design-typography to refine the selected native UI within the current request."
