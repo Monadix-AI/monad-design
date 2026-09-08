@@ -19,11 +19,14 @@ export function AppHeader({ center }: { center?: ReactNode }) {
   const remoteClientOrigin = remoteClient?.addresses[0]
     ? `http://${remoteClient.addresses[0]}:${remoteClient.port}`
     : null;
+  const fallbackOrigins =
+    remoteClient?.addresses.slice(1).map((address) => `http://${address}:${remoteClient.port}`) ?? [];
   const pairingPayload =
     remoteClient && remoteClientOrigin
       ? createPairingPayload({
           origin: remoteClientOrigin,
-          pairingCode: remoteClient.pairingCode
+          pairingCode: remoteClient.pairingCode,
+          fallbackOrigins
         })
       : null;
 

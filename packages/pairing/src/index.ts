@@ -1,11 +1,13 @@
 export interface PairingConnection {
   origin: string;
   pairingCode: string;
+  fallbackOrigins?: string[];
 }
 
 const pairingProtocol = 'monaddesign:';
 const pairingHost = 'pair';
 const pairingVersion = '1';
+const maximumFallbackOrigins = 8;
 
 const normalizeOrigin = (value: string) => value.replace(/\/+$/, '');
 
@@ -26,11 +28,20 @@ const validOrigin = (value: string) => {
   }
 };
 
-export const createPairingPayload = ({ origin, pairingCode }: PairingConnection) => {
+export const createPairingPayload = ({ origin, pairingCode, fallbackOrigins = [] }: PairingConnection) => {
   const normalizedOrigin = normalizeOrigin(origin.trim());
+  const normalizedFallbackOrigins = [
+    ...new Set(fallbackOrigins.map((fallbackOrigin) => normalizeOrigin(fallbackOrigin.trim())))
+  ].filter((fallbackOrigin) => fallbackOrigin !== normalizedOrigin);
   const normalizedCode = pairingCode.trim();
   if (!validOrigin(normalizedOrigin)) {
     throw new Error('A valid HTTP client origin is required.');
+  }
+  if (!normalizedFallbackOrigins.every(validOrigin)) {
+    throw new Error('Every fallback client origin must be a valid HTTP origin.');
+  }
+  if (normalizedFallbackOrigins.length > maximumFallbackOrigins) {
+    throw new Error(`At most ${maximumFallbackOrigins} fallback client origins are allowed.`);
   }
   if (!/^\d{6}$/.test(normalizedCode)) {
     throw new Error('A six-digit pairing code is required.');
@@ -38,6 +49,7 @@ export const createPairingPayload = ({ origin, pairingCode }: PairingConnection)
   const payload = new URL(`${pairingProtocol}//${pairingHost}`);
   payload.searchParams.set('v', pairingVersion);
   payload.searchParams.set('origin', normalizedOrigin);
+  for (const fallbackOrigin of normalizedFallbackOrigins) payload.searchParams.append('fallback', fallbackOrigin);
   payload.searchParams.set('code', normalizedCode);
   return payload.toString();
 };
@@ -53,9 +65,28 @@ export const parsePairingPayload = (value: string): PairingConnection | null => 
       return null;
     }
     const origin = normalizeOrigin(payload.searchParams.get('origin')?.trim() ?? '');
+    const fallbackOrigins = [
+      ...new Set(
+        payload.searchParams
+          .getAll('fallback')
+          .map((fallbackOrigin) => normalizeOrigin(fallbackOrigin.trim()))
+          .filter((fallbackOrigin) => fallbackOrigin !== origin)
+      )
+    ];
     const pairingCode = payload.searchParams.get('code')?.trim() ?? '';
-    if (!validOrigin(origin) || !/^\d{6}$/.test(pairingCode)) return null;
-    return { origin, pairingCode };
+    if (
+      !validOrigin(origin) ||
+      fallbackOrigins.length > maximumFallbackOrigins ||
+      !fallbackOrigins.every(validOrigin) ||
+      !/^\d{6}$/.test(pairingCode)
+    ) {
+      return null;
+    }
+    return {
+      origin,
+      pairingCode,
+      ...(fallbackOrigins.length > 0 ? { fallbackOrigins } : {})
+    };
   } catch {
     return null;
   }
