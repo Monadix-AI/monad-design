@@ -28,6 +28,32 @@ const zoomControls: LiveWorkspaceProps['zoomControls'] = {
 };
 
 describe('live workspace', () => {
+  test('hides the start-live prompt while an agent is connected', () => {
+    const markup = renderToStaticMarkup(
+      <LiveWorkspace
+        inspector={inspector}
+        mode="interact"
+        zoomControls={zoomControls}
+      />
+    );
+
+    expect(markup).not.toContain('Start Live in your coding agent');
+    expect(markup).toContain('Agent ready');
+  });
+
+  test('shows the start-live prompt when the agent session is closed', () => {
+    const markup = renderToStaticMarkup(
+      <LiveWorkspace
+        inspector={{ ...inspector, agentStatus: 'closed' }}
+        mode="interact"
+        zoomControls={zoomControls}
+      />
+    );
+
+    expect(markup).toContain('Start Live in your coding agent');
+    expect(markup).toContain('Agent offline');
+  });
+
   test('hides references by default while keeping canvas editing modes', () => {
     const library = {
       entries: [],

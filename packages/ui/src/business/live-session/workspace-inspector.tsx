@@ -213,7 +213,7 @@ export function LiveWorkspaceInspector({
           <div className="inspector-section-heading">
             <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
           </div>
-          {!agentStatus && (
+          {!agentConnected && (
             <div
               className="agent-live-required"
               id="agent-live-required"
@@ -333,9 +333,9 @@ export function LiveWorkspaceInspector({
               type="button"
             >
               {resolvedIcons.select}
-              <strong>{agentStatus ? 'No element selected' : 'Select an element on the simulator'}</strong>
+              <strong>{agentConnected ? 'No element selected' : 'Select an element on the simulator'}</strong>
               <span>
-                {agentStatus
+                {agentConnected
                   ? 'The current screen accessibility context will be attached.'
                   : 'Runtime geometry and accessibility evidence will be attached.'}
               </span>
@@ -350,7 +350,7 @@ export function LiveWorkspaceInspector({
               >
                 <span>Adjustment request</span>
                 <Textarea
-                  aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+                  aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
                   disabled={!canRequestAgent}
                   id="canvas-agent-request"
                   onChange={(event) => onRequestChange(event.target.value)}
@@ -371,7 +371,7 @@ export function LiveWorkspaceInspector({
               >
                 <span>Variants</span>
                 <select
-                  aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+                  aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
                   disabled={!canRequestAgent}
                   id="canvas-agent-variant-count"
                   onChange={(event) => onVariantCountChange(Number(event.target.value))}
@@ -393,7 +393,7 @@ export function LiveWorkspaceInspector({
           {!isAgentWorking && !isReviewingVariants && (
             <div className="request-footer">
               <Button
-                aria-describedby={!agentStatus ? 'agent-live-required' : undefined}
+                aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
                 className="copy-prompt-action"
                 disabled={!canRequestAgent || !request.trim() || isSendingRequest}
                 onClick={onSendRequest}
@@ -404,7 +404,7 @@ export function LiveWorkspaceInspector({
                   ? 'Sending…'
                   : canRequestAgent
                     ? 'Send to agent'
-                    : agentStatus
+                    : agentConnected
                       ? 'Request sent'
                       : 'Agent unavailable'}
               </Button>
