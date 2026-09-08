@@ -4,11 +4,13 @@
     "slug": "monad-design",
     "scheme": "monaddesign",
     "version": "0.1.0",
+    "platforms": ["ios"],
     "orientation": "landscape",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "isTabletOnly": true,
       "requireFullScreen": true,
       "bundleIdentifier": "ai.monadix.design",
       "infoPlist": {

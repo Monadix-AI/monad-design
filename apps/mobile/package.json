@@ -42,7 +42,6 @@
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
-    "android": "expo run:android",
     "build": "expo export --platform ios --output-dir dist",
     "check": "tsc --noEmit --pretty false",
     "dev": "expo start",
