@@ -8,15 +8,17 @@ import type {
 } from '@monaddesign/simulator/annotation';
 import type { PointerEvent, ReactNode } from 'react';
 
-import ArrowUpRight01Icon from '@hugeicons/core-free-icons/ArrowUpRight01Icon';
-import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
-import CleanIcon from '@hugeicons/core-free-icons/CleanIcon';
-import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
-import EllipseIcon from '@hugeicons/core-free-icons/EllipseIcon';
-import Redo02Icon from '@hugeicons/core-free-icons/Redo02Icon';
-import SquareIcon from '@hugeicons/core-free-icons/SquareIcon';
-import TextIcon from '@hugeicons/core-free-icons/TextIcon';
-import Undo02Icon from '@hugeicons/core-free-icons/Undo02Icon';
+import {
+  ArrowUpRight01Icon,
+  Cancel01Icon,
+  CleanIcon,
+  Delete02Icon,
+  EllipseIcon,
+  Redo02Icon,
+  SquareIcon,
+  TextIcon,
+  Undo02Icon
+} from '@hugeicons/core-free-icons';
 import {
   annotationBounds,
   annotationContainsPoint,

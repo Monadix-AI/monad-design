@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 
-import FitToScreenIcon from '@hugeicons/core-free-icons/FitToScreenIcon';
-import Home01Icon from '@hugeicons/core-free-icons/Home01Icon';
-import Moon02Icon from '@hugeicons/core-free-icons/Moon02Icon';
-import RotateCcwIcon from '@hugeicons/core-free-icons/RotateCcwIcon';
-import RotateCwIcon from '@hugeicons/core-free-icons/RotateCwIcon';
-import Sun03Icon from '@hugeicons/core-free-icons/Sun03Icon';
-import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
-import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
+import {
+  FitToScreenIcon,
+  Home01Icon,
+  Moon02Icon,
+  RotateCcwIcon,
+  RotateCwIcon,
+  Sun03Icon,
+  ZoomInIcon,
+  ZoomOutIcon
+} from '@hugeicons/core-free-icons';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 import { fitCanvasScale, minimumCanvasScale, type SimulatorOrientation } from '@monaddesign/simulator';
 

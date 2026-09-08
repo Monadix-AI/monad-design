@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 import { RadioGroup } from 'radix-ui';
 
 import { Button } from '../../primitives/button';

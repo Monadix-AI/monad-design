@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
 
-import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
 import { ActionIcon } from '../action-icon';
 

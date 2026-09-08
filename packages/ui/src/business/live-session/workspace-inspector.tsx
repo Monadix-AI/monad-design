@@ -1,10 +1,12 @@
 import type { DesignGuidance } from '@monaddesign/client-contract';
 import type { DesignLibraryController } from './design-library';
 
-import AiProgrammingIcon from '@hugeicons/core-free-icons/AiProgrammingIcon';
-import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
-import CheckmarkCircle01Icon from '@hugeicons/core-free-icons/CheckmarkCircle01Icon';
-import CursorRectangleSelection02Icon from '@hugeicons/core-free-icons/CursorRectangleSelection02Icon';
+import {
+  AiProgrammingIcon,
+  Cancel01Icon,
+  CheckmarkCircle01Icon,
+  CursorRectangleSelection02Icon
+} from '@hugeicons/core-free-icons';
 import { isAdjustmentGoal, resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { MousePointer2, Pencil, ScanLine } from 'lucide-react';
 import { RadioGroup, ToggleGroup } from 'radix-ui';

@@ -1,7 +1,4 @@
-import ClipboardCopyIcon from '@hugeicons/core-free-icons/ClipboardCopyIcon';
-import QrCodeIcon from '@hugeicons/core-free-icons/QrCodeIcon';
-import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
-import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
+import { ClipboardCopyIcon, QrCodeIcon, Settings02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { createPairingPayload } from '@monaddesign/pairing';
 import { AppHeaderFrame } from '@monaddesign/ui/business/live-session/app-frame';
 import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';

@@ -32,7 +32,8 @@ export const chooseFromList = async (
     maxItems: choices.length,
     required: true
   });
-  return prompts.isCancel(result) ? cancelled() : result;
+  if (prompts.isCancel(result)) return cancelled();
+  return result as SupportedAgent[];
 };
 
 export const chooseScope = async (projectRoot: string, defaultScope: 'project' | 'global') => {
@@ -52,5 +53,6 @@ export const chooseScope = async (projectRoot: string, defaultScope: 'project' |
       }
     ]
   });
-  return prompts.isCancel(result) ? cancelled() : result;
+  if (prompts.isCancel(result)) return cancelled();
+  return result as 'project' | 'global';
 };

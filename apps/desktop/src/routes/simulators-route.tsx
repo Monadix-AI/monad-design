@@ -5,11 +5,7 @@ import type {
   ProjectTargetSource
 } from '@/electron';
 
-import AppStoreIcon from '@hugeicons/core-free-icons/AppStoreIcon';
-import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
-import FolderOpenIcon from '@hugeicons/core-free-icons/FolderOpenIcon';
-import PlusSignIcon from '@hugeicons/core-free-icons/PlusSignIcon';
-import RefreshCwIcon from '@hugeicons/core-free-icons/RefreshCwIcon';
+import { AppStoreIcon, Delete02Icon, FolderOpenIcon, PlusSignIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { Button } from '@monaddesign/ui/primitives/button';
