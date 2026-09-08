@@ -1,6 +1,7 @@
 import type { ProjectStore } from '../project-store';
 import type { CoreErrorReporter } from './error-journal';
 
+import { execFileSync } from 'node:child_process';
 import { randomInt } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 
@@ -37,6 +38,11 @@ interface NodeServerHandle {
 
 const defaultPort = 41_765;
 
+interface LocalAddress {
+  address: string;
+  interfaceName: string;
+}
+
 export interface CoreServerOptions {
   host?: string;
   port?: number;
@@ -48,14 +54,68 @@ export interface CoreServerOptions {
   reportError?: CoreErrorReporter;
 }
 
+const isPrivateAddress = (address: string) => {
+  const [first = Number.NaN, second = Number.NaN] = address.split('.').map(Number);
+  return (
+    address.split('.').length === 4 &&
+    (first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168))
+  );
+};
+
+export const prioritizeLocalAddresses = (addresses: readonly LocalAddress[], preferredInterface?: string) => {
+  const preferredPhysicalInterface = preferredInterface?.match(/^en\d+$/u)?.[0];
+  const unique = new Map<string, LocalAddress>();
+  for (const entry of addresses) {
+    const existing = unique.get(entry.address);
+    if (!existing || entry.interfaceName === preferredPhysicalInterface) unique.set(entry.address, entry);
+  }
+
+  const priority = ({ address, interfaceName }: LocalAddress) => {
+    if (address.startsWith('169.254.')) return 5;
+    if (preferredPhysicalInterface && interfaceName === preferredPhysicalInterface) return 0;
+    const physicalInterface = /^en\d+$/u.test(interfaceName);
+    if (physicalInterface && isPrivateAddress(address)) return 1;
+    if (physicalInterface) return 2;
+    if (isPrivateAddress(address)) return 3;
+    return 4;
+  };
+
+  return [...unique.values()]
+    .sort((left, right) => priority(left) - priority(right) || left.address.localeCompare(right.address))
+    .map(({ address }) => address);
+};
+
+const routeInterface = (interfaceName?: string) => {
+  try {
+    const route = execFileSync(
+      '/sbin/route',
+      ['-n', 'get', 'default', ...(interfaceName ? ['-ifscope', interfaceName] : [])],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    return route.match(/^\s*interface:\s*(\S+)\s*$/mu)?.[1];
+  } catch {
+    return undefined;
+  }
+};
+
+const preferredRouteInterface = (addresses: readonly LocalAddress[]) => {
+  const systemDefault = routeInterface();
+  if (systemDefault && /^en\d+$/u.test(systemDefault)) return systemDefault;
+
+  const physicalInterfaces = [
+    ...new Set(addresses.map(({ interfaceName }) => interfaceName).filter((name) => /^en\d+$/u.test(name)))
+  ].sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  return physicalInterfaces.find((interfaceName) => routeInterface(interfaceName) === interfaceName);
+};
+
 const localAddresses = () => {
-  const addresses = new Set<string>();
-  for (const interfaces of Object.values(networkInterfaces())) {
+  const addresses: LocalAddress[] = [];
+  for (const [interfaceName, interfaces] of Object.entries(networkInterfaces())) {
     for (const item of interfaces ?? []) {
-      if (item.family === 'IPv4' && !item.internal) addresses.add(item.address);
+      if (item.family === 'IPv4' && !item.internal) addresses.push({ address: item.address, interfaceName });
     }
   }
-  return [...addresses].sort();
+  return prioritizeLocalAddresses(addresses, preferredRouteInterface(addresses));
 };
 
 export class CoreServer {
