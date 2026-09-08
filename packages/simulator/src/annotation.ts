@@ -47,6 +47,13 @@ export const isDrawnAnnotation = (annotation: Annotation): annotation is DrawnAn
   annotation.type === 'rectangle' || annotation.type === 'ellipse' || annotation.type === 'arrow';
 export const isFreehandAnnotation = (annotation: Annotation): annotation is FreehandAnnotation =>
   annotation.type === 'freehand';
+export const serializeAnnotationNotes = (annotations: Annotation[]): string => {
+  const notes = annotations
+    .filter(isDrawnAnnotation)
+    .map((annotation, index) => (annotation.note.trim() ? `${index + 1}. ${annotation.note.trim()}` : ''))
+    .filter(Boolean);
+  return notes.length ? `Implementation notes (numbers match the annotated screenshot):\n${notes.join('\n')}` : '';
+};
 export const annotationIsVisible = (annotation: DrawnAnnotation) =>
   Math.hypot(annotation.end.x - annotation.start.x, annotation.end.y - annotation.start.y) >= 5;
 export const freehandIsVisible = (annotation: FreehandAnnotation) => {

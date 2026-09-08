@@ -3,16 +3,23 @@ import type { SimulatorVariantId } from '@monaddesign/simulator';
 
 type AXElement = AXSnapshot['elements'][number];
 
+import type { useDesignGuidance } from '../hooks/use-design-guidance';
+
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { simulatorVariantLabels } from '@monaddesign/simulator';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { agentPanelStatus } from '../agent-panel-model';
 import { colors } from '../theme';
+import { DesignGuidancePanel } from './DesignGuidancePanel';
 import { GlassControl } from './GlassControl';
 
 export function AgentRequestPanel({
   session,
+  designGuidance,
+  onEndLive,
+  isEndingLive,
   selected,
   snapshot,
   request,
@@ -30,9 +37,13 @@ export function AgentRequestPanel({
   onPreviewVariant,
   onAccept,
   onDiscard,
-  onCompare
+  onCompare,
+  onOpenReferences
 }: {
   session: AgentSessionSnapshot | null;
+  designGuidance: ReturnType<typeof useDesignGuidance>;
+  onEndLive: () => void;
+  isEndingLive: boolean;
   selected: AXElement | undefined;
   snapshot: AXSnapshot | null;
   request: string;
@@ -51,8 +62,10 @@ export function AgentRequestPanel({
   onAccept: () => void;
   onDiscard: () => void;
   onCompare: () => void;
+  onOpenReferences: () => void;
 }) {
-  const canRequest = session?.status === 'awaiting_request';
+  const connected = Boolean(session && session.status !== 'closed');
+  const canRequest = session?.status === 'awaiting_request' && !isSending && !isEndingLive;
   const isWorking = session?.status === 'change_requested' || session?.status === 'working';
   const isReviewing = session?.status === 'variants_ready' || session?.status === 'selection_confirmed';
   const confirmed = session?.status === 'selection_confirmed';
@@ -60,11 +73,10 @@ export function AgentRequestPanel({
   return (
     <View style={styles.section}>
       <View style={styles.heading}>
-        <Text style={styles.title}>Request</Text>
-        <Text style={styles.status}>{agentPanelStatus(session)}</Text>
+        <Text style={styles.title}>{isReviewing ? 'Review request' : 'Change request'}</Text>
       </View>
 
-      {!session && (
+      {!connected && (
         <View style={styles.liveRequired}>
           <View style={styles.iconShell}>
             <Ionicons
@@ -79,6 +91,25 @@ export function AgentRequestPanel({
               Open this project in your agent, then run /monad-design to enable editing and sending.
             </Text>
           </View>
+        </View>
+      )}
+      {(isWorking || isReviewing) && session?.changeRequest?.context.designGuidance && (
+        <View style={styles.requestSummary}>
+          <Text style={styles.fieldLabel}>Requested design guidance</Text>
+          <Text style={styles.requestSummaryText}>
+            {session.changeRequest.context.designGuidance.references.map(({ title }) => title).join(' · ')}
+          </Text>
+          <Text style={styles.help}>
+            {session.changeRequest.context.designGuidance.scope === 'screen' ? 'Current screen' : 'Selected element'}
+          </Text>
+          {Boolean(session.changeRequest.context.designGuidance.focus) && (
+            <Text style={styles.requestSummaryText}>Focus: {session.changeRequest.context.designGuidance.focus}</Text>
+          )}
+          {Boolean(session.changeRequest.context.designGuidance.preserve) && (
+            <Text style={styles.requestSummaryText}>
+              Preserve: {session.changeRequest.context.designGuidance.preserve}
+            </Text>
+          )}
         </View>
       )}
       {isWorking ? (
@@ -99,7 +130,7 @@ export function AgentRequestPanel({
       ) : isReviewing ? (
         <View style={styles.review}>
           <View style={styles.requestSummary}>
-            <Text style={styles.fieldLabel}>REQUESTED CHANGE</Text>
+            <Text style={styles.fieldLabel}>Requested change</Text>
             <Text style={styles.requestSummaryText}>{session.changeRequest?.request}</Text>
           </View>
           <View style={styles.variantOptions}>
@@ -107,6 +138,7 @@ export function AgentRequestPanel({
               const active = selectedVariant === variant || session.confirmedSelection?.variant === variant;
               return (
                 <GlassControl
+                  accessibilityState={{ selected: active }}
                   contentStyle={styles.variantOptionContent}
                   disabled={confirmed || transition !== null}
                   glassStyle="clear"
@@ -119,7 +151,7 @@ export function AgentRequestPanel({
                     {simulatorVariantLabels[variant]}
                   </Text>
                   <Text style={active ? styles.variantStateActive : styles.variantState}>
-                    {active ? 'SELECTED' : 'READY'}
+                    {active ? 'Selected' : 'Ready'}
                   </Text>
                 </GlassControl>
               );
@@ -242,22 +274,48 @@ export function AgentRequestPanel({
               </View>
             </GlassControl>
           )}
-          <Text style={styles.fieldLabel}>ADJUSTMENT REQUEST</Text>
+          <GlassControl
+            contentStyle={styles.compareContent}
+            onPress={onOpenReferences}
+            style={styles.compare}
+          >
+            <Text style={styles.compareText}>
+              Design references ·{' '}
+              {designGuidance.selected.filter((entry) => entry.kind !== 'skill' || !entry.skillName).length} attached
+            </Text>
+            <Ionicons
+              color={colors.muted}
+              name="chevron-forward"
+              size={16}
+            />
+          </GlassControl>
+          <DesignGuidancePanel
+            controller={designGuidance}
+            disabled={!canRequest}
+            hasSelection={Boolean(selected)}
+          />
+          <Text style={styles.fieldLabel}>Adjustment request</Text>
           <TextInput
+            accessibilityLabel="Adjustment request"
             editable={canRequest}
             multiline
             onChangeText={onRequestChange}
-            placeholder="Describe what should change and what must stay intact…"
+            placeholder={
+              designGuidance.selected.length
+                ? 'Optional: describe the result and what must stay intact…'
+                : 'Describe what should change and what must stay intact…'
+            }
             placeholderTextColor="#656971"
             style={[styles.requestInput, !canRequest && styles.disabled]}
             value={request}
           />
           <View style={styles.variantField}>
-            <Text style={styles.fieldLabel}>VARIANTS</Text>
+            <Text style={styles.fieldLabel}>Variants</Text>
             <View style={styles.countButtons}>
               {[1, 2, 3, 4, 5].map((count) => (
                 <GlassControl
                   accessibilityLabel={`${count} variant${count === 1 ? '' : 's'}`}
+                  accessibilityState={{ selected: variantCount === count }}
                   contentStyle={styles.countContent}
                   disabled={!canRequest}
                   glassStyle="clear"
@@ -274,7 +332,7 @@ export function AgentRequestPanel({
           </View>
           <GlassControl
             contentStyle={styles.sendContent}
-            disabled={!canRequest || !request.trim() || isSending}
+            disabled={!canRequest || !resolveAdjustmentRequest(request, designGuidance.selected).trim() || isSending}
             onPress={onSend}
             solid
             style={styles.send}
@@ -293,21 +351,50 @@ export function AgentRequestPanel({
               />
             )}
             <Text style={styles.sendText}>
-              {session ? (isSending ? 'Sending…' : 'Send to agent') : 'Agent unavailable'}
+              {isSending ? 'Sending…' : canRequest ? 'Send to agent' : connected ? 'Request sent' : 'Agent unavailable'}
             </Text>
           </GlassControl>
         </>
       )}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && (
+        <Text
+          accessibilityRole="alert"
+          style={styles.error}
+        >
+          {error}
+        </Text>
+      )}
+      <View style={styles.footer}>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.help, connected && { color: colors.accent }]}
+        >
+          {agentPanelStatus(session)}
+        </Text>
+        {connected && (
+          <GlassControl
+            accessibilityLabel="End live session"
+            contentStyle={styles.actionContent}
+            disabled={isEndingLive || isSending}
+            onPress={onEndLive}
+            solid
+            style={styles.endLive}
+          >
+            <Text style={styles.secondaryActionText}>{isEndingLive ? 'Ending live…' : 'End live'}</Text>
+          </GlassControl>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  footer: { gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
+  endLive: { minHeight: 44, borderRadius: 9 },
   section: { padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#23252a' },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   title: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  status: { color: colors.muted, fontSize: 9, textAlign: 'right' },
+  status: { color: colors.muted, fontSize: 12, textAlign: 'right' },
   liveRequired: {
     padding: 13,
     flexDirection: 'row',
@@ -327,7 +414,7 @@ const styles = StyleSheet.create({
   },
   liveCopy: { flex: 1 },
   liveTitle: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  liveText: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 4 },
+  liveText: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   waiting: {
     padding: 18,
     minHeight: 170,
@@ -339,12 +426,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   waitingTitle: { color: colors.text, fontSize: 13, fontWeight: '800', marginTop: 10 },
-  waitingRequest: { color: '#c4c7cd', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 8 },
-  waitingMeta: { color: colors.muted, fontSize: 9, marginTop: 8 },
+  waitingRequest: { color: '#c4c7cd', fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8 },
+  waitingMeta: { color: colors.muted, fontSize: 12, marginTop: 8 },
   review: { gap: 10 },
   requestSummary: { padding: 12, borderRadius: 10, backgroundColor: '#16181c', borderWidth: 1, borderColor: '#303238' },
-  requestSummaryText: { color: colors.text, fontSize: 11, lineHeight: 16, marginTop: 6 },
-  fieldLabel: { color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.9 },
+  requestSummaryText: { color: colors.text, fontSize: 14, lineHeight: 20, marginTop: 6 },
+  fieldLabel: { color: colors.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.9 },
   variantOptions: { gap: 7 },
   variantOption: { minHeight: 44, borderRadius: 10 },
   variantOptionActive: { borderColor: colors.accent },
@@ -354,10 +441,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
-  variantLabel: { color: colors.text, fontSize: 11, fontWeight: '700' },
-  variantLabelActive: { color: '#10130e', fontSize: 11, fontWeight: '900' },
-  variantState: { color: colors.muted, fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
-  variantStateActive: { color: '#26301e', fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  variantLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  variantLabelActive: { color: '#10130e', fontSize: 14, fontWeight: '900' },
+  variantState: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  variantStateActive: { color: '#26301e', fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
   finalizing: {
     minHeight: 58,
     padding: 12,
@@ -367,27 +454,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#192018'
   },
-  finalizingText: { flex: 1, color: colors.text, fontSize: 10, lineHeight: 15 },
+  finalizingText: { flex: 1, color: colors.text, fontSize: 13, lineHeight: 19 },
   compare: { minHeight: 44, borderRadius: 10 },
   compareContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  compareText: { color: colors.text, fontSize: 10, fontWeight: '700' },
+  compareText: { color: colors.text, fontSize: 13, fontWeight: '700' },
   reviewActions: { flexDirection: 'row', gap: 8 },
   reviewAction: { flex: 1, minHeight: 44, borderRadius: 10 },
   actionContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  secondaryActionText: { color: colors.text, fontSize: 10, fontWeight: '800' },
-  primaryActionText: { color: '#10130e', fontSize: 10, fontWeight: '900' },
+  secondaryActionText: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  primaryActionText: { color: '#10130e', fontSize: 13, fontWeight: '900' },
   evidence: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, padding: 13, backgroundColor: '#16181c' },
   evidenceHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   evidenceName: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800' },
-  evidenceMeta: { color: colors.muted, fontSize: 9, marginTop: 5 },
-  evidenceCode: { color: '#b8bbc2', fontSize: 9, marginTop: 8 },
+  evidenceMeta: { color: colors.muted, fontSize: 12, marginTop: 5 },
+  evidenceCode: { color: '#b8bbc2', fontSize: 12, marginTop: 8 },
   clear: { width: 44, height: 44, borderRadius: 22, margin: -12 },
   clearContent: { alignItems: 'center', justifyContent: 'center' },
   empty: { minHeight: 78, borderRadius: 12 },
   emptyContent: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
   emptyCopy: { flex: 1 },
-  emptyTitle: { color: colors.text, fontSize: 11, fontWeight: '700' },
-  emptyText: { color: colors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
+  emptyTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  emptyText: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   requestInput: {
     minHeight: 104,
     borderWidth: 1,
@@ -403,11 +490,11 @@ const styles = StyleSheet.create({
   countButtons: { flexDirection: 'row', gap: 6 },
   countButton: { width: 44, height: 44, borderRadius: 9 },
   countContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  countText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
-  countActive: { color: '#10130e', fontSize: 11, fontWeight: '900' },
-  help: { color: colors.muted, fontSize: 9 },
+  countText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
+  countActive: { color: '#10130e', fontSize: 14, fontWeight: '900' },
+  help: { color: colors.muted, fontSize: 12 },
   send: { minHeight: 46, borderRadius: 10 },
   sendContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  sendText: { color: '#10130e', fontSize: 11, fontWeight: '900' },
-  error: { color: colors.danger, fontSize: 10 }
+  sendText: { color: '#10130e', fontSize: 14, fontWeight: '900' },
+  error: { color: colors.danger, fontSize: 13 }
 });

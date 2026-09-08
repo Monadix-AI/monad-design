@@ -43,7 +43,9 @@ export function GlassControl({
 }: GlassControlProps) {
   const control = (
     <Pressable
+      accessibilityRole="button"
       {...pressableProps}
+      accessibilityState={{ ...pressableProps.accessibilityState, disabled: Boolean(disabled) }}
       disabled={disabled}
       style={({ pressed }) => [
         styles.content,
@@ -60,7 +62,7 @@ export function GlassControl({
     return (
       <GlassView
         glassEffectStyle={glassStyle}
-        isInteractive={!disabled}
+        isInteractive={false}
         key={disabled ? 'disabled' : 'interactive'}
         style={[styles.shell, style]}
         tintColor={tint[tone]}

@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { applyVariantReviewAction, variantComparisonLayout } from '../variant-review';
 import { GlassControl } from './GlassControl';
 
 const defaultVariants = simulatorVariantIdsForCount(3);
@@ -63,6 +64,8 @@ export function VariantModal({
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [canvasViewport, setCanvasViewport] = useState<{ width: number; height: number } | null>(null);
+  const comparisonLayout = variantComparisonLayout(canvasViewport ?? { width: 800, height: 600 }, variants.length);
+  const operationActive = useRef(false);
   const capturedKey = useRef<string | null>(null);
   const canvasScaleRef = useRef(canvasScale);
   const canvasOffsetRef = useRef(canvasOffset);
@@ -83,14 +86,14 @@ export function VariantModal({
     (offset: { x: number; y: number }, scale: number) => {
       const next = canvasViewport
         ? clampCanvasOffset(offset, canvasViewport, {
-            width: canvasViewport.width * scale,
-            height: canvasViewport.height * scale
+            width: comparisonLayout.width * scale,
+            height: comparisonLayout.height * scale
           })
         : offset;
       canvasOffsetRef.current = next;
       setCanvasOffset(next);
     },
-    [canvasViewport]
+    [canvasViewport, comparisonLayout.width, comparisonLayout.height]
   );
   const changeCanvasScale = useCallback(
     (requestedScale: number) => {
@@ -103,11 +106,17 @@ export function VariantModal({
   );
   const fitCanvas = useCallback(() => {
     canvasGesture.current = null;
-    canvasScaleRef.current = 1;
+    const fittedScale = canvasViewport
+      ? Math.max(
+          minimumCanvasScale,
+          Math.min(1, canvasViewport.width / comparisonLayout.width, canvasViewport.height / comparisonLayout.height)
+        )
+      : 1;
+    canvasScaleRef.current = fittedScale;
     canvasOffsetRef.current = { x: 0, y: 0 };
-    setCanvasScale(1);
+    setCanvasScale(fittedScale);
     setCanvasOffset({ x: 0, y: 0 });
-  }, []);
+  }, [canvasViewport, comparisonLayout.width, comparisonLayout.height]);
   const canvasResponder = useMemo(
     () =>
       PanResponder.create({
@@ -201,6 +210,8 @@ export function VariantModal({
     if (visible) fitCanvas();
   }, [fitCanvas, visible]);
   const capture = useCallback(async () => {
+    if (operationActive.current) return;
+    operationActive.current = true;
     setCaptures({});
     setSelected(null);
     setError(null);
@@ -220,6 +231,7 @@ export function VariantModal({
       if (previewLaunchStarted) {
         try {
           await launchApp().unwrap();
+          onRestored();
         } catch (reason) {
           setError((current) => {
             const message = `Could not restart the app normally: ${errorMessage(reason, 'Unknown error.')}`;
@@ -227,52 +239,68 @@ export function VariantModal({
           });
         }
       }
+      operationActive.current = false;
       setWorking(null);
     }
-  }, [captureScreenshot, launchApp, launchVariant, variants]);
+  }, [captureScreenshot, launchApp, launchVariant, variants, onRestored]);
   useEffect(() => {
     if (!visible || !autoCaptureKey || capturedKey.current === autoCaptureKey) return;
     capturedKey.current = autoCaptureKey;
     void capture();
   }, [autoCaptureKey, capture, visible]);
   const restore = async () => {
+    if (operationActive.current) return;
+    operationActive.current = true;
+    setError(null);
     setWorking('restore');
     try {
-      await launchApp().unwrap();
+      await applyVariantReviewAction({
+        action: 'discard',
+        variant: 'original',
+        launchOriginal: () => launchApp().unwrap(),
+        launchVariant: (variant) => launchVariant({ variant }).unwrap(),
+        onPreview: onRestored,
+        confirmSelection
+      });
       setCaptures({});
       setSelected(null);
-      onRestored();
       onClose();
     } catch (reason) {
       setError(errorMessage(reason, 'Could not restore the original.'));
     } finally {
+      operationActive.current = false;
       setWorking(null);
     }
   };
-  const open = async () => {
-    if (!selected) return;
+  const open = async (accept: boolean) => {
+    if (!selected || operationActive.current) return;
+    operationActive.current = true;
+    setError(null);
     setWorking('open');
     try {
-      if (selected === 'original') {
-        await launchApp().unwrap();
-        onRestored();
-      } else {
-        await launchVariant({ variant: selected }).unwrap();
-        onOpened(selected);
-      }
-      await confirmSelection?.(selected);
+      await applyVariantReviewAction({
+        action: accept ? 'accept' : 'preview',
+        variant: selected,
+        launchOriginal: () => launchApp().unwrap(),
+        launchVariant: (variant) => launchVariant({ variant }).unwrap(),
+        onPreview: (variant) => (variant === 'original' ? onRestored() : onOpened(variant)),
+        confirmSelection
+      });
       onClose();
     } catch (reason) {
       setError(errorMessage(reason, 'Could not open the variant.'));
     } finally {
+      operationActive.current = false;
       setWorking(null);
     }
   };
   return (
     <Modal
       animationType="slide"
-      onRequestClose={() => void restore()}
-      supportedOrientations={['landscape-left', 'landscape-right']}
+      onRequestClose={() => {
+        if (!operationActive.current) onClose();
+      }}
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
       visible={visible}
     >
       <View style={styles.root}>
@@ -280,18 +308,23 @@ export function VariantModal({
           <View>
             <Text style={styles.title}>Compare native variants</Text>
             <Text style={styles.boundary}>
-              {working
-                ? 'Capturing runtime evidence…'
-                : selected
-                  ? 'Selected · not applied to source'
-                  : 'Preview evidence only'}
+              {working === 'open'
+                ? 'Opening selected variant…'
+                : working === 'restore'
+                  ? 'Restoring original…'
+                  : working
+                    ? 'Capturing runtime evidence…'
+                    : selected
+                      ? 'Selected · not applied to source'
+                      : 'Preview evidence only'}
             </Text>
           </View>
           <GlassControl
             accessibilityLabel="Close variant comparison"
             contentStyle={styles.closeContent}
+            disabled={Boolean(working)}
             glassStyle="clear"
-            onPress={() => void restore()}
+            onPress={onClose}
             style={styles.close}
           >
             <Ionicons
@@ -344,16 +377,28 @@ export function VariantModal({
             style={[
               styles.grid,
               {
+                width: comparisonLayout.width,
+                height: comparisonLayout.height,
                 transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }, { scale: canvasScale }]
               }
             ]}
           >
             {variants.map((variant) => (
               <Pressable
+                accessibilityLabel={simulatorVariantLabels[variant]}
+                accessibilityRole="button"
+                accessibilityState={{
+                  selected: selected === variant,
+                  disabled: !captures[variant] || Boolean(working)
+                }}
                 disabled={!captures[variant] || Boolean(working)}
                 key={variant}
                 onPress={() => setSelected(variant)}
-                style={[styles.tile, selected === variant && styles.selected]}
+                style={[
+                  styles.tile,
+                  { width: comparisonLayout.tileWidth, height: comparisonLayout.tileHeight },
+                  selected === variant && styles.selected
+                ]}
               >
                 <View style={styles.tileHeader}>
                   <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
@@ -432,17 +477,27 @@ export function VariantModal({
             onPress={() => void restore()}
             style={styles.secondary}
           >
-            <Text style={styles.secondaryText}>Discard & restore</Text>
+            <Text style={styles.secondaryText}>{confirmSelection ? 'Discard' : 'Restore original'}</Text>
           </GlassControl>
+          {confirmSelection && (
+            <GlassControl
+              contentStyle={styles.secondaryContent}
+              disabled={!selected || Boolean(working)}
+              onPress={() => void open(false)}
+              style={styles.secondary}
+            >
+              <Text style={styles.secondaryText}>Preview live</Text>
+            </GlassControl>
+          )}
           <GlassControl
             contentStyle={styles.primaryContent}
             disabled={!selected || Boolean(working)}
-            onPress={() => void open()}
+            onPress={() => void open(true)}
             style={styles.primary}
             tone="accent"
           >
             {working === 'open' && <ActivityIndicator color="#10130e" />}
-            <Text style={styles.primaryText}>{confirmSelection ? 'Confirm selection' : 'Open selected live'}</Text>
+            <Text style={styles.primaryText}>{confirmSelection ? 'Accept' : 'Open selected live'}</Text>
           </GlassControl>
         </View>
       </View>
@@ -453,8 +508,8 @@ export function VariantModal({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0d0e11', paddingTop: 44 },
   header: {
-    height: 76,
-    paddingHorizontal: 26,
+    minHeight: 76,
+    paddingHorizontal: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#292b31',
     flexDirection: 'row',
@@ -464,8 +519,8 @@ const styles = StyleSheet.create({
   title: { color: '#eef0f4', fontSize: 22, fontWeight: '700' },
   boundary: { color: '#a8ff78', fontSize: 11, marginTop: 4 },
   close: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20
   },
   closeContent: {
@@ -477,10 +532,11 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingHorizontal: 26,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-end',
     gap: 14
   },
-  field: { width: 280, gap: 6 },
+  field: { flexGrow: 1, flexBasis: 200, gap: 6 },
   label: {
     color: '#8d929c',
     fontSize: 10,
@@ -498,7 +554,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontFamily: 'Courier'
   },
-  help: { flex: 1, color: '#777b84', fontSize: 12, marginBottom: 13 },
+  help: { flexGrow: 1, flexBasis: 150, color: '#777b84', fontSize: 12, marginBottom: 13 },
   primary: {
     minHeight: 44,
     borderRadius: 10
@@ -511,10 +567,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   primaryText: { color: '#10130e', fontWeight: '800' },
-  gridViewport: { flex: 1, overflow: 'hidden' },
+  gridViewport: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   grid: {
-    flex: 1,
-    padding: 26,
+    padding: 18,
     paddingTop: 8,
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -535,9 +590,6 @@ const styles = StyleSheet.create({
   zoomButtonContent: { alignItems: 'center', justifyContent: 'center' },
   zoomValue: { width: 52, color: '#eef0f4', fontSize: 11, textAlign: 'center' },
   tile: {
-    width: '48.9%',
-    height: '47%',
-    minHeight: 220,
     borderWidth: 1,
     borderColor: '#303238',
     borderRadius: 14,
@@ -563,13 +615,15 @@ const styles = StyleSheet.create({
   },
   error: { color: '#ff7388', marginHorizontal: 26, marginBottom: 8 },
   footer: {
-    height: 76,
-    paddingHorizontal: 26,
+    minHeight: 76,
+    paddingHorizontal: 18,
     borderTopWidth: 1,
     borderTopColor: '#292b31',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    paddingVertical: 12,
     gap: 10
   },
   secondary: {

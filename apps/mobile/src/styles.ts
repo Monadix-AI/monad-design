@@ -573,6 +573,8 @@ export const styles = StyleSheet.create({
   },
   modeButtonText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   modeButtonTextActive: { color: colors.text },
+  workspaceToolButton: { width: 44, height: 44, borderRadius: 9 },
+  workspaceToolButtonContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   canvasArea: { flex: 1, backgroundColor: '#1b1e24', position: 'relative' },
   canvasReadout: {
     position: 'absolute',
@@ -600,15 +602,13 @@ export const styles = StyleSheet.create({
   },
   canvasModeBar: {
     position: 'absolute',
-    top: 12,
-    right: 18,
+    top: 78,
+    left: 18,
     zIndex: 4,
-    width: 276,
-    minHeight: 44,
-    padding: 3,
-    borderRadius: 11,
-    flexDirection: 'row',
-    gap: 3,
+    width: 54,
+    padding: 5,
+    borderRadius: 12,
+    gap: 4,
     backgroundColor: 'rgba(20, 22, 26, 0.86)'
   },
   canvasCenter: {

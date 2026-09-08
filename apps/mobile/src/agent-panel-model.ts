@@ -1,7 +1,7 @@
 import type { AgentSessionSnapshot } from '@monaddesign/client-contract';
 
 export const agentPanelStatus = (session: AgentSessionSnapshot | null) => {
-  if (!session) return 'No responsive agent';
+  if (!session || session.status === 'closed') return 'Agent offline';
   if (session.status === 'awaiting_request') return 'Agent connected · ready';
   if (session.status === 'change_requested') return 'Request sent';
   if (session.status === 'working') return 'Agent is applying changes';

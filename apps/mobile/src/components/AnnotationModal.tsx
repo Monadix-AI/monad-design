@@ -21,11 +21,12 @@ import {
   isFreehandAnnotation,
   type AnnotationPoint as Point,
   type AnnotationSize as Size,
+  serializeAnnotationNotes,
   translateAnnotation,
   wrapAnnotationText
 } from '@monaddesign/simulator/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Ellipse, Line, Path, Polyline, Rect, Text as SvgText, TSpan } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
 
@@ -48,9 +49,11 @@ export function AnnotationModal({
   image: string | null;
   isRecapturing: boolean;
   onClose: () => void;
-  onFinish: (annotationScreenshot: string) => Promise<void>;
+  onFinish: (annotationScreenshot: string, annotationNotes: string) => Promise<void>;
   onRecapture: () => void;
 }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 760;
   const [tool, setTool] = useState<AnnotationTool>('rectangle');
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [draft, setDraft] = useState<DrawnAnnotation | FreehandAnnotation | null>(null);
@@ -185,7 +188,7 @@ export function AnnotationModal({
         width: imageSize.width,
         height: imageSize.height
       });
-      await onFinish(`data:image/png;base64,${base64}`);
+      await onFinish(`data:image/png;base64,${base64}`, serializeAnnotationNotes(annotations));
       onClose();
     } catch (error) {
       Alert.alert('Could not send to agent', error instanceof Error ? error.message : 'Try again.');
@@ -204,7 +207,7 @@ export function AnnotationModal({
   };
 
   const connectorPaths = useMemo(() => {
-    if (!compositionSize || !frame || !imageSize || !callouts.length) return [];
+    if (compact || !compositionSize || !frame || !imageSize || !callouts.length) return [];
     const notesLeft = compositionSize.width - 300;
     return callouts.map((callout, index) => {
       const radius = Math.max(20, imageSize.width * 0.019);
@@ -219,35 +222,40 @@ export function AnnotationModal({
         d: annotationConnectorPath(start, end, { minimumReach: 54, precision: 3 })
       };
     });
-  }, [callouts, compositionSize, frame, imageSize]);
+  }, [callouts, compact, compositionSize, frame, imageSize]);
 
   return (
     <Modal
       animationType="slide"
       onRequestClose={onClose}
-      supportedOrientations={['landscape-left', 'landscape-right']}
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
       visible={Boolean(image)}
     >
       <View style={styles.root}>
-        <View style={styles.header}>
-          <GlassControl
-            contentStyle={styles.headerButtonContent}
-            glassStyle="clear"
-            onPress={onClose}
-            style={styles.headerButton}
-          >
-            <Ionicons
-              color="#eef0f4"
-              name="close"
-              size={20}
-            />
-            <Text style={styles.buttonText}>Close</Text>
-          </GlassControl>
-          <View>
-            <Text style={styles.title}>Annotate evidence</Text>
-            <Text style={styles.boundary}>Touch uses the selected tool · Pencil draws freehand · source unchanged</Text>
+        <View style={[styles.header, compact && styles.headerCompact]}>
+          <View style={styles.headerIdentity}>
+            <GlassControl
+              contentStyle={styles.closeButtonContent}
+              glassStyle="clear"
+              onPress={onClose}
+              style={styles.closeButton}
+            >
+              <Ionicons
+                color="#eef0f4"
+                name="close"
+                size={20}
+              />
+            </GlassControl>
+            <View style={styles.headerCopy}>
+              <Text style={[styles.title, compact && styles.titleCompact]}>Annotate evidence</Text>
+              {!compact && (
+                <Text style={styles.boundary}>
+                  Touch uses the selected tool · Pencil draws freehand · source unchanged
+                </Text>
+              )}
+            </View>
           </View>
-          <View style={styles.headerActions}>
+          <View style={[styles.headerActions, compact && styles.headerActionsCompact]}>
             <GlassControl
               contentStyle={styles.headerButtonContent}
               disabled={isRecapturing}
@@ -278,13 +286,13 @@ export function AnnotationModal({
             </GlassControl>
           </View>
         </View>
-        <View style={styles.body}>
+        <View style={[styles.body, compact && styles.bodyCompact]}>
           <View
             collapsable={false}
             onLayout={({ nativeEvent: { layout } }) =>
               setCompositionSize({ width: layout.width, height: layout.height })
             }
-            style={styles.composition}
+            style={[styles.composition, compact && styles.compositionCompact]}
           >
             <View
               onLayout={({ nativeEvent: { layout } }) => setViewport({ width: layout.width, height: layout.height })}
@@ -482,7 +490,7 @@ export function AnnotationModal({
               )}
             </View>
             {callouts.length > 0 && (
-              <View style={styles.notes}>
+              <View style={[styles.notes, compact && styles.notesCompact]}>
                 <Text style={styles.notesTitle}>Implementation notes</Text>
                 <Text style={styles.notesMeta}>
                   {callouts.length} numbered callout{callouts.length === 1 ? '' : 's'} · optional · not in sent image
@@ -545,7 +553,11 @@ export function AnnotationModal({
               </Svg>
             )}
           </View>
-          <View style={styles.tools}>
+          <ScrollView
+            contentContainerStyle={styles.tools}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
             {tools.map((item) => (
               <GlassControl
                 contentStyle={styles.toolContent}
@@ -612,7 +624,7 @@ export function AnnotationModal({
               />
               <Text style={styles.toolText}>Clear</Text>
             </GlassControl>
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -631,7 +643,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
+  headerCompact: { height: 116, paddingHorizontal: 14, paddingTop: 10, flexDirection: 'column', gap: 8 },
+  headerIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch' },
+  headerCopy: { flex: 1 },
   headerActions: { flexDirection: 'row', gap: 8 },
+  headerActionsCompact: { alignSelf: 'stretch' },
+  closeButton: { width: 44, height: 44, borderRadius: 10 },
+  closeButtonContent: { alignItems: 'center', justifyContent: 'center' },
   headerButton: { minWidth: 92, height: 44, borderRadius: 10 },
   headerButtonContent: {
     paddingHorizontal: 14,
@@ -643,9 +661,12 @@ const styles = StyleSheet.create({
   buttonText: { color: '#eef0f4', fontWeight: '600' },
   primaryText: { color: '#10130e', fontWeight: '800' },
   title: { color: '#eef0f4', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  titleCompact: { textAlign: 'left', fontSize: 16 },
   boundary: { color: '#8d929c', fontSize: 11, marginTop: 3, textAlign: 'center' },
   body: { flex: 1, padding: 20, gap: 12 },
+  bodyCompact: { padding: 10 },
   composition: { flex: 1, flexDirection: 'row', gap: 14, backgroundColor: '#0f1013' },
+  compositionCompact: { flexDirection: 'column' },
   connectors: { position: 'absolute', inset: 0, zIndex: 3 },
   canvas: {
     flex: 1,
@@ -675,6 +696,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#303238'
   },
+  notesCompact: { width: '100%', maxHeight: 220 },
   notesTitle: { color: '#f2f3f5', fontSize: 18, fontWeight: '700' },
   notesMeta: { color: '#8d929c', fontSize: 11, marginTop: 4 },
   noteList: { gap: 10, paddingTop: 14, paddingBottom: 12 },

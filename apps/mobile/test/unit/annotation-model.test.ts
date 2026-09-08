@@ -6,7 +6,8 @@ import {
   containAnnotationFrame as containFrame,
   freehandIsVisible,
   annotationImagePoint as imagePoint,
-  isDrawnAnnotation
+  isDrawnAnnotation,
+  serializeAnnotationNotes
 } from '@monaddesign/simulator/annotation';
 
 describe('mobile annotation geometry', () => {
@@ -49,5 +50,27 @@ describe('mobile annotation geometry', () => {
     expect(freehandIsVisible(freehand)).toBe(true);
     expect(isDrawnAnnotation(freehand)).toBe(false);
     expect(freehandIsVisible({ ...freehand, points: freehand.points.slice(0, 2) })).toBe(false);
+  });
+
+  test('sends numbered implementation notes with the annotated screenshot', () => {
+    expect(
+      serializeAnnotationNotes([
+        {
+          id: 'one',
+          type: 'rectangle',
+          start: { x: 10, y: 10 },
+          end: { x: 40, y: 40 },
+          note: 'Increase spacing.'
+        },
+        { id: 'label', type: 'text', start: { x: 20, y: 20 }, text: 'Reference' },
+        {
+          id: 'two',
+          type: 'arrow',
+          start: { x: 80, y: 80 },
+          end: { x: 50, y: 50 },
+          note: 'Align this edge.'
+        }
+      ])
+    ).toBe('Implementation notes (numbers match the annotated screenshot):\n1. Increase spacing.\n2. Align this edge.');
   });
 });

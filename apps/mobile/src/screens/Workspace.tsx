@@ -5,6 +5,7 @@ import type {
 } from '@monaddesign/client-contract';
 import type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
 
+import { resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
 
 type AXElement = AXSnapshot['elements'][number];
@@ -34,7 +35,21 @@ import {
 import { workspaceStore } from '@monaddesign/state/workspace-store';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import { WebView } from 'react-native-webview';
@@ -42,9 +57,12 @@ import { useStore } from 'zustand';
 
 import { AgentRequestPanel } from '../components/AgentRequestPanel';
 import { AnnotationModal } from '../components/AnnotationModal';
+import { DesignDocumentPanel } from '../components/DesignDocumentPanel';
+import { DesignGuidancePanel } from '../components/DesignGuidancePanel';
 import { GlassControl } from '../components/GlassControl';
 import { VariantModal } from '../components/VariantModal';
-import { CanvasControl, ModeButton } from '../components/WorkspaceControls';
+import { CanvasControl, ModeButton, WorkspaceToolButton } from '../components/WorkspaceControls';
+import { useDesignGuidance } from '../hooks/use-design-guidance';
 import { useLiveAgentSession } from '../hooks/use-live-agent-session';
 import { useSimulatorInput } from '../hooks/use-simulator-input';
 import { styles } from '../styles';
@@ -139,6 +157,9 @@ export function Workspace({
   connection: SimulatorConnection;
   onExit: () => void;
 }) {
+  const { width, height } = useWindowDimensions();
+  const dockInspector = width >= 1000 && height >= 600;
+  const [isEndingLive, setIsEndingLive] = useState(false);
   const touchActive = useRef(false);
   const [streamReady, setStreamReady] = useState(false);
   const { data: appearanceData } = useGetSimulatorAppearanceQuery();
@@ -160,8 +181,9 @@ export function Workspace({
     width: number;
     height: number;
   } | null>(null);
-  const [inspectorVisible, setInspectorVisible] = useState(false);
+  const [inspectorVisible, setInspectorVisible] = useState(dockInspector);
   const autoOpenedAgentRequest = useRef<string | null>(null);
+  const [supportPanel, setSupportPanel] = useState<'design' | 'references' | null>(null);
   const [pasteVisible, setPasteVisible] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [annotationImage, setAnnotationImage] = useState<string | null>(null);
@@ -238,8 +260,10 @@ export function Workspace({
     const requestId = agentSession?.status === 'variants_ready' ? agentSession.changeRequest?.id : null;
     if (!requestId || autoOpenedAgentRequest.current === requestId) return;
     autoOpenedAgentRequest.current = requestId;
+    setInspectorVisible(false);
     setSelectionMode(false);
     setAnnotationImage(null);
+    setSupportPanel(null);
     setVariantVisible(true);
   }, [agentSession?.changeRequest?.id, agentSession?.status, setSelectionMode]);
 
@@ -271,8 +295,8 @@ export function Workspace({
             x: locationX / Math.max(1, frameLayout.current.width),
             y: locationY / Math.max(1, frameLayout.current.height)
           };
-          if (selectionMode && snapshot) {
-            setSelectedPath(axElementAtPoint(snapshot, point)?.path ?? null);
+          if (selectionMode) {
+            setSelectedPath(snapshot ? (axElementAtPoint(snapshot, point)?.path ?? null) : null);
             return;
           }
           lastSimulatorTouch.current = point;
@@ -344,6 +368,39 @@ export function Workspace({
     () => snapshot?.elements.find(({ path }) => path === selectedPath),
     [selectedPath, snapshot]
   );
+  const designGuidance = useDesignGuidance(`${connection.projectId}:${agentSession?.id ?? ''}`, Boolean(selected));
+  const effectiveRequest = resolveAdjustmentRequest(request, designGuidance.selected);
+  const agentFlowLocked =
+    agentSession?.status === 'change_requested' ||
+    agentSession?.status === 'working' ||
+    agentSession?.status === 'variants_ready' ||
+    agentSession?.status === 'selection_confirmed';
+  const toolsDisabled = agentFlowLocked || busy === 'capture' || isSendingAgentRequest || isEndingLive;
+  const clearEditingDraft = () => {
+    setSelectedPath(null);
+    setAnnotationImage(null);
+    setRequest('');
+    setVariantCount(1);
+    designGuidance.clearDraft();
+    setSelectionMode(false);
+  };
+  const activateInteract = () => {
+    const hasDraft = Boolean(
+      selectedPath || request.trim() || designGuidance.selected.length || designGuidance.focus.trim()
+    );
+    if (!hasDraft) {
+      setSelectionMode(false);
+      return;
+    }
+    Alert.alert(
+      'Clear draft and interact?',
+      'Returning to Interact clears the selected element, request, references and adjustment goals. This cannot be undone.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Clear and interact', style: 'destructive', onPress: clearEditingDraft }
+      ]
+    );
+  };
   const agentTurnContext = useMemo(
     () =>
       buildAgentTurnContext({
@@ -355,12 +412,18 @@ export function Workspace({
     [connection.bundleIdentifier, selected, simulator, snapshot]
   );
   const sendAgentRequest = async () => {
-    if (agentSession?.status !== 'awaiting_request' || !request.trim()) return;
+    if (
+      agentSession?.status !== 'awaiting_request' ||
+      !effectiveRequest.trim() ||
+      isSendingAgentRequest ||
+      isEndingLive
+    )
+      return;
     setIsSendingAgentRequest(true);
     setAgentSessionError(null);
     try {
       let context = agentTurnContext;
-      if (!selected) {
+      if (!selected || designGuidance.guidance?.scope === 'screen') {
         const currentSnapshot = await api.accessibility();
         context = buildAgentTurnContext({
           bundleIdentifier: connection.bundleIdentifier,
@@ -369,12 +432,13 @@ export function Workspace({
         });
       }
       const next = await api.submitAgentRequest(agentSession.id, {
-        request,
+        request: effectiveRequest,
         variantCount,
-        context
+        context: { ...context, ...(designGuidance.guidance ? { designGuidance: designGuidance.guidance } : {}) }
       });
       setAgentSession(next);
       setRequest('');
+      designGuidance.submitted();
       setVariantCount(1);
     } catch (reason) {
       setAgentSessionError(errorMessage(reason));
@@ -382,8 +446,8 @@ export function Workspace({
       setIsSendingAgentRequest(false);
     }
   };
-  const sendAnnotatedAgentRequest = async (annotationScreenshot: string) => {
-    if (agentSession?.status !== 'awaiting_request') {
+  const sendAnnotatedAgentRequest = async (annotationScreenshot: string, annotationNotes: string) => {
+    if (agentSession?.status !== 'awaiting_request' || isSendingAgentRequest || isEndingLive) {
       throw new Error('Start Live and wait until the agent is ready before finishing the annotation.');
     }
     setIsSendingAgentRequest(true);
@@ -396,13 +460,22 @@ export function Workspace({
         simulator
       });
       const next = await api.submitAgentRequest(agentSession.id, {
-        request: request.trim() || 'Implement the changes shown in the attached annotated screenshot.',
+        request: [
+          request.trim() || 'Implement the changes shown in the attached annotated screenshot.',
+          annotationNotes
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
         variantCount,
-        context,
+        context: {
+          ...context,
+          ...(designGuidance.guidance ? { designGuidance: { ...designGuidance.guidance, scope: 'screen' } } : {})
+        },
         annotationScreenshot
       });
       setAgentSession(next);
       setRequest('');
+      designGuidance.submitted();
       setVariantCount(1);
     } catch (reason) {
       const message = errorMessage(reason);
@@ -430,6 +503,7 @@ export function Workspace({
     }
   };
   const previewAgentVariant = async (variant: SimulatorVariantId) => {
+    if (agentSession?.status !== 'variants_ready' || agentVariantTransition || isEndingLive) return;
     setAgentVariantTransition('previewing');
     setAgentSessionError(null);
     try {
@@ -448,15 +522,19 @@ export function Workspace({
     }
   };
   const acceptAgentVariant = async () => {
-    if (!selectedAgentVariant) return;
+    if (!selectedAgentVariant || agentSession?.status !== 'variants_ready' || agentVariantTransition || isEndingLive)
+      return;
     setAgentVariantTransition('accepting');
     try {
       await confirmAgentVariant(selectedAgentVariant);
+    } catch (reason) {
+      setAgentSessionError(errorMessage(reason));
     } finally {
       setAgentVariantTransition(null);
     }
   };
   const discardAgentChange = async () => {
+    if (agentSession?.status !== 'variants_ready' || agentVariantTransition || isEndingLive) return;
     setAgentVariantTransition('discarding');
     setAgentSessionError(null);
     try {
@@ -650,44 +728,173 @@ export function Workspace({
     }
     onExit();
   };
+  const endLive = async () => {
+    if (!agentSession || isEndingLive || isSendingAgentRequest) return;
+    setIsEndingLive(true);
+    setAgentSessionError(null);
+    try {
+      setAgentSession(await api.closeAgentSession(agentSession.id));
+    } catch (reason) {
+      setAgentSessionError(errorMessage(reason));
+    } finally {
+      setIsEndingLive(false);
+    }
+  };
+  const inspector = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.inspectorModal}
+    >
+      <View style={styles.inspectorTitlebar}>
+        <View>
+          <Text style={styles.inspectorTitle}>Workspace</Text>
+          <Text style={styles.inspectorRuntime}>{simulator.runtime}</Text>
+        </View>
+        {!dockInspector && (
+          <GlassControl
+            accessibilityLabel="Close workspace controls"
+            contentStyle={styles.modalCloseContent}
+            glassStyle="clear"
+            onPress={() => setInspectorVisible(false)}
+            style={styles.modalClose}
+          >
+            <Ionicons
+              color={colors.muted}
+              name="close"
+              size={20}
+            />
+          </GlassControl>
+        )}
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.inspectorContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <AgentRequestPanel
+          designGuidance={designGuidance}
+          error={agentSessionError}
+          isEndingLive={isEndingLive}
+          isSending={isSendingAgentRequest}
+          onAccept={() => void acceptAgentVariant()}
+          onClearSelection={() => setSelectedPath(null)}
+          onCompare={() => {
+            setSelectionMode(false);
+            setAnnotationImage(null);
+            setInspectorVisible(false);
+            setVariantVisible(true);
+          }}
+          onDiscard={() => void discardAgentChange()}
+          onEndLive={() => void endLive()}
+          onOpenReferences={() => setSupportPanel('references')}
+          onPreviewVariant={(variant) => void previewAgentVariant(variant)}
+          onRequestChange={setRequest}
+          onSelectEvidence={() => {
+            setAnnotationImage(null);
+            setSelectionMode(true);
+            if (!dockInspector) setInspectorVisible(false);
+          }}
+          onSend={() => void sendAgentRequest()}
+          onVariantCountChange={setVariantCount}
+          request={request}
+          selected={selected}
+          selectedVariant={selectedAgentVariant}
+          session={agentSession?.project.id === connection.projectId ? agentSession : null}
+          snapshot={snapshot}
+          transition={agentVariantTransition}
+          variantCount={variantCount}
+          variants={agentVariants}
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+  const support = (
+    <SafeAreaView style={styles.inspectorModal}>
+      <View style={styles.inspectorTitlebar}>
+        <Text style={styles.inspectorTitle}>{supportPanel === 'design' ? 'DESIGN.md' : 'Design references'}</Text>
+        <ModeButton
+          label="Done"
+          onPress={() => setSupportPanel(null)}
+        />
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.inspectorContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {supportPanel === 'design' ? (
+          <DesignDocumentPanel
+            api={api}
+            projectId={connection.projectId}
+            showTrigger={false}
+          />
+        ) : (
+          <DesignGuidancePanel
+            controller={designGuidance}
+            disabled={agentSession?.status !== 'awaiting_request' || isSendingAgentRequest || isEndingLive}
+            hasSelection={Boolean(selected)}
+            referencesOnly
+          />
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
   return (
     <SafeAreaView style={styles.workspaceRoot}>
       <View style={styles.canvasArea}>
-        <View style={styles.canvasReadout}>
+        <View style={[styles.canvasReadout, parityStyles.readout]}>
           <View style={[styles.canvasReadoutDot, socketReady && streamReady && styles.liveDotOn]} />
-          <Text style={styles.canvasSize}>
+          <Text
+            numberOfLines={1}
+            style={[styles.canvasSize, parityStyles.readoutText]}
+          >
             {simulator.name} · {Math.round(screenSize.width)} × {Math.round(screenSize.height)} ·{' '}
             {orientation.replaceAll('_', ' ')}
           </Text>
           {activeVariant && <Text style={styles.previewBoundary}>{activeVariant.toUpperCase()} · PREVIEW ONLY</Text>}
         </View>
-        <View style={styles.canvasModeBar}>
+        {!agentFlowLocked && (
+          <View style={styles.canvasModeBar}>
+            <WorkspaceToolButton
+              active={!selectionMode && !annotationImage && !variantVisible}
+              disabled={toolsDisabled || variantVisible}
+              icon="navigate-outline"
+              label="Interact"
+              onPress={activateInteract}
+            />
+            <WorkspaceToolButton
+              active={selectionMode}
+              disabled={toolsDisabled || variantVisible}
+              icon="scan-outline"
+              label="Select"
+              onPress={() => {
+                setAnnotationImage(null);
+                setSelectionMode(true);
+              }}
+            />
+            <WorkspaceToolButton
+              active={Boolean(annotationImage)}
+              disabled={toolsDisabled || variantVisible}
+              icon="pencil-outline"
+              label={busy === 'capture' ? 'Capturing…' : 'Annotate'}
+              onPress={() => void annotate()}
+            />
+          </View>
+        )}
+        <View style={[parityStyles.supportBar, dockInspector && parityStyles.supportBarDocked]}>
           <ModeButton
-            active={!selectionMode && !annotationImage}
-            disabled={variantVisible || busy === 'capture'}
-            label="Interact"
-            onPress={() => {
-              setAnnotationImage(null);
-              setSelectionMode(false);
-            }}
+            label="DESIGN.md"
+            onPress={() => setSupportPanel('design')}
           />
           <ModeButton
-            active={selectionMode}
-            disabled={variantVisible || busy === 'capture'}
-            label="Select"
-            onPress={() => {
-              setAnnotationImage(null);
-              setSelectionMode(true);
-            }}
-          />
-          <ModeButton
-            active={Boolean(annotationImage)}
-            disabled={variantVisible || Boolean(busy)}
-            label={busy === 'capture' ? 'Capturing…' : 'Annotate'}
-            onPress={() => void annotate()}
+            disabled={Boolean(annotationImage)}
+            label={`References${designGuidance.selected.length ? ` · ${designGuidance.selected.length}` : ''}`}
+            onPress={() => setSupportPanel('references')}
           />
         </View>
-        <Text style={styles.canvasGestureHint}>Drag canvas · pinch to zoom</Text>
+        <Text style={[styles.canvasGestureHint, parityStyles.gestureHint]}>
+          {selectionMode
+            ? 'Tap an element to select · drag background to pan'
+            : 'Touch app to interact · drag background to pan · pinch to zoom'}
+        </Text>
         <View
           onLayout={(event) => {
             const { width, height } = event.nativeEvent.layout;
@@ -695,7 +902,7 @@ export function Workspace({
               current?.width === width && current.height === height ? current : { width, height }
             );
           }}
-          style={styles.canvasCenter}
+          style={[styles.canvasCenter, dockInspector && parityStyles.canvasCenterDocked]}
         >
           <CanvasGrid />
           <View
@@ -867,7 +1074,7 @@ export function Workspace({
           </View>
         </View>
         {selectionMode && (
-          <View style={styles.canvasSelectionCard}>
+          <View style={[styles.canvasSelectionCard, parityStyles.selectionCard]}>
             <View style={styles.canvasSelectionIcon}>
               <Ionicons
                 color={selected ? colors.accent : colors.muted}
@@ -1012,108 +1219,28 @@ export function Workspace({
             />
           </Pressable>
         )}
+        {dockInspector && supportPanel && <View style={parityStyles.supportDock}>{support}</View>}
+        {dockInspector && <View style={parityStyles.inspectorDock}>{inspector}</View>}
       </View>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setInspectorVisible(false)}
-        visible={inspectorVisible}
-      >
-        <SafeAreaView style={styles.inspectorModal}>
-          <View style={styles.inspectorTitlebar}>
-            <View>
-              <Text style={styles.inspectorTitle}>Workspace</Text>
-              <Text style={styles.inspectorRuntime}>{simulator.runtime}</Text>
-            </View>
-            <GlassControl
-              accessibilityLabel="Close workspace controls"
-              contentStyle={styles.modalCloseContent}
-              glassStyle="clear"
-              onPress={() => setInspectorVisible(false)}
-              style={styles.modalClose}
-            >
-              <Ionicons
-                color={colors.muted}
-                name="close"
-                size={20}
-              />
-            </GlassControl>
-          </View>
-          <ScrollView
-            contentContainerStyle={styles.inspectorContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.inspectorSection}>
-              <View style={styles.inspectorSectionHeading}>
-                <Text style={styles.inspectorSectionTitle}>Mode</Text>
-                <Text style={styles.inspectorSectionMeta}>
-                  {busy === 'capture'
-                    ? 'Capturing annotation'
-                    : annotationImage
-                      ? 'Annotate screenshot'
-                      : variantVisible
-                        ? 'Review variants'
-                        : selectionMode
-                          ? 'Select runtime element'
-                          : 'Control app'}
-                </Text>
-              </View>
-              <View style={styles.modeSwitch}>
-                <ModeButton
-                  active={!selectionMode}
-                  disabled={variantVisible || busy === 'capture'}
-                  label="Interact"
-                  onPress={() => setSelectionMode(false)}
-                />
-                <ModeButton
-                  active={selectionMode}
-                  disabled={variantVisible || busy === 'capture'}
-                  label="Select"
-                  onPress={() => setSelectionMode(true)}
-                />
-                <ModeButton
-                  disabled={variantVisible || Boolean(busy)}
-                  label={busy === 'capture' ? 'Capturing…' : 'Annotate'}
-                  onPress={() => void annotate()}
-                />
-              </View>
-            </View>
-            <AgentRequestPanel
-              error={agentSessionError}
-              isSending={isSendingAgentRequest}
-              onAccept={() => void acceptAgentVariant()}
-              onClearSelection={() => setSelectedPath(null)}
-              onCompare={() => {
-                setSelectionMode(false);
-                setAnnotationImage(null);
-                setVariantVisible(true);
-              }}
-              onDiscard={() => void discardAgentChange()}
-              onPreviewVariant={(variant) => void previewAgentVariant(variant)}
-              onRequestChange={setRequest}
-              onSelectEvidence={() => setSelectionMode(true)}
-              onSend={() => void sendAgentRequest()}
-              onVariantCountChange={setVariantCount}
-              request={request}
-              selected={selected}
-              selectedVariant={selectedAgentVariant}
-              session={agentSession?.project.id === connection.projectId ? agentSession : null}
-              snapshot={snapshot}
-              transition={agentVariantTransition}
-              variantCount={variantCount}
-              variants={agentVariants}
-            />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {!dockInspector && (
+        <Modal
+          animationType="slide"
+          onRequestClose={() => (supportPanel ? setSupportPanel(null) : setInspectorVisible(false))}
+          supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+          visible={inspectorVisible || Boolean(supportPanel)}
+        >
+          {supportPanel ? support : <SafeAreaView style={styles.inspectorModal}>{inspector}</SafeAreaView>}
+        </Modal>
+      )}
       <Modal
         animationType="fade"
         onRequestClose={() => setPasteVisible(false)}
-        supportedOrientations={['landscape-left', 'landscape-right']}
+        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
         transparent
         visible={pasteVisible}
       >
         <View style={styles.modalScrim}>
-          <View style={styles.pasteCard}>
+          <View style={[styles.pasteCard, parityStyles.pasteCard]}>
             <View style={styles.pasteHeading}>
               <Text style={styles.cardTitle}>Paste into Simulator</Text>
               <GlassControl
@@ -1163,11 +1290,60 @@ export function Workspace({
         bundleIdentifier={connection.bundleIdentifier}
         confirmSelection={agentSession?.status === 'variants_ready' ? confirmAgentVariant : undefined}
         onClose={() => setVariantVisible(false)}
-        onOpened={setActiveVariant}
-        onRestored={() => setActiveVariant(null)}
+        onOpened={(variant) => {
+          setActiveVariant(variant);
+          setSelectedAgentVariant(variant);
+        }}
+        onRestored={() => {
+          setActiveVariant(null);
+          setSelectedAgentVariant('original');
+        }}
         variants={agentVariants}
         visible={variantVisible}
       />
     </SafeAreaView>
   );
 }
+
+const parityStyles = StyleSheet.create({
+  inspectorDock: {
+    position: 'absolute',
+    top: 70,
+    right: 18,
+    bottom: 18,
+    zIndex: 12,
+    width: 344,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16
+  },
+  canvasCenterDocked: { paddingRight: 394 },
+  supportDock: {
+    position: 'absolute',
+    top: 100,
+    right: 380,
+    bottom: 18,
+    zIndex: 10,
+    width: 340,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10
+  },
+  readout: { right: 18 },
+  readoutText: { flexShrink: 1 },
+  supportBar: {
+    position: 'absolute',
+    top: 50,
+    right: 18,
+    zIndex: 4,
+    width: 244,
+    flexDirection: 'row',
+    gap: 8
+  },
+  supportBarDocked: { right: 380 },
+  gestureHint: { top: 104, left: 82, textAlign: 'left' },
+  selectionCard: { maxWidth: '90%', bottom: 76 },
+  pasteCard: { maxWidth: '92%' }
+});

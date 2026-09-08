@@ -64,6 +64,40 @@ export function ModeButton({
   );
 }
 
+export function WorkspaceToolButton({
+  icon,
+  label,
+  active,
+  disabled,
+  onPress
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <GlassControl
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active, disabled }}
+      contentStyle={styles.workspaceToolButtonContent}
+      disabled={disabled}
+      glassStyle="clear"
+      onPress={onPress}
+      style={styles.workspaceToolButton}
+      tone={active ? 'selected' : 'neutral'}
+    >
+      <Ionicons
+        color={active ? colors.text : colors.muted}
+        name={icon}
+        size={20}
+      />
+    </GlassControl>
+  );
+}
+
 export function CanvasControl({
   icon,
   label,
