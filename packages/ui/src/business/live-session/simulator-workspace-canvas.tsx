@@ -1,6 +1,8 @@
 import type { ReactNode, RefObject } from 'react';
 import type { LiveWorkspaceMode } from './workspace-inspector';
 
+import { accessibilityScreenMatchesOrientation } from '@monaddesign/simulator';
+
 import { cn } from '../../primitives/utils';
 import { LiveAnnotationSurface } from '../annotation/live-surface';
 import { liveWorkspaceCanvasPlacement, SimulatorDeviceControls } from '../canvas-controls';
@@ -86,11 +88,10 @@ export function LiveSimulatorWorkspaceCanvas({
   const canvasMode = mode === 'variants' ? 'variants' : 'interact';
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
   const annotationImageSize = orientedSimulatorImageSize(simulator.orientation, simulator);
-  const selectionElements = selection?.elements;
-  const selectionScreen = selection?.screen ?? {
-    height: simulator.deviceHeight,
-    width: simulator.deviceWidth
-  };
+  const selectionScreen = selection?.screen ?? annotationImageSize;
+  const selectionElements = accessibilityScreenMatchesOrientation(selectionScreen, simulator.orientation)
+    ? selection?.elements
+    : undefined;
   const selectionOverlay =
     mode === 'select' || selection?.selectedPath ? (
       <>

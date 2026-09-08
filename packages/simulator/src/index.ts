@@ -184,6 +184,15 @@ export interface AccessibilitySnapshot {
 export const accessibilityElementName = (element: AccessibilityElement) =>
   element.label || element.value || element.role || element.type || 'Element';
 
+// AX already reports oriented screen coordinates. During rotation an older
+// snapshot can arrive before the next poll; never stretch it onto the new screen.
+export const accessibilityScreenMatchesOrientation = (screen: CanvasSize, orientation: SimulatorOrientation) => {
+  if (screen.width <= 0 || screen.height <= 0) return false;
+  if (screen.width === screen.height) return true;
+  const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
+  return screen.width > screen.height === landscape;
+};
+
 export const accessibilityElementAtPoint = <Element extends AccessibilityElement>(
   snapshot: { elements: Element[]; screen: CanvasSize },
   point: CanvasPoint

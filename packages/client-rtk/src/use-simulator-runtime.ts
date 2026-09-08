@@ -3,6 +3,7 @@ import type { ClientApi } from './client-api';
 
 import {
   accessibilityElementAtPoint,
+  accessibilityScreenMatchesOrientation,
   encodeSimulatorFrame,
   normalizedCanvasPoint,
   orientCanvasPoint,
@@ -175,7 +176,12 @@ export const useSimulatorRuntime = ({
   };
   const updatePointer = (event: Pick<PointerEvent<HTMLButtonElement>, 'clientX' | 'clientY'>) => {
     const point = pointFromEvent(event);
-    if (isSelectionMode && axSnapshot && point) {
+    if (
+      isSelectionMode &&
+      axSnapshot &&
+      accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation) &&
+      point
+    ) {
       onHoveredPathChange(accessibilityElementAtPoint(axSnapshot, point)?.path ?? null);
     } else {
       onHoveredPathChange(null);
@@ -189,7 +195,11 @@ export const useSimulatorRuntime = ({
     const point = updatePointer(event);
     setPointer(point ? { ...point, pressed: !isSelectionMode } : null);
     if (isSelectionMode) {
-      onSelectedPathChange(point && axSnapshot ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null) : null);
+      onSelectedPathChange(
+        point && axSnapshot && accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation)
+          ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null)
+          : null
+      );
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);

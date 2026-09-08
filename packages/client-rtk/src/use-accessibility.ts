@@ -46,7 +46,7 @@ export function useAccessibility({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!client || !connectionKey || !isOpen) return;
+    if (!client || !connectionKey || (!isOpen && !selectedPath)) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
@@ -67,7 +67,7 @@ export function useAccessibility({
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [client, connectionKey, isOpen, pollIntervalMs, setSelectedPath]);
+  }, [client, connectionKey, isOpen, pollIntervalMs, selectedPath, setSelectedPath]);
 
   return {
     error,

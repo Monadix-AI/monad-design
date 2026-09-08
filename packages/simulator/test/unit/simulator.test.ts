@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  accessibilityElementAtPoint,
+  accessibilityScreenMatchesOrientation,
   canvasOffsetForZoom,
   clampCanvasOffset,
   encodeSimulatorFrame,
@@ -16,6 +18,31 @@ import {
   resizeDrawnAnnotation,
   translateAnnotation
 } from '../../src/annotation';
+
+describe('accessibility screen coordinates', () => {
+  test.each(['landscape_left', 'landscape_right'] as const)('uses already oriented AX frames in %s', (orientation) => {
+    const screen = { width: 874, height: 402 };
+    const element = {
+      enabled: true,
+      frame: { x: 396.6667, y: 35.6667, width: 80.3333, height: 20.6667 },
+      id: 'messages',
+      isContainer: false,
+      label: 'Messages',
+      path: '0.1',
+      role: 'heading',
+      type: 'Heading',
+      value: ''
+    };
+    expect(accessibilityScreenMatchesOrientation(screen, orientation)).toBe(true);
+    expect(accessibilityElementAtPoint({ screen, elements: [element] }, { x: 437 / 874, y: 46 / 402 })).toBe(element);
+    expect(accessibilityScreenMatchesOrientation({ width: 402, height: 874 }, orientation)).toBe(false);
+  });
+
+  test.each(['portrait', 'portrait_upside_down'] as const)('rejects stale landscape snapshots in %s', (orientation) => {
+    expect(accessibilityScreenMatchesOrientation({ width: 874, height: 402 }, orientation)).toBe(false);
+    expect(accessibilityScreenMatchesOrientation({ width: 402, height: 874 }, orientation)).toBe(true);
+  });
+});
 
 describe('shared canvas positioning', () => {
   test('keeps dragged content recoverable', () => {
