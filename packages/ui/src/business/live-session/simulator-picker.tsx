@@ -56,6 +56,7 @@ export function LiveSessionSimulatorPicker({
   targets: SimulatorPickerTarget[];
 }) {
   const selectedSimulator = simulators.find(({ udid }) => udid === selectedSimulatorUdid);
+  const showSkeleton = isScanning && simulators.length === 0;
   return (
     <section
       className={`simulator-list-page simulator-list-panel simulator-picker-layout-rail ${className ?? ''}`.trim()}
@@ -123,16 +124,36 @@ export function LiveSessionSimulatorPicker({
             <h2 id="simulator-heading-v2">Simulator</h2>
           </div>
           <span className="picker-count">
-            {simulators.length} {simulators.length === 1 ? 'device' : 'devices'}
+            {showSkeleton
+              ? 'Loading simulators…'
+              : `${simulators.length} ${simulators.length === 1 ? 'device' : 'devices'}`}
           </span>
         </div>
         <RadioGroup.Root
+          aria-busy={isScanning}
           aria-label="Available simulators"
           aria-live="polite"
           className="device-list"
           onValueChange={onSelectSimulator}
           value={selectedSimulatorUdid}
         >
+          {showSkeleton
+            ? ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'].map((key) => (
+                <div
+                  aria-hidden="true"
+                  className="device-card device-card-skeleton"
+                  key={key}
+                >
+                  <span className="device-skeleton-block device-skeleton-selection" />
+                  <span className="device-skeleton-block device-skeleton-icon" />
+                  <span className="device-details">
+                    <span className="device-skeleton-block device-skeleton-name" />
+                    <span className="device-skeleton-block device-skeleton-runtime" />
+                  </span>
+                  <span className="device-skeleton-block device-skeleton-status" />
+                </div>
+              ))
+            : null}
           {simulators.map((simulator) => (
             <RadioGroup.Item
               className="device-card"

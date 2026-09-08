@@ -1617,6 +1617,51 @@ h1 {
   cursor: default;
   opacity: 0.68;
 }
+.device-card.device-card-skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+.device-skeleton-block {
+  display: block;
+  background: color-mix(in srgb, var(--muted-foreground) 18%, transparent);
+  border-radius: 4px;
+}
+.device-skeleton-selection {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+.device-skeleton-icon {
+  justify-self: center;
+  width: 22px;
+  height: 32px;
+  border-radius: 5px;
+}
+.device-skeleton-name {
+  width: 75%;
+  max-width: 130px;
+  height: 12px;
+}
+.device-skeleton-runtime {
+  width: 45%;
+  max-width: 75px;
+  height: 9px;
+  margin-top: 5px;
+}
+.device-skeleton-status {
+  width: 48px;
+  height: 10px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .device-card-skeleton {
+    animation: device-skeleton-pulse 1.6s ease-in-out infinite;
+  }
+}
+@keyframes device-skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
 .device-selection-indicator {
   display: grid;
   place-items: center;
