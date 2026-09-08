@@ -20,13 +20,13 @@
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/bun": "^1.4.1",
-    "@types/node": "^26.4.1",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.0",
+    "typescript": "~7.0.2",
     "vite": "^8.2.2"
   },
   "exports": {

@@ -8,8 +8,14 @@
       "pinVersion": "0.86.3"
     },
     {
+      "label": "Pin mobile React to the Expo SDK 57 compatible version",
+      "packages": ["@monaddesign/mobile"],
+      "dependencies": ["react"],
+      "pinVersion": "19.2.3"
+    },
+    {
       "label": "Allow the Expo and desktop React toolchains to differ",
-      "dependencies": ["react", "react-dom", "@types/react", "@types/react-dom", "typescript"],
+      "dependencies": ["react", "react-native", "react-dom", "@types/react", "@types/react-dom"],
       "isIgnored": true
     },
     {

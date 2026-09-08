@@ -34,7 +34,7 @@
     }
   },
   "dependencies": {
-    "@hugeicons/core-free-icons": "^4.3.0",
+    "@hugeicons/core-free-icons": "^4.3.2",
     "@hugeicons/react": "^1.1.10",
     "@monaddesign/client-contract": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
@@ -51,7 +51,7 @@
     "@tanstack/react-router-devtools": "^1.167.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.41.0",
+    "lucide-react": "^1.42.0",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
@@ -62,8 +62,8 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/bun": "^1.4.1",
-    "@types/node": "^26.4.1",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
@@ -71,7 +71,7 @@
     "electron-builder": "26.15.3",
     "rolldown": "1.2.7",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.0",
+    "typescript": "~7.0.2",
     "vite": "^8.2.2",
     "vite-plugin-electron": "^1.1.2"
   },
