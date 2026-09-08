@@ -544,10 +544,9 @@ export function LiveAnnotationSurface({
   };
   const commitText = () => {
     if (textPoint && textValue.trim()) {
-      commitAnnotations((current) => [
-        ...current,
-        { id: annotationId(), type: 'text', start: textPoint, text: textValue.trim() }
-      ]);
+      const id = annotationId();
+      commitAnnotations((current) => [...current, { id, type: 'text', start: textPoint, text: textValue.trim() }]);
+      setSelectedId(id);
     }
     setTextPoint(null);
     setTextValue('');
@@ -681,10 +680,6 @@ export function LiveAnnotationSurface({
             if (!selected || !isDrawnAnnotation(selected)) return null;
             return annotationResizeHandles(selected).map(({ handle, point }) => (
               <circle
-                aria-label={`Resize annotation ${handle}`}
-                aria-valuemax={handle === 'n' || handle === 's' ? imageSize.height : imageSize.width}
-                aria-valuemin={0}
-                aria-valuenow={Math.round(handle === 'n' || handle === 's' ? point.y : point.x)}
                 className="canvas-annotation-resize-handle"
                 cx={point.x}
                 cy={point.y}
@@ -696,7 +691,6 @@ export function LiveAnnotationSurface({
                 onPointerMove={moveResize}
                 onPointerUp={finishResize}
                 r={Math.max(6, imageSize.width * 0.009)}
-                role="slider"
                 stroke={annotationInk}
                 strokeWidth={Math.max(2, imageSize.width * 0.003)}
                 style={{ cursor: resizeHandleCursor[handle] }}

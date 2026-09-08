@@ -63,38 +63,13 @@ const selectEdgeObjects = (): EdgeObject[] => {
   return shuffle([...guaranteed, ...shuffle(candidates).slice(0, edgeSlots.length - guaranteed.length)]);
 };
 
-const introDurationMs = 1680;
-
 export function EdgeAtmosphere({ active = true }: { active?: boolean }) {
   const [edgeObjects] = useState(selectEdgeObjects);
   const [hasActivated, setHasActivated] = useState(active);
-  const [hasIntroduced, setHasIntroduced] = useState(false);
 
   useLayoutEffect(() => {
-    if (!active || hasIntroduced) return;
-    setHasActivated(true);
-
-    const root = document.documentElement;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setHasIntroduced(true);
-      return;
-    }
-
-    root.classList.add('edge-intro-active');
-    const timeout = window.setTimeout(() => {
-      root.classList.remove('edge-intro-active');
-      setHasIntroduced(true);
-    }, introDurationMs);
-
-    return () => {
-      window.clearTimeout(timeout);
-      root.classList.remove('edge-intro-active');
-    };
-  }, [active, hasIntroduced]);
-
-  useLayoutEffect(() => {
-    if (!active && hasActivated && !hasIntroduced) setHasIntroduced(true);
-  }, [active, hasActivated, hasIntroduced]);
+    if (active) setHasActivated(true);
+  }, [active]);
 
   return (
     <div

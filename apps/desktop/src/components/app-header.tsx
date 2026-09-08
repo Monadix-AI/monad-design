@@ -17,6 +17,7 @@ const PairingQrCode = lazy(loadPairingQrCode);
 export function AppHeader({ center }: { center?: ReactNode }) {
   const { remoteClient } = useDesktopApp();
   const { setTheme, theme } = useClientTheme();
+  const [pairingCopyError, setPairingCopyError] = useState<string | null>(null);
   const [copiedPairingValue, setCopiedPairingValue] = useState<'code' | 'origin' | null>(null);
   const remoteClientOrigin = remoteClient?.addresses[0]
     ? `http://${remoteClient.addresses[0]}:${remoteClient.port}`
@@ -37,11 +38,15 @@ export function AppHeader({ center }: { center?: ReactNode }) {
 
   const copyPairingValue = async (kind: 'code' | 'origin', value: string | null | undefined) => {
     if (!value) return;
+    setPairingCopyError(null);
     try {
       await navigator.clipboard.writeText(value);
       setCopiedPairingValue(kind);
     } catch {
       setCopiedPairingValue(null);
+      setPairingCopyError(
+        `Could not copy ${kind === 'code' ? 'pairing code' : 'client address'}. Try again or select and copy the value manually.`
+      );
     }
   };
 
@@ -136,6 +141,14 @@ export function AppHeader({ center }: { center?: ReactNode }) {
                       ? 'Client address copied.'
                       : ''}
                 </span>
+                {pairingCopyError && (
+                  <p
+                    className="pairing-copy-error"
+                    role="alert"
+                  >
+                    {pairingCopyError}
+                  </p>
+                )}
                 <small>Scan once to browse projects available on this Mac.</small>
                 <Popover.Arrow className="header-popover-arrow" />
               </Popover.Content>

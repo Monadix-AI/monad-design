@@ -376,11 +376,6 @@ button:focus-visible {
   opacity: 1;
   transition: opacity 480ms ease-out;
 }
-:root.edge-intro-active .project-home,
-:root.edge-intro-active .simulator-list-panel {
-  opacity: 0;
-  transition: none;
-}
 .edge-atmosphere {
   position: fixed;
   inset: 0;
@@ -3653,10 +3648,10 @@ h1 {
   border-radius: 50%;
 }
 .agent-connection-status.connected {
-  color: #7ddb9d;
+  color: var(--success-emphasis);
 }
 .agent-connection-status.offline {
-  color: #9da2ac;
+  color: var(--muted-foreground);
 }
 .inspector-section-heading {
   display: flex;
@@ -4871,4 +4866,24 @@ h1 {
 body :is(input, textarea, [contenteditable="true"]) {
   -webkit-user-select: text;
   user-select: text;
+}
+
+.pairing-popover .pairing-code-block :where(strong),
+.pairing-popover .pairing-origin-row :where(code) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.pairing-copy-error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .variant-image-frame > .capture-pulse {
+    animation: none;
+  }
+  .device-cluster {
+    transition: none;
+  }
 }
