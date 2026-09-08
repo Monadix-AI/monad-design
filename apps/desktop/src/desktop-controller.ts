@@ -340,8 +340,9 @@ export function useDesktopController() {
       );
       if (selectedSimulator?.screen && selectedSimulator.screen.scale > 0) {
         initializeScreen({
-          width: selectedSimulator.screen.width / selectedSimulator.screen.scale,
-          height: selectedSimulator.screen.height / selectedSimulator.screen.scale
+          width: selectedSimulator.screen.width,
+          height: selectedSimulator.screen.height,
+          scale: selectedSimulator.screen.scale
         });
       }
       const nextHistory = recordUsedSimulator(readSimulatorHistory(), activeProject.id, selectedUdid);

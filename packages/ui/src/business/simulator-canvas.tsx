@@ -195,8 +195,8 @@ export function SimulatorCanvas({
             <span
               aria-hidden="true"
               className={cn(
-                'simulator-pointer absolute z-20 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary/70',
-                pointer.pressed && 'pressed size-4'
+                'simulator-pointer absolute z-20 rounded-full border-2 border-white bg-primary/70',
+                pointer.pressed && 'pressed'
               )}
               style={{ left: `${pointer.x * 100}%`, top: `${pointer.y * 100}%` }}
             />

@@ -21,6 +21,7 @@ import { Elysia } from 'elysia';
 import { simulatorBridge } from '../simulator-bridge';
 import { captureSimulatorScreen, listAvailableSimulators } from '../simulators';
 import { CoreApiError } from './api-error';
+import { latestMjpegStream } from './latest-mjpeg-stream';
 import { createSimulatorService } from './simulator-service';
 
 type ProjectResolver = Pick<ProjectStore, 'open'>;
@@ -132,7 +133,7 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
       if (!upstream.ok || !upstream.body) {
         throw new CoreApiError(502, 'BAD_GATEWAY', 'Simulator stream is unavailable.', true);
       }
-      return new Response(upstream.body, {
+      return new Response(latestMjpegStream(upstream.body), {
         headers: {
           'cache-control': 'no-store',
           'content-type': upstream.headers.get('content-type') ?? 'multipart/x-mixed-replace'
@@ -150,7 +151,9 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
         if (!connection) return socket.close(1011, 'Simulator disconnected');
         const upstream = new WebSocket(connection.wsUrl);
         upstream.binaryType = 'arraybuffer';
-        upstream.addEventListener('message', (event) => socket.send(event.data));
+        upstream.addEventListener('message', (event) =>
+          socket.send(event.data instanceof ArrayBuffer ? Buffer.from(event.data) : event.data)
+        );
         upstream.addEventListener('close', () => socket.close());
         upstream.addEventListener('error', () => socket.close(1011, 'Simulator input relay failed'));
         upstreamSockets.set(socket.raw, upstream);
@@ -158,7 +161,9 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
       message: (socket, message) => {
         const upstream = upstreamSockets.get(socket.raw);
         if (upstream?.readyState !== WebSocket.OPEN) return;
-        if (typeof message === 'string') return upstream.send(message);
+        // The Node adapter decodes incoming frames as UTF-8 text. Our input
+        // protocol is a one-byte tag followed by UTF-8 JSON; restore its bytes.
+        if (typeof message === 'string') return upstream.send(Buffer.from(message));
         if (message instanceof ArrayBuffer) {
           return upstream.send(new Uint8Array(message));
         }

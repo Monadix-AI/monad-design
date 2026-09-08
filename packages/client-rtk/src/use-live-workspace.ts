@@ -127,8 +127,9 @@ export function useLiveWorkspaceController({
   useEffect(() => {
     if (!connected?.screen || connected.screen.scale <= 0) return;
     runtime.initializeScreen({
-      width: connected.screen.width / connected.screen.scale,
-      height: connected.screen.height / connected.screen.scale
+      width: connected.screen.width,
+      height: connected.screen.height,
+      scale: connected.screen.scale
     });
   }, [connected?.screen, runtime.initializeScreen]);
 

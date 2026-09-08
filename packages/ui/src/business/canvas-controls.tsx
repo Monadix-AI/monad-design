@@ -9,7 +9,7 @@ import Sun03Icon from '@hugeicons/core-free-icons/Sun03Icon';
 import ZoomInIcon from '@hugeicons/core-free-icons/ZoomInIcon';
 import ZoomOutIcon from '@hugeicons/core-free-icons/ZoomOutIcon';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
-import { fitCanvasScale, maximumCanvasScale, type SimulatorOrientation } from '@monaddesign/simulator';
+import { fitCanvasScale, minimumCanvasScale, type SimulatorOrientation } from '@monaddesign/simulator';
 
 import { ActionIcon } from './action-icon';
 
@@ -28,20 +28,23 @@ export const fitLiveWorkspaceCanvas = (
     x: -liveWorkspaceInspectorReservedWidth / 2,
     y: -webDeviceControlsReservedHeight / 2
   },
-  scale: fitCanvasScale(
-    viewport,
-    { width: device.width, height: device.height + webDeviceControlsReservedHeight },
-    {
-      horizontalReserve: liveWorkspaceInspectorReservedWidth,
-      maximumScale: maximumCanvasScale,
-      verticalReserve: 180
-    }
+  scale: Math.max(
+    minimumCanvasScale,
+    fitCanvasScale(
+      viewport,
+      { width: device.width, height: device.height + webDeviceControlsReservedHeight },
+      {
+        horizontalReserve: liveWorkspaceInspectorReservedWidth,
+        maximumScale: 1,
+        verticalReserve: 180
+      }
+    )
   )
 });
 
 export const liveWorkspaceCanvasPlacement = (mode: CanvasMode) => ({
   left: mode === 'annotate' ? '42%' : mode === 'variants' ? '18%' : '50%',
-  scale: mode === 'annotate' ? 0.84 : mode === 'variants' ? 0.56 : 1
+  scale: mode === 'variants' ? 0.56 : 1
 });
 
 export interface LiveSimulatorDeviceChrome {

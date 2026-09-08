@@ -290,9 +290,9 @@ export const useSimulatorRuntime = ({
     setLogicalScreenSize(null);
     setDevicePixelRatio(1);
   };
-  const initializeScreen = useCallback((size: { width: number; height: number }) => {
+  const initializeScreen = useCallback((size: { width: number; height: number; scale: number }) => {
     setScreenSize((current) => (current.width === size.width && current.height === size.height ? current : size));
-    setDevicePixelRatio(1);
+    setDevicePixelRatio(size.scale);
   }, []);
   const isLandscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   const deviceSize = simulatorRuntimeDeviceSize(screenSize, devicePixelRatio);

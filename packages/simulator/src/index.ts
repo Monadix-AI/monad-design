@@ -37,7 +37,7 @@ export const simulatorVariantIdsForCount = (count: number): SimulatorVariantId[]
   simulatorVariantIds.slice(0, count + 1);
 
 export const minimumCanvasScale = 0.25;
-export const maximumCanvasScale = 2;
+export const maximumCanvasScale = 2.5;
 export const canvasScaleStep = 0.1;
 
 const minimumVisibleCanvasContent = 96;

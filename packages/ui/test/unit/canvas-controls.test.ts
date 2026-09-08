@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 
-import { canvasModeShowsSelectionOverlay, liveSimulatorDeviceFrame } from '../../src/business/canvas-controls';
+import {
+  canvasModeShowsSelectionOverlay,
+  fitLiveWorkspaceCanvas,
+  liveSimulatorDeviceFrame
+} from '../../src/business/canvas-controls';
 
 const deviceChrome = {
   frame: { width: 500, height: 1000 },
@@ -57,5 +61,19 @@ describe('live Simulator selection overlay', () => {
     expect(canvasModeShowsSelectionOverlay('annotate', true)).toBe(false);
     expect(canvasModeShowsSelectionOverlay('variants', true)).toBe(false);
     expect(canvasModeShowsSelectionOverlay('interact', false)).toBe(false);
+  });
+});
+
+describe('default Simulator size', () => {
+  test('keeps native logical size on a large canvas', () => {
+    expect(fitLiveWorkspaceCanvas({ width: 2000, height: 1600 }, { width: 430, height: 920 }).scale).toBe(1);
+  });
+  test('fits a laptop canvas with space for controls and the inspector', () => {
+    const { scale } = fitLiveWorkspaceCanvas({ width: 1280, height: 800 }, { width: 430, height: 920 });
+    expect(scale).toBeGreaterThan(0.6);
+    expect(scale).toBeLessThan(0.7);
+  });
+  test('never initializes below the minimum zoom', () => {
+    expect(fitLiveWorkspaceCanvas({ width: 500, height: 400 }, { width: 2000, height: 2000 }).scale).toBe(0.25);
   });
 });
