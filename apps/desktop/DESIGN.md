@@ -2,19 +2,19 @@
 name: Monad Design Desktop
 description: A dark local workspace that keeps native Simulator evidence at the center of design operations.
 colors:
-  canvas: "#0d0d0d"
-  background: "#181818"
-  shell: "#181818"
-  panel: "#181818"
-  elevated-panel: "#212121"
+  canvas: "#131519"
+  background: "#191b1f"
+  shell: "#191b1f"
+  panel: "#1d2026"
+  elevated-panel: "#23262c"
   control: "rgb(255 255 255 / 5%)"
   control-hover: "rgb(255 255 255 / 8%)"
   field: "rgb(255 255 255 / 4%)"
   brand-accent: "#339cff"
   brand-accent-hover: "#66b5ff"
   on-brand-accent: "#0d0d0d"
-  foreground: "#dfdfdf"
-  muted-foreground: "#afafaf"
+  foreground: "#e7e9ed"
+  muted-foreground: "#a6adb9"
   border: "rgb(255 255 255 / 8%)"
   error: "#ff9ca5"
   error-surface: "#251619"
@@ -168,6 +168,12 @@ The palette is almost entirely charcoal and cool gray so runtime imagery carries
 - **Cool White:** Primary text and high-confidence labels.
 - **Muted Steel:** Metadata, hints, boundary copy, and secondary labels.
 - **Structural Border:** Quiet separators and field outlines; divisions remain visible without becoming a grid of bright lines.
+
+### Theme Surfaces and Elevation
+
+Dark mode uses cool charcoal layers: `#131519` canvas, `#191b1f` shell, and `#23262c` elevated instruments. Light mode uses a mist-gray `#eef1f5` canvas, `#f5f6f8` shell, and white elevated surfaces. Device controls, zoom, annotation tools, and document previews follow the selected theme.
+
+Use `--shadow-control` for compact instruments and `--shadow-floating` for inspectors and popovers, with a quiet `--surface-edge`. Shadows are lighter in light mode. Mode selection uses a borderless translucent blue fill and blue text. Unselected modes brighten their text on hover without acquiring a second selected-looking surface; keyboard focus keeps its visible outline. Filled blue remains available for primary actions. Preserve semantic annotation ink and live-status colors in both themes.
 
 ### Named Rules
 

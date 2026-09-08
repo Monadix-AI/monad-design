@@ -10,7 +10,7 @@
   background: color-mix(in srgb, var(--panel-fill) 94%, transparent);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 16px 42px rgb(0 0 0 / 42%);
+  box-shadow: var(--shadow-floating);
   backdrop-filter: blur(18px);
 }
 
@@ -31,7 +31,7 @@
   background: var(--elevated-fill);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 38%);
+  box-shadow: var(--shadow-control);
 }
 
 .design-document-launcher:hover {

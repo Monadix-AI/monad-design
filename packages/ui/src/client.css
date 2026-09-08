@@ -8,12 +8,12 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #181818;
-  --foreground: #dfdfdf;
-  --card: #212121;
-  --card-foreground: #dfdfdf;
-  --popover: #282828;
-  --popover-foreground: #dfdfdf;
+  --background: #191b1f;
+  --foreground: #e7e9ed;
+  --card: #23262c;
+  --card-foreground: #e7e9ed;
+  --popover: #292d34;
+  --popover-foreground: #e7e9ed;
   --primary: #339cff;
   --primary-hover: #66b5ff;
   --primary-rgb: 51 156 255;
@@ -24,7 +24,7 @@
   --secondary: rgb(255 255 255 / 5%);
   --secondary-foreground: rgb(255 255 255 / 70%);
   --muted: rgb(255 255 255 / 3%);
-  --muted-foreground: #afafaf;
+  --muted-foreground: #a6adb9;
   --accent: rgb(51 156 255 / 12%);
   --accent-foreground: #99ceff;
   --success: #04b84c;
@@ -33,16 +33,21 @@
   --border: rgb(255 255 255 / 8%);
   --input: rgb(255 255 255 / 12%);
   --ring: #339cff;
+  --error: #ff9ca5;
+  --error-surface: #351e25;
+  --surface-edge: rgb(255 255 255 / 10%);
+  --shadow-floating: 0 16px 48px rgb(4 8 16 / 28%), 0 2px 8px rgb(4 8 16 / 16%);
+  --shadow-control: 0 4px 14px rgb(4 8 16 / 20%), 0 1px 3px rgb(4 8 16 / 12%);
   --radius: 0.625rem;
   --window-fill: var(--background);
-  --panel-fill: rgb(24 24 24 / 68%);
-  --elevated-fill: rgb(33 33 33 / 94%);
+  --panel-fill: rgb(29 32 38 / 88%);
+  --elevated-fill: rgb(35 38 44 / 96%);
   --control-fill: rgb(255 255 255 / 5%);
   --control-hover-fill: rgb(255 255 255 / 8%);
   --field-fill: rgb(255 255 255 / 4%);
   --subtle-fill: rgb(255 255 255 / 3%);
-  --canvas-dot: rgb(255 255 255 / 8%);
-  --canvas-fill: rgb(13 13 13 / 58%);
+  --canvas-dot: rgb(180 190 210 / 10%);
+  --canvas-fill: #131519;
   --overlay-fill: rgb(0 0 0 / 58%);
   --container-evidence-surface: #162127;
   --container-evidence-border: #417087;
@@ -55,9 +60,9 @@
 }
 
 :root[data-theme="light"] {
-  --background: #ffffff;
+  --background: #f5f6f8;
   --foreground: #1a1c1f;
-  --card: #f9f9f9;
+  --card: #ffffff;
   --card-foreground: #1a1c1f;
   --popover: #ffffff;
   --popover-foreground: #1a1c1f;
@@ -71,23 +76,28 @@
   --secondary: rgb(26 28 31 / 5%);
   --secondary-foreground: #1a1c1f;
   --muted: rgb(26 28 31 / 3%);
-  --muted-foreground: rgb(26 28 31 / 70%);
+  --muted-foreground: #626b79;
   --accent: rgb(1 105 204 / 9%);
   --accent-foreground: #0169cc;
+  --error: #a3263b;
+  --error-surface: #fff0f3;
+  --surface-edge: rgb(43 58 82 / 12%);
+  --shadow-floating: 0 16px 48px rgb(38 52 76 / 10%), 0 2px 8px rgb(38 52 76 / 5%);
+  --shadow-control: 0 4px 14px rgb(38 52 76 / 8%), 0 1px 3px rgb(38 52 76 / 5%);
   --success: #00963e;
   --success-emphasis: #087a37;
   --border: rgb(26 28 31 / 8%);
   --input: rgb(26 28 31 / 12%);
   --ring: #339cff;
-  --window-fill: rgb(255 255 255 / 74%);
-  --panel-fill: rgb(249 249 249 / 68%);
+  --window-fill: rgb(245 246 248 / 94%);
+  --panel-fill: rgb(246 247 249 / 92%);
   --elevated-fill: rgb(255 255 255 / 94%);
   --control-fill: rgb(26 28 31 / 5%);
   --control-hover-fill: rgb(26 28 31 / 10%);
   --field-fill: rgb(26 28 31 / 4%);
   --subtle-fill: rgb(26 28 31 / 3%);
-  --canvas-dot: rgb(26 28 31 / 8%);
-  --canvas-fill: rgb(249 249 249 / 64%);
+  --canvas-dot: rgb(73 89 114 / 13%);
+  --canvas-fill: #eef1f5;
   --overlay-fill: rgb(0 0 0 / 32%);
   --container-evidence-surface: #e8f7fd;
   --container-evidence-border: #3982a1;
@@ -250,7 +260,7 @@ button:focus-visible {
   background: var(--elevated-fill);
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: 13px;
-  box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
+  box-shadow: var(--shadow-floating);
   backdrop-filter: blur(28px) saturate(130%);
   transform-origin: var(--radix-popover-content-transform-origin);
   animation: popover-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -647,7 +657,7 @@ button:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   padding-bottom: 24px;
-  border-bottom: 1px solid #282a2f;
+  border-bottom: 1px solid var(--border);
 }
 .project-home-heading p {
   margin: 10px 0 0;
@@ -1336,7 +1346,7 @@ button:focus-visible {
   min-width: 0;
   padding-bottom: 15px;
   margin-bottom: 18px;
-  border-bottom: 1px solid #292b30;
+  border-bottom: 1px solid var(--border);
 }
 .active-project-heading strong {
   font-size: 15px;
@@ -2799,8 +2809,8 @@ h1 {
 
 .variant-count-field {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 12px;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  gap: 8px 12px;
   align-items: center;
 }
 .variant-count-field > span {
@@ -2808,12 +2818,26 @@ h1 {
   color: var(--muted-foreground);
 }
 .variant-count-field select {
-  min-width: 72px;
-  padding: 7px 28px 7px 9px;
+  width: 64px;
+  height: 32px;
+  padding: 0 26px 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: normal;
   color: var(--foreground);
-  background: var(--field-fill);
-  border: 1px solid var(--input);
+  appearance: none;
+  cursor: pointer;
+  background-color: var(--field-fill);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%237f8896' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid var(--border);
   border-radius: 7px;
+}
+.variant-count-field select:hover:not(:disabled) {
+  background-color: var(--control-hover-fill);
 }
 .variant-count-field small {
   grid-column: 1 / -1;
@@ -2923,11 +2947,11 @@ h1 {
 .secondary-action {
   color: var(--foreground);
   background: var(--control-fill);
-  border: 1px solid #3b3e44;
+  border: 1px solid var(--input);
 }
 .secondary-action:hover:not(:disabled) {
   background: var(--control-hover-fill);
-  border-color: #555960;
+  border-color: var(--muted-foreground);
 }
 .primary-action {
   color: var(--primary-foreground);
@@ -3330,7 +3354,7 @@ h1 {
 .ax-tree small {
   margin-top: 2px;
   font-size: 9px;
-  color: #737881;
+  color: var(--muted-foreground);
 }
 .sr-only {
   position: absolute;
@@ -3501,10 +3525,10 @@ h1 {
   padding: 5px;
   margin: 0;
   white-space: nowrap;
-  background: #1a1c20;
-  border: 0;
+  background: var(--elevated-fill);
+  border: 1px solid var(--surface-edge);
   border-radius: 12px;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 38%);
+  box-shadow: var(--shadow-control);
   transform: translateX(-50%);
   transform-origin: center top;
 }
@@ -3515,15 +3539,15 @@ h1 {
   min-height: 34px;
   padding: 0 11px;
   font-size: 10px;
-  color: #b8bcc4;
+  color: var(--muted-foreground);
   cursor: pointer;
   background: transparent;
   border: 0;
   border-radius: 8px;
 }
 .device-controls button:hover:not(:disabled) {
-  color: #fff;
-  background: #272a30;
+  color: var(--foreground);
+  background: var(--control-hover-fill);
 }
 .device-controls button:disabled {
   cursor: wait;
@@ -3543,24 +3567,25 @@ h1 {
   align-items: center;
   height: 38px;
   padding: 4px;
-  background: #191b1f;
+  background: var(--elevated-fill);
+  border: 1px solid var(--surface-edge);
   border-radius: 10px;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 38%);
+  box-shadow: var(--shadow-control);
 }
 .zoom-controls button {
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
-  color: #b8bcc4;
+  color: var(--muted-foreground);
   cursor: pointer;
   background: transparent;
   border: 0;
   border-radius: 7px;
 }
 .zoom-controls button:hover:not(:disabled) {
-  color: #fff;
-  background: #292c31;
+  color: var(--foreground);
+  background: var(--control-hover-fill);
 }
 .zoom-controls button:disabled {
   cursor: not-allowed;
@@ -3570,7 +3595,7 @@ h1 {
   width: 45px;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
-  color: #b8bcc4;
+  color: var(--muted-foreground);
   text-align: center;
 }
 .zoom-controls .fit-control {
@@ -3591,8 +3616,9 @@ h1 {
   overflow: hidden;
   color: var(--foreground);
   background: var(--elevated-fill);
+  border: 1px solid var(--surface-edge);
   border-radius: 16px;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 48%);
+  box-shadow: var(--shadow-floating);
 }
 .inspector-section {
   flex: 0 0 auto;
@@ -3600,7 +3626,7 @@ h1 {
 }
 .inspector-command-header {
   flex: 0 0 auto;
-  padding: 15px 15px 14px;
+  padding: 16px 17px 15px;
   background: var(--panel-fill);
   box-shadow: inset 0 -1px var(--border);
 }
@@ -3617,8 +3643,8 @@ h1 {
   min-width: 0;
 }
 .inspector-command-title strong {
-  font-size: 13px;
-  font-weight: 680;
+  font-size: 14px;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 :where(.inspector-command-title > div > span) {
@@ -3679,7 +3705,8 @@ h1 {
   gap: 2px;
   padding: 3px;
   margin-top: 13px;
-  background: #111215;
+  background: var(--field-fill);
+  border: 1px solid var(--border);
   border-radius: 9px;
 }
 .mode-switch button {
@@ -3696,14 +3723,16 @@ h1 {
     background-color 140ms ease-out,
     box-shadow 140ms ease-out;
 }
-.mode-switch button:hover:not(:disabled) {
+.mode-switch button:hover:not(:disabled):not([data-state="on"]) {
   color: var(--foreground);
+}
+.mode-switch button:active:not(:disabled):not([data-state="on"]) {
   background: var(--control-fill);
 }
 .mode-switch button[data-state="on"] {
-  color: var(--primary-foreground);
-  background: var(--primary);
-  box-shadow: 0 3px 10px rgb(0 0 0 / 26%);
+  color: var(--primary-emphasis);
+  background: var(--primary-soft-hover);
+  box-shadow: none;
 }
 .mode-switch button:focus-visible {
   outline: 2px solid var(--primary);
@@ -3781,8 +3810,8 @@ h1 {
   color: var(--foreground);
 }
 .agent-live-required span {
-  font-size: 9px;
-  line-height: 1.45;
+  font-size: 10px;
+  line-height: 1.55;
   color: var(--muted-foreground);
 }
 :where(.prompt-workbench) .handoff-selection > div {
@@ -3946,7 +3975,7 @@ h1 {
   text-align: left;
   cursor: pointer;
   background: var(--panel-fill);
-  border: 1px dashed #373a40;
+  border: 1px dashed var(--input);
   border-radius: 10px;
   transition:
     color 140ms ease-out,
@@ -3972,9 +4001,9 @@ h1 {
 }
 .selection-empty span {
   align-self: start;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.45;
-  color: #7e838c;
+  color: var(--muted-foreground);
 }
 .selection-empty:focus-visible {
   outline: 2px solid var(--primary);
@@ -3995,16 +4024,12 @@ h1 {
 .prompt-workbench .variant-count-field select:disabled {
   color: #696d74;
   cursor: not-allowed;
-  background: #121316;
+  background-color: #121316;
   opacity: 0.72;
 }
 .prompt-workbench .variant-count-field {
   padding-top: 14px;
   border-top: 1px solid var(--border);
-}
-.prompt-workbench .variant-count-field select {
-  min-width: 68px;
-  min-height: 34px;
 }
 :where(.prompt-workbench) .variant-count-field small {
   line-height: 1.4;
@@ -4434,9 +4459,10 @@ h1 {
   max-width: 100%;
   padding: 5px;
   pointer-events: auto;
-  background: rgb(20 22 26 / 94%);
+  background: var(--elevated-fill);
+  border: 1px solid var(--surface-edge);
   border-radius: 12px;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 38%);
+  box-shadow: var(--shadow-control);
   backdrop-filter: blur(16px);
 }
 .canvas-annotation-tool-group,
@@ -4461,7 +4487,7 @@ h1 {
   padding: 0;
   font-size: 10px;
   font-weight: 650;
-  color: #b9bdc5;
+  color: var(--muted-foreground);
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -4478,8 +4504,8 @@ h1 {
   padding: 7px 10px;
 }
 .canvas-annotation-toolbar button:hover:not(:disabled) {
-  color: #f5f6f8;
-  background: rgb(255 255 255 / 8%);
+  color: var(--foreground);
+  background: var(--control-hover-fill);
 }
 .canvas-annotation-toolbar button.active {
   color: #fff0f2;
@@ -4502,7 +4528,7 @@ h1 {
   width: 1px;
   height: 22px;
   margin: 0 2px;
-  background: rgb(255 255 255 / 12%);
+  background: var(--input);
 }
 .canvas-annotation-spacer {
   flex: 1 1 auto;
@@ -4744,8 +4770,7 @@ h1 {
 
   filter: drop-shadow(0 14px 22px rgb(30 55 92 / 18%));
 }
-:root[data-theme="light"] .page-back:hover,
-:root[data-theme="light"] .mode-switch button:hover {
+:root[data-theme="light"] .page-back:hover {
   color: var(--foreground);
 }
 :root[data-theme="light"] .connect-button:disabled,
@@ -4754,7 +4779,7 @@ h1 {
   background: #d8dad7;
 }
 :root[data-theme="light"] .floating-inspector {
-  box-shadow: 0 24px 70px rgb(35 39 43 / 24%);
+  box-shadow: var(--shadow-floating);
 }
 :root[data-theme="light"] .inspector-command-header {
   background: var(--panel-fill);
@@ -4771,7 +4796,7 @@ h1 {
 }
 :root[data-theme="light"] .prompt-workbench .variant-count-field select:disabled {
   color: var(--muted-foreground);
-  background: var(--field-fill);
+  background-color: var(--field-fill);
 }
 :root[data-theme="light"] .request-footer {
   background: var(--elevated-fill);
@@ -4884,6 +4909,44 @@ body :is(input, textarea, [contenteditable="true"]) {
     animation: none;
   }
   .device-cluster {
+    transition: none;
+  }
+}
+
+/* Shared control feedback, with no movement of canvas instruments. */
+:where(.device-controls button, .zoom-controls button, .canvas-annotation-toolbar button, .agent-review-actions button),
+:where(.device-card, .project-target-candidate, .agent-variant-option, .design-document-launcher, .add-project-button) {
+  transition:
+    color 140ms ease-out,
+    background-color 140ms ease-out,
+    border-color 140ms ease-out;
+}
+:where(input, textarea, select):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+:where(.prompt-workbench, .device-list, .target-app-list, .project-registry, .ax-tree) {
+  scrollbar-color: var(--input) transparent;
+  scrollbar-width: thin;
+}
+:where(.picker-count, .pairing-code-block, .variant-count-field) {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .device-controls button,
+    .zoom-controls button,
+    .canvas-annotation-toolbar button,
+    .agent-review-actions button
+  ),
+  :where(
+    .device-card,
+    .project-target-candidate,
+    .agent-variant-option,
+    .design-document-launcher,
+    .add-project-button,
+    .mode-switch button
+  ) {
     transition: none;
   }
 }
