@@ -19,6 +19,15 @@ describe('skill installation', () => {
       await Bun.write(join(root, 'skills', 'unrelated', 'SKILL.md'), 'Keep me');
       for (const includeOpenAiMetadata of [true, false]) {
         await installMonadDesignSkill(source, destination, { includeOpenAiMetadata });
+        expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toBe(
+          await readFile(join(source, 'SKILL.md'), 'utf8')
+        );
+        if (includeOpenAiMetadata) {
+          const metadata = Bun.YAML.parse(await readFile(join(destination, 'agents/openai.yaml'), 'utf8')) as {
+            policy: { allow_implicit_invocation: boolean };
+          };
+          expect(metadata.policy.allow_implicit_invocation).toBe(false);
+        }
         const guides = JSON.parse(await readFile(join(destination, 'adjustments.json'), 'utf8')) as Array<{
           name: string;
           version: string;

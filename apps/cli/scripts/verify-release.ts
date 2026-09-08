@@ -103,7 +103,12 @@ const requiredFiles = [
   ...adjustmentGuides.map(({ relativePath }) => join(skillRoot, relativePath))
 ];
 for (const path of requiredFiles) await access(path, constants.R_OK);
-for (const path of ['SKILL.md', 'adjustments.json', ...adjustmentGuides.map(({ relativePath }) => relativePath)]) {
+for (const path of [
+  'SKILL.md',
+  'agents/openai.yaml',
+  'adjustments.json',
+  ...adjustmentGuides.map(({ relativePath }) => relativePath)
+]) {
   const built = await readFile(join(skillRoot, path), 'utf8');
   const source = await readFile(join(sourceSkillRoot, path), 'utf8');
   if (built !== source) fail(`bundled skill file ${path} is stale`);

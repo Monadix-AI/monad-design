@@ -1,9 +1,19 @@
 ---
 name: monad-design
-description: Start and maintain a Monad Design visual editing session for the current local project, opening the Core browser UI and keeping its local link available in the agent conversation. Use for iterative Simulator-backed change requests; not for generic one-shot builds or screenshot-only review.
+description: Handle change requests sent through Monad Design, or start its listening mode when the user explicitly invokes Monad Design. Do not activate for ordinary mobile development, UI edits, Simulator testing, or work on the Monad Design repository itself.
 ---
 
 # Monad Design
+
+## Activation boundary
+
+Use this workflow only when the user explicitly asks to start or resume Monad Design (for example, `$monad-design`, `/monad-design`, or `/monad-design start`), or when continuing a request received through an already authorized Monad Design session. Mentioning the product, editing its source, requesting mobile UI changes, or having its MCP tools, project configuration, or an old live session available does not activate this workflow.
+
+For ordinary coding-agent requests, edit and validate the source directly. Do not start or discover live sessions, wait for Monad Design events, load adjustment guides, add preview routing, publish variants, or require selection through Monad Design. If this skill was loaded for such a request, return to the normal coding workflow without calling its tools. Direct chat instructions are not new Monad Design change requests, even while a live session exists.
+
+Explicit startup authorizes connecting and listening only. Variant planning, preview code, publication, and selection apply only to a concrete `changeRequest` received through that session and successfully claimed with its exact request ID. Never convert the startup task or an ordinary chat request into a synthetic change request. Review, repair, and cleanup remain scoped to that same claimed request.
+
+## Live workflow
 
 Use Monad Design as the user-facing runtime workbench while this agent remains the source-code authority. Monad Design owns project binding, Simulator choice, variant launch and capture, runtime evidence, and user requests. The agent owns framework detection, adapter configuration, source edits, build/install, focused source/build validation, and completion receipts.
 
@@ -11,7 +21,7 @@ Use Monad Design as the user-facing runtime workbench while this agent remains t
 
 ## Start and configure
 
-Treat a missing subcommand as `start`. Connect through the configured `monad-design` MCP server and call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known. Do not require the user to launch a UI first.
+For an explicit Monad Design invocation, treat a missing subcommand as `start`. Connect through the configured `monad-design` MCP server and call `start_live_session` with an absolute path inside the current workspace and a concise task when one is known. Do not require the user to launch a UI first.
 
 If connecting to or calling the configured `monad-design` MCP server fails because Core is not running (for example connection refused, connection reset, or a transport send error before a session ID exists), do not immediately report MCP as unavailable. First run `/bin/launchctl kickstart -k "gui/$(id -u)/ai.monadix.monad-design.core"` to start the installed Core daemon. Wait up to 10 seconds for the configured local MCP URL to become healthy, then reconnect to the configured MCP server and retry the same MCP call once. Do not use `npx`, launch the Core executable as a foreground process, reinstall Core, or create a substitute session during this recovery. If the LaunchAgent service is missing, report that the Monad Design installation must be repaired. If the `monad-design` MCP tool or server configuration is absent from the agent, starting Core cannot load that configuration; report that the agent session must be restarted after installation.
 
@@ -60,7 +70,7 @@ When `changeRequest.context.designGuidance` is present, read its request-local r
 
 ## Define variant directions before implementation
 
-For every request, establish the shared goal and preserved constraints, then present a compact direction plan in the coding-agent conversation before editing. This is an implementation plan, not an extra approval gate. Give each requested variant a stable ID (`v1` onward) and record:
+For each claimed Monad Design change request, establish the shared goal and preserved constraints, then present a compact direction plan in the coding-agent conversation before editing. This is an implementation plan, not an extra approval gate. Give each requested variant a stable ID (`v1` onward) and record:
 
 - **Direction:** a concrete name describing a design strategy, not a quality adjective such as polished, modern or refined.
 - **Hypothesis:** which user need this strategy prioritizes and why it serves the requested goal.

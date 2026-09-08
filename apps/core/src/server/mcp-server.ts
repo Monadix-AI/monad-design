@@ -174,7 +174,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
-        'Use this server through the monad-design skill. Project bootstrap is returned once; change events contain only turn-local requests and runtime context.'
+        'Use this server through the monad-design skill only when the user explicitly asks to start or resume Monad Design, or when continuing a change request received through an already authorized Monad Design session. Ordinary mobile development, UI edits, Simulator testing, installed tools, project configuration, and existing sessions do not authorize this workflow. Do not probe sessions or call these tools for ordinary coding requests. Explicit startup authorizes connecting and listening only; variant planning, preview code, publication, selection and completion are scoped to a concrete changeRequest received through Monad Design and claimed with its exact request ID. Direct chat requests are not new Monad Design change requests. Project bootstrap is returned once; change events contain only turn-local requests and runtime context.'
     }
   );
 
@@ -183,7 +183,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     {
       title: 'Start Monad Design live session',
       description:
-        'Open the Monad Design project containing a local workspace path. If it is not registered, detect its Git root and iOS targets and bind it automatically before live configuration.',
+        'Start listening only when the user explicitly asks to use Monad Design. Do not call for ordinary mobile coding, UI edits or Simulator testing. Open the project containing the workspace path, detecting its Git root and iOS targets if needed. Startup does not authorize implementing variants; wait for a change request sent through Monad Design.',
       inputSchema: z.object({
         workspacePath: z.string().min(1).describe('Absolute path inside the current local project.'),
         task: z.string().trim().min(1).max(10_000).optional()
@@ -221,7 +221,8 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     'get_live_session',
     {
       title: 'Get Monad Design live session',
-      description: 'Read one live session, or the current active session when sessionId is omitted.',
+      description:
+        'Read one session in an explicitly authorized Monad Design workflow, or its active session when sessionId is omitted. Do not discover sessions to route ordinary coding requests into Live.',
       inputSchema: z.object({ sessionId: sessionIdSchema.optional() }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
@@ -251,7 +252,8 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     'claim_change',
     {
       title: 'Claim Monad Design change',
-      description: 'Claim the exact active change request before editing source.',
+      description:
+        'Claim the exact change request received through an authorized Monad Design session before editing source for that request. This is not a prerequisite for ordinary source edits.',
       inputSchema: z.object({ sessionId: sessionIdSchema, requestId: requestIdSchema }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
@@ -303,7 +305,7 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     {
       title: 'Publish Monad Design variants',
       description:
-        'After building and installing all requested Debug variants, notify Monad Design to capture and present them for user selection.',
+        'For a claimed Monad Design change request only, after building and installing its requested Debug variants, notify Monad Design to capture and present them for user selection. Do not use for ordinary coding requests.',
       inputSchema: z.object({
         sessionId: sessionIdSchema,
         requestId: requestIdSchema,

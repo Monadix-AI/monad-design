@@ -34,7 +34,8 @@ export const exportKimiWorkPlugin = async (options: KimiWorkPluginOptions) => {
     const manifest = {
       name: 'monad-design',
       version: options.version,
-      description: 'Refine native mobile UI in a running Simulator with source edits, rebuilds, and comparison.',
+      description:
+        'Handle change requests sent through Monad Design, or start listening when explicitly requested. Not for ordinary mobile coding or UI edits.',
       license: 'Apache-2.0',
       homepage: 'https://github.com/Monadix-AI/monad-design',
       skills: './skills/',
@@ -56,6 +57,10 @@ In Kimi Work, open Custom plugin / Plugin Builder and ask it to import this
 local plugin directory, preserving kimi.plugin.json, the Skill references, and
 the local MCP URL. Install Monad Design from Plugins > Personal, then open a
 task with your native app repository and ask to use Monad Design.
+
+Ordinary mobile coding and UI edits do not activate this plugin. Explicitly
+starting Monad Design connects and listens; variants are only implemented for
+change requests sent through Monad Design and claimed by the agent.
 
 Preparing this directory does not install or enable the plugin in Kimi Work.
 Verify that the task exposes the monad-design Skill and MCP tools before use.

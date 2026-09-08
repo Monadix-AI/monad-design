@@ -47,6 +47,8 @@ Monad Design keeps design feedback connected to the real product instead of a de
 
 Your coding agent continues working in the existing repository. Monad Design gives both of you a shared visual workspace for requests, previews, and decisions.
 
+Installing Monad Design does not activate it for ordinary coding tasks. Start it explicitly when you want a visual editing session. The agent only creates preview variants for change requests you send through Monad Design; everyday mobile development and UI edits use the agent's normal workflow.
+
 ## Complete a change with your coding agent
 
 Each live session follows one repeatable loop. You control the app and approve the design; your coding agent handles the source changes.
