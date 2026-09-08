@@ -40,6 +40,16 @@ export interface LiveSimulatorWorkspaceCanvasProps
   };
 }
 
+export const orientedSimulatorImageSize = (
+  orientation: SimulatorCanvasProps['orientation'],
+  size: Pick<SimulatorCanvasProps, 'deviceHeight' | 'deviceWidth'>
+) => {
+  const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
+  return landscape
+    ? { height: size.deviceWidth, width: size.deviceHeight }
+    : { height: size.deviceHeight, width: size.deviceWidth };
+};
+
 export function LiveSimulatorWorkspaceCanvas({
   annotation,
   annotationNotesHost,
@@ -59,6 +69,7 @@ export function LiveSimulatorWorkspaceCanvas({
   const isAnnotationMode = mode === 'annotate';
   const canvasMode = mode === 'select' ? 'interact' : mode;
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
+  const annotationImageSize = orientedSimulatorImageSize(simulator.orientation, simulator);
   const selectionElements = selection?.elements;
   const selectionScreen = selection?.screen ?? {
     height: simulator.deviceHeight,
@@ -106,7 +117,7 @@ export function LiveSimulatorWorkspaceCanvas({
     <LiveAnnotationSurface
       active={isAnnotationMode}
       captureImage={annotation.captureImage}
-      imageSize={{ height: simulator.deviceHeight, width: simulator.deviceWidth }}
+      imageSize={annotationImageSize}
       notesHost={annotationNotesHost}
       onCancel={annotation.onCancel}
       onFinish={annotation.onFinish}
