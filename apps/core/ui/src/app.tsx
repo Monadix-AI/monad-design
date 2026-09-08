@@ -281,7 +281,7 @@ export function App() {
                 previewLabel={capturingVariant ? `Capturing ${simulatorVariantLabels[capturingVariant]}` : undefined}
               />
             }
-            inspector={workspace.inspector}
+            inspector={{ ...workspace.inspector, variantCountControl: 'web' }}
             mode={workspace.workspaceMode}
             simulator={{ ...workspace.simulator, canvasOffset, canvasScale, deviceFrame }}
             variantComparison={

@@ -138,7 +138,7 @@ export const useAgentRequest = ({
     });
   };
 
-  const sendAnnotatedAgentRequest = async (annotationScreenshot: string) => {
+  const sendAnnotatedAgentRequest = async (annotationScreenshot: string, annotationNotes = '') => {
     const session = activeSession;
     if (session?.status !== 'awaiting_request' || !session.connection || !connected || !runtimeClient) {
       throw new Error('Start Live and wait until the agent is ready before finishing the annotation.');
@@ -149,10 +149,16 @@ export const useAgentRequest = ({
       annotationScreenshot,
       session,
       rethrow: true,
-      request: agentRequest.trim() || 'Implement the changes shown in the attached annotated screenshot.',
+      request: [
+        effectiveRequest.trim() || 'Implement the changes shown in the attached annotated screenshot.',
+        annotationNotes
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
       context: () =>
         buildAgentTurnContext({
           bundleIdentifier: session.connection?.bundleIdentifier ?? '',
+          element: designGuidance?.scope === 'screen' ? undefined : selectedElement,
           snapshot: currentSnapshot,
           simulator: connected
         })

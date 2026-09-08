@@ -45,7 +45,7 @@ export const fitLiveWorkspaceCanvas = (
 });
 
 export const liveWorkspaceCanvasPlacement = (mode: CanvasMode) => ({
-  left: mode === 'annotate' ? '42%' : mode === 'variants' ? '18%' : '50%',
+  left: mode === 'variants' ? '18%' : '50%',
   scale: mode === 'variants' ? 0.56 : 1
 });
 
@@ -114,6 +114,7 @@ export function SimulatorDeviceControls({
   appearanceIcon,
   homeIcon,
   isAppearanceChanging = false,
+  disabled = false,
   onChangeAppearance,
   onHome,
   onRotateLeft,
@@ -126,6 +127,7 @@ export function SimulatorDeviceControls({
   appearanceIcon?: ReactNode;
   homeIcon?: ReactNode;
   isAppearanceChanging?: boolean;
+  disabled?: boolean;
   onChangeAppearance: () => void;
   onHome: () => void;
   onRotateLeft: () => void;
@@ -142,6 +144,7 @@ export function SimulatorDeviceControls({
       <legend className="sr-only">Simulator controls</legend>
       <button
         aria-label="Rotate Simulator left"
+        disabled={disabled}
         onClick={onRotateLeft}
         type="button"
       >
@@ -149,6 +152,7 @@ export function SimulatorDeviceControls({
         <span>Rotate</span>
       </button>
       <button
+        disabled={disabled}
         onClick={onHome}
         type="button"
       >
@@ -156,7 +160,7 @@ export function SimulatorDeviceControls({
         <span>Home</span>
       </button>
       <button
-        disabled={isAppearanceChanging}
+        disabled={disabled || isAppearanceChanging}
         onClick={onChangeAppearance}
         type="button"
       >
@@ -165,6 +169,7 @@ export function SimulatorDeviceControls({
       </button>
       <button
         aria-label="Rotate Simulator right"
+        disabled={disabled}
         onClick={onRotateRight}
         type="button"
       >

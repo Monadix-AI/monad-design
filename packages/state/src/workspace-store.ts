@@ -23,24 +23,13 @@ export const initialWorkspaceState = {
 
 export const workspaceStore = createStore<WorkspaceState>((set) => ({
   ...initialWorkspaceState,
-  setSelectionMode: (selectionMode) =>
-    set(
-      selectionMode
-        ? { selectionMode }
-        : {
-            selectionMode,
-            selectedElementPath: null,
-            agentRequest: '',
-            copyStatus: 'idle'
-          }
-    ),
+  setSelectionMode: (selectionMode) => set({ selectionMode }),
   setSelectedElementPath: (next) =>
     set((state) => {
       const selectedElementPath = typeof next === 'function' ? next(state.selectedElementPath) : next;
       if (selectedElementPath === state.selectedElementPath) return state;
       return {
         selectedElementPath,
-        agentRequest: '',
         copyStatus: 'idle'
       };
     }),

@@ -274,8 +274,8 @@ Borders are usually one pixel and cool gray. Dashed borders indicate empty or co
 
 ### Navigation
 
-- **Style:** The workspace has modes rather than page navigation. A three-option segmented control switches between Interact, Select, and Annotate; the active option is Codex blue with high-contrast text.
-- **State:** Choosing Annotate keeps the same live Simulator mounted, moves and scales it into the annotation layout, and intercepts canvas input before it reaches the real Simulator. Choosing Interact or Select exits annotation. Variant comparison remains mutually exclusive with annotation and disables that mode while active.
+- **Style:** The workspace uses a left vertical tool rail for Interact and Select, followed by always-visible rectangle, ellipse, text, and arrow tools. There is no separate Annotate button. The active tool owns pointer input; selection and annotation evidence coexist.
+- **State:** Selecting an element can be followed by annotation, preserving both for a single request. Activating a drawing tool locks further selection, while still allowing the selected target to be removed. Selection and annotation block Simulator interaction and device controls. Returning to Interact requires confirmation that clears selection, annotations, notes, request text, attached references and goals, and resets the variant count. Canceling the confirmation preserves the draft. The Simulator stays mounted at the same canvas placement. The right panel follows request preparation, working, review, and finalizing states. One Send to agent action includes the request, selection context, annotated image, and optional notes. Variant review disables editing tools.
 
 ### Local Project Registry
 
@@ -291,11 +291,11 @@ The live Simulator is the signature component. It is a black physical-device she
 
 ### Floating Operations Panel
 
-The right panel is a persistent instrument rather than a sidebar in the document flow. Its header pairs runtime identity with Disconnect; its body keeps the Interact/Select/Annotate switch and request preparation visible; its footer exposes variant comparison. The request heading always states “Prepared locally · not sent,” making clipboard preparation visibly different from source application or any external dispatch.
+The right panel is a persistent instrument rather than a sidebar in the document flow. Its header pairs runtime identity with Disconnect; its body keeps selection evidence, annotation notes, and request preparation together; its footer exposes variant comparison. The request heading always states “Prepared locally · not sent,” making clipboard preparation visibly different from source application or any external dispatch.
 
 ### Live Simulator Annotation State
 
-Annotation places vector markup directly over the existing live Simulator screen without replacing, freezing, or remounting the device view. The overlay captures all pointer input while this state is active, so drawing never operates the real Simulator. Rectangle, ellipse, and arrow marks receive stable ordered numbers, connect by curved pink-red lines to an implementation-note list, and immediately focus their new note field; free text remains image-local. Empty numbered notes block Finish with recovery guidance. Rectangle, ellipse, text, and arrow tools share the compact canvas toolbar; Undo removes the latest committed mark, Clear removes all, and Cancel exits. Finish takes one fresh Simulator screenshot and exports an original-resolution composition containing the marks, connectors, ordered numbers, and note sidecar. Capture and export errors remain explicit states rather than being inferred from a click.
+Annotation places vector markup directly over the existing live Simulator screen without replacing, freezing, or remounting the device view. The overlay captures pointer input only while the annotation tool is active. The selection is locked after a drawing tool is activated; returning to Simulator interaction requires confirming a full draft reset. Rectangle, ellipse, and arrow marks receive stable ordered numbers, connect by curved pink-red lines to an implementation-note list, and immediately focus their new note field; free text remains image-local. Numbered notes are optional and are sent as request text. Rectangle, ellipse, text, and arrow tools share the left vertical toolbar; Undo removes the latest committed mark and Clear removes all. Switching between drawing tools retains the draft. The unified Send to agent action takes one fresh Simulator screenshot and exports an original-resolution composition containing the marks and ordered numbers, alongside selection context and optional notes. Capture and export errors remain explicit states rather than being inferred from a click.
 
 ## Do's and Don'ts
 
@@ -307,7 +307,7 @@ Annotation places vector markup directly over the existing live Simulator screen
 - **Do** use Codex blue for primary/selected states, green for live/success states, pink-red for annotation, and cyan for container evidence.
 - **Do** keep controls compact, keyboard reachable, clearly labeled, and understandable without color alone.
 - **Do** state local preparation, preview-only evidence, download initiation, and errors in visible text.
-- **Do** keep annotation, variant comparison, selection, and direct interaction mutually exclusive where the implementation makes them exclusive.
+- **Do** retain selection and annotation evidence across tool changes; only the active tool handles pointer input, and variant review suspends editing.
 - **Do** preserve original-resolution Simulator pixels, image-relative annotation geometry, and one-to-one numbering between every callout target and exported note.
 - **Do** fit from logical Simulator dimensions, reserve the right operations lane, and cap automatic or manual zoom at 200%.
 - **Do** keep “Prepared locally · not sent” adjacent to request preparation, not buried in secondary help text.

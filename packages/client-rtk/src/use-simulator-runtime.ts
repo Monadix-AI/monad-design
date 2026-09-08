@@ -219,7 +219,7 @@ export const useSimulatorRuntime = ({
   // biome-ignore lint/correctness/useExhaustiveDependencies: Queued coordinates must not survive mode or orientation changes.
   useEffect(() => () => pointerUpdates.cancel(), [isSelectionMode, orientation, pointerUpdates]);
   const sendKey = (usage: number, type: 'down' | 'up') => sendFrame(0x06, { type, usage });
-  const handleKey = (event: KeyboardEvent<HTMLButtonElement>, type: 'down' | 'up') => {
+  const handleKey = (event: KeyboardEvent<HTMLElement>, type: 'down' | 'up') => {
     if (!hasConnectedSimulator || (event.metaKey && event.code === 'KeyV')) return;
     const usage = simulatorKeyUsage(event.code);
     if (usage === undefined) return;
@@ -240,7 +240,7 @@ export const useSimulatorRuntime = ({
       onError(errorMessage(pasteError));
     }
   };
-  const handlePaste = (event: ClipboardEvent<HTMLButtonElement>) => {
+  const handlePaste = (event: ClipboardEvent<HTMLElement>) => {
     if (!hasConnectedSimulator) return;
     event.preventDefault();
     void pasteText(event.clipboardData.getData('text'));

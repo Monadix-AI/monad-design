@@ -8,8 +8,8 @@ import {
   CursorRectangleSelection02Icon
 } from '@hugeicons/core-free-icons';
 import { isAdjustmentGoal, resolveAdjustmentRequest } from '@monaddesign/client-contract';
-import { MousePointer2, Pencil, ScanLine } from 'lucide-react';
-import { RadioGroup, ToggleGroup } from 'radix-ui';
+import { ChevronDown } from 'lucide-react';
+import { RadioGroup, Select } from 'radix-ui';
 import { type ReactNode, type Ref } from 'react';
 
 import { Button } from '../../primitives/button';
@@ -45,6 +45,8 @@ export interface LiveWorkspaceInspectorIcons {
 }
 
 export interface LiveWorkspaceInspectorProps {
+  hasAnnotations?: boolean;
+  selectionLocked?: boolean;
   annotationNotesHostRef?: Ref<HTMLDivElement>;
   agentError?: ReactNode;
   agentStatus?:
@@ -80,6 +82,7 @@ export interface LiveWorkspaceInspectorProps {
   selectedElement?: LiveWorkspaceInspectorElement | null;
   selectedVariant?: string | null;
   variantCount: number;
+  variantCountControl?: 'system' | 'web';
   variantError?: ReactNode;
   variants?: LiveWorkspaceInspectorVariant[];
   variantTransition?: 'confirming' | 'discarding' | 'opening' | 'restoring' | null;
@@ -96,6 +99,7 @@ const agentStatusLabel = (status: LiveWorkspaceInspectorProps['agentStatus']) =>
 };
 
 export function LiveWorkspaceInspector({
+  hasAnnotations = false,
   annotationNotesHostRef,
   agentError,
   agentStatus,
@@ -106,14 +110,11 @@ export function LiveWorkspaceInspector({
   isBusy = false,
   isEndingLive = false,
   isSendingRequest = false,
-  mode,
   onAcceptVariant,
-  onBeginSelection,
   onClearSelection,
   onDiscardVariant,
   onEndLive,
   onOpenReferences,
-  onModeChange,
   onRequestChange,
   onSelectVariant,
   onSendRequest,
@@ -123,6 +124,7 @@ export function LiveWorkspaceInspector({
   selectedElement,
   selectedVariant,
   variantCount,
+  variantCountControl = 'web',
   variantError,
   variants = [],
   variantTransition = null
@@ -170,35 +172,9 @@ export function LiveWorkspaceInspector({
   return (
     <aside
       aria-label="Live workspace controls"
-      className={`floating-inspector compact ${mode === 'annotate' ? 'annotation-only' : ''}`}
+      className="floating-inspector compact"
       data-canvas-ui
     >
-      <ToggleGroup.Root
-        aria-label="Workspace mode"
-        className="mode-switch workspace-edit-tools"
-        onValueChange={(value) => {
-          if (value === 'annotate' || value === 'interact' || value === 'select') onModeChange(value);
-        }}
-        type="single"
-        value={mode === 'variants' ? 'interact' : mode}
-      >
-        {(['interact', 'select', 'annotate'] as const).map((value) => (
-          <ToggleGroup.Item
-            disabled={mode === 'variants' || isBusy}
-            key={value}
-            value={value}
-          >
-            {value === 'interact' ? (
-              <MousePointer2 aria-hidden="true" />
-            ) : value === 'select' ? (
-              <ScanLine aria-hidden="true" />
-            ) : (
-              <Pencil aria-hidden="true" />
-            )}
-            {value.slice(0, 1).toUpperCase() + value.slice(1)}
-          </ToggleGroup.Item>
-        ))}
-      </ToggleGroup.Root>
       {onOpenReferences && Boolean(designLibrary?.selected.length) && !isAgentWorking && !isReviewingVariants && (
         <button
           className="sidebar-reference-summary"
@@ -209,200 +185,191 @@ export function LiveWorkspaceInspector({
           attached · View
         </button>
       )}
-      {mode === 'annotate' ? (
-        <section
-          aria-label="Implementation notes"
-          className="inspector-annotation-body"
-          ref={annotationNotesHostRef}
-        />
-      ) : (
-        <section className="inspector-section prompt-workbench prompt-workbench-polished prompt-workbench-delight-trace prompt-workbench-animated-cascade">
-          <div className="inspector-section-heading">
-            <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
+      <section className="inspector-section prompt-workbench prompt-workbench-polished prompt-workbench-delight-trace prompt-workbench-animated-cascade">
+        <div className="inspector-section-heading">
+          <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
+        </div>
+        {(isAgentWorking || isReviewingVariants) && designGuidanceInFlight?.references.some(isAdjustmentGoal) && (
+          <details className="adjustment-goal-guidance">
+            <summary>
+              Requested goals · {designGuidanceInFlight.scope === 'screen' ? 'Current screen' : 'Selected element'}
+            </summary>
+            {designGuidanceInFlight.references.filter(isAdjustmentGoal).map((goal) => (
+              <div key={goal.id}>
+                <strong>{goal.title}</strong>
+                <p>{goal.instructions}</p>
+                {goal.skillName && <small>{goal.skillName}</small>}
+              </div>
+            ))}
+          </details>
+        )}
+        {!agentConnected && (
+          <div
+            className="agent-live-required"
+            id="agent-live-required"
+            role="status"
+          >
+            {resolvedIcons.agent}
+            <div>
+              <strong>Start Live in your coding agent</strong>
+              <span>Open this project in your agent, then run /monad-design to enable editing and sending.</span>
+            </div>
           </div>
-          {(isAgentWorking || isReviewingVariants) && designGuidanceInFlight?.references.some(isAdjustmentGoal) && (
-            <details className="adjustment-goal-guidance">
-              <summary>
-                Requested goals · {designGuidanceInFlight.scope === 'screen' ? 'Current screen' : 'Selected element'}
-              </summary>
-              {designGuidanceInFlight.references.filter(isAdjustmentGoal).map((goal) => (
-                <div key={goal.id}>
-                  <strong>{goal.title}</strong>
-                  <p>{goal.instructions}</p>
-                  {goal.skillName && <small>{goal.skillName}</small>}
-                </div>
-              ))}
-            </details>
-          )}
-          {!agentConnected && (
-            <div
-              className="agent-live-required"
-              id="agent-live-required"
-              role="status"
-            >
-              {resolvedIcons.agent}
-              <div>
-                <strong>Start Live in your coding agent</strong>
-                <span>Open this project in your agent, then run /monad-design to enable editing and sending.</span>
-              </div>
-            </div>
-          )}
-          {isAgentWorking ? (
-            <div
-              aria-live="polite"
-              className="agent-waiting-state"
-              role="status"
-            >
-              <span className="agent-waiting-orbit">{resolvedIcons.agentSpinning ?? resolvedIcons.agent}</span>
-              <strong>{agentStatus === 'working' ? 'Agent is building variants' : 'Waiting for agent'}</strong>
+        )}
+        {isAgentWorking ? (
+          <div
+            aria-live="polite"
+            className="agent-waiting-state"
+            role="status"
+          >
+            <span className="agent-waiting-orbit">{resolvedIcons.agentSpinning ?? resolvedIcons.agent}</span>
+            <strong>{agentStatus === 'working' ? 'Agent is building variants' : 'Waiting for agent'}</strong>
+            <p>{requestInFlight}</p>
+            <small>
+              Preparing Original + {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
+            </small>
+          </div>
+        ) : isReviewingVariants ? (
+          <div className="agent-variant-review">
+            <div className="agent-review-request">
+              <span>Requested change</span>
               <p>{requestInFlight}</p>
-              <small>
-                Preparing Original + {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
-              </small>
             </div>
-          ) : isReviewingVariants ? (
-            <div className="agent-variant-review">
-              <div className="agent-review-request">
-                <span>Requested change</span>
-                <p>{requestInFlight}</p>
-              </div>
-              <RadioGroup.Root
-                aria-label="Select a variant in the panel"
-                className="agent-variant-options"
-                onValueChange={onSelectVariant}
-                value={selectedVariant ?? ''}
+            <RadioGroup.Root
+              aria-label="Select a variant in the panel"
+              className="agent-variant-options"
+              onValueChange={onSelectVariant}
+              value={selectedVariant ?? ''}
+            >
+              {variants.map((variant) => (
+                <RadioGroup.Item
+                  className="agent-variant-option"
+                  disabled={!variant.ready || selectionConfirmed}
+                  key={variant.id}
+                  value={variant.id}
+                >
+                  <span>{variant.label}</span>
+                  <small>{variant.ready ? (selectedVariant === variant.id ? 'Selected' : 'Ready') : 'Waiting'}</small>
+                </RadioGroup.Item>
+              ))}
+            </RadioGroup.Root>
+            {selectionConfirmed ? (
+              <div
+                className="agent-finalizing-state"
+                role="status"
               >
-                {variants.map((variant) => (
-                  <RadioGroup.Item
-                    className="agent-variant-option"
-                    disabled={!variant.ready || selectionConfirmed}
-                    key={variant.id}
-                    value={variant.id}
-                  >
-                    <span>{variant.label}</span>
-                    <small>{variant.ready ? (selectedVariant === variant.id ? 'Selected' : 'Ready') : 'Waiting'}</small>
-                  </RadioGroup.Item>
-                ))}
-              </RadioGroup.Root>
-              {selectionConfirmed ? (
-                <div
-                  className="agent-finalizing-state"
-                  role="status"
-                >
-                  {resolvedIcons.agentSpinning ?? resolvedIcons.agent}
-                  <span>
-                    {confirmedVariant === 'original'
-                      ? 'Discard sent · agent is restoring the original'
-                      : `${activeVariant?.label ?? 'Selection'} accepted · agent is finalizing`}
-                  </span>
-                </div>
-              ) : (
-                <div className="agent-review-actions">
-                  <Button
-                    className="secondary-action"
-                    disabled={isBusy || variantTransition !== null}
-                    onClick={onDiscardVariant}
-                    type="button"
-                  >
-                    {resolvedIcons.discard}
-                    {variantTransition === 'discarding' ? 'Discarding…' : 'Discard'}
-                  </Button>
-                  <Button
-                    className="primary-action"
-                    disabled={isBusy || !selectedVariant || variantTransition !== null}
-                    onClick={onAcceptVariant}
-                    type="button"
-                  >
-                    {resolvedIcons.accept}
-                    {variantTransition === 'confirming' ? 'Accepting…' : 'Accept'}
-                  </Button>
-                </div>
-              )}
-              {typeof variantError === 'string' ? (
-                <p
-                  className="variant-error"
-                  role="alert"
-                >
-                  {variantError}
-                </p>
-              ) : (
-                variantError
-              )}
-            </div>
-          ) : selectedElement ? (
-            <div className={`handoff-selection ${selectedElement.isContainer ? 'container' : ''}`}>
-              <div>
-                <strong>{selectedElement.name}</strong>
+                {resolvedIcons.agentSpinning ?? resolvedIcons.agent}
+                <span>
+                  {confirmedVariant === 'original'
+                    ? 'Discard sent · agent is restoring the original'
+                    : `${activeVariant?.label ?? 'Selection'} accepted · agent is finalizing`}
+                </span>
+              </div>
+            ) : (
+              <div className="agent-review-actions">
                 <Button
-                  onClick={onClearSelection}
+                  className="secondary-action"
+                  disabled={isBusy || variantTransition !== null}
+                  onClick={onDiscardVariant}
                   type="button"
                 >
-                  {resolvedIcons.clear}
-                  <span className="sr-only">Clear selection</span>
+                  {resolvedIcons.discard}
+                  {variantTransition === 'discarding' ? 'Discarding…' : 'Discard'}
+                </Button>
+                <Button
+                  className="primary-action"
+                  disabled={isBusy || !selectedVariant || variantTransition !== null}
+                  onClick={onAcceptVariant}
+                  type="button"
+                >
+                  {resolvedIcons.accept}
+                  {variantTransition === 'confirming' ? 'Accepting…' : 'Accept'}
                 </Button>
               </div>
-              <span>{selectedElement.role || selectedElement.type}</span>
-              <code>
-                {Math.round(selectedElement.frame.width)} × {Math.round(selectedElement.frame.height)} at{' '}
-                {Math.round(selectedElement.frame.x)}, {Math.round(selectedElement.frame.y)}
-              </code>
+            )}
+            {typeof variantError === 'string' ? (
+              <p
+                className="variant-error"
+                role="alert"
+              >
+                {variantError}
+              </p>
+            ) : (
+              variantError
+            )}
+          </div>
+        ) : selectedElement ? (
+          <div className={`handoff-selection ${selectedElement.isContainer ? 'container' : ''}`}>
+            <span>Selected element</span>
+            <div>
+              <strong>{selectedElement.name}</strong>
+              <Button
+                disabled={isBusy || isSendingRequest}
+                onClick={onClearSelection}
+                title="Remove selected element"
+                type="button"
+              >
+                {resolvedIcons.clear}
+                <span className="sr-only">Clear selection</span>
+              </Button>
             </div>
-          ) : (
-            <button
-              className="selection-empty"
-              onClick={onBeginSelection}
-              type="button"
-            >
-              {resolvedIcons.select}
-              <strong>{agentConnected ? 'No element selected' : 'Select an element on the simulator'}</strong>
-              <span>
-                {agentConnected
-                  ? 'The current screen accessibility context will be attached.'
-                  : 'Runtime geometry and accessibility evidence will be attached.'}
-              </span>
-            </button>
-          )}
+            <span>{selectedElement.role || selectedElement.type}</span>
+            <code>
+              {Math.round(selectedElement.frame.width)} × {Math.round(selectedElement.frame.height)} at{' '}
+              {Math.round(selectedElement.frame.x)}, {Math.round(selectedElement.frame.y)}
+            </code>
+          </div>
+        ) : null}
 
-          {!isAgentWorking && !isReviewingVariants && (
-            <div className="request-composer">
-              {designLibrary && (
-                <AdjustmentGoals
-                  disabled={!canRequestAgent || isBusy || isSendingRequest}
-                  library={designLibrary}
-                />
-              )}
-              <Label
-                className="handoff-request"
-                htmlFor="canvas-agent-request"
-              >
-                <span>Adjustment request</span>
-                <Textarea
-                  aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
-                  disabled={!canRequestAgent}
-                  id="canvas-agent-request"
-                  onChange={(event) => onRequestChange(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === '@' && designLibrary && onOpenReferences) {
-                      event.preventDefault();
-                      onOpenReferences?.();
-                    }
-                  }}
-                  placeholder={
-                    hasAdjustmentGoals
-                      ? 'Optional: describe the result you want and what must stay intact…'
-                      : 'Describe what should change and what must stay intact…'
+        {hasAnnotations && !isAgentWorking && !isReviewingVariants && (
+          <section
+            aria-label="Implementation notes"
+            className="inspector-annotation-body"
+            ref={annotationNotesHostRef}
+          />
+        )}
+        {!isAgentWorking && !isReviewingVariants && (
+          <div className="request-composer">
+            {designLibrary && (
+              <AdjustmentGoals
+                disabled={!canRequestAgent || isBusy || isSendingRequest}
+                library={designLibrary}
+              />
+            )}
+            <Label
+              className="handoff-request"
+              htmlFor="canvas-agent-request"
+            >
+              <span>Adjustment request</span>
+              <Textarea
+                aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
+                disabled={!canRequestAgent}
+                id="canvas-agent-request"
+                onChange={(event) => onRequestChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === '@' && designLibrary && onOpenReferences) {
+                    event.preventDefault();
+                    onOpenReferences?.();
                   }
-                  rows={5}
-                  value={request}
-                />
-              </Label>
-              <Label
-                className="variant-count-field"
-                htmlFor="canvas-agent-variant-count"
-              >
-                <span>Variants</span>
+                }}
+                placeholder={
+                  hasAdjustmentGoals
+                    ? 'Optional: describe the result you want and what must stay intact…'
+                    : 'Describe what should change and what must stay intact…'
+                }
+                rows={5}
+                value={request}
+              />
+            </Label>
+            <Label
+              className="variant-count-field"
+              htmlFor="canvas-agent-variant-count"
+            >
+              <span>Variants</span>
+              {variantCountControl === 'system' ? (
                 <select
                   aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
+                  className="variant-count-native"
                   disabled={!canRequestAgent}
                   id="canvas-agent-variant-count"
                   onChange={(event) => onVariantCountChange(Number(event.target.value))}
@@ -417,42 +384,78 @@ export function LiveWorkspaceInspector({
                     </option>
                   ))}
                 </select>
-                <small>Generate 1–5 alternatives. Default: 1.</small>
-              </Label>
-            </div>
-          )}
-          {!isAgentWorking && !isReviewingVariants && (
-            <div className="request-footer">
-              <Button
-                aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
-                className="copy-prompt-action"
-                disabled={!canRequestAgent || !effectiveRequest.trim() || isSendingRequest || isBusy}
-                onClick={onSendRequest}
-                type="button"
-              >
-                {isSendingRequest ? (resolvedIcons.sending ?? resolvedIcons.agentSpinning) : resolvedIcons.agent}
-                {isSendingRequest
-                  ? 'Sending…'
-                  : canRequestAgent
-                    ? 'Send to agent'
-                    : agentConnected
-                      ? 'Request sent'
-                      : 'Agent unavailable'}
-              </Button>
-            </div>
-          )}
-          {typeof agentError === 'string' ? (
-            <p
-              className="agent-copy-error"
-              role="alert"
+              ) : (
+                <Select.Root
+                  disabled={!canRequestAgent}
+                  onValueChange={(value) => onVariantCountChange(Number(value))}
+                  value={String(variantCount)}
+                >
+                  <Select.Trigger
+                    aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
+                    className="variant-count-trigger"
+                    id="canvas-agent-variant-count"
+                  >
+                    <Select.Value />
+                    <Select.Icon asChild>
+                      <ChevronDown aria-hidden="true" />
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content
+                      className="variant-count-menu"
+                      position="popper"
+                      sideOffset={4}
+                    >
+                      <Select.Viewport className="variant-count-options">
+                        {[1, 2, 3, 4, 5].map((count) => (
+                          <Select.Item
+                            className="variant-count-option"
+                            key={count}
+                            value={String(count)}
+                          >
+                            <Select.ItemText>{count}</Select.ItemText>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+              )}
+              <small>Generate 1–5 alternatives. Default: 1.</small>
+            </Label>
+          </div>
+        )}
+        {!isAgentWorking && !isReviewingVariants && (
+          <div className="request-footer">
+            <Button
+              aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
+              className="copy-prompt-action"
+              disabled={!canRequestAgent || (!effectiveRequest.trim() && !hasAnnotations) || isSendingRequest || isBusy}
+              onClick={onSendRequest}
+              type="button"
             >
-              {agentError}
-            </p>
-          ) : (
-            agentError
-          )}
-        </section>
-      )}
+              {isSendingRequest ? (resolvedIcons.sending ?? resolvedIcons.agentSpinning) : resolvedIcons.agent}
+              {isSendingRequest
+                ? 'Sending…'
+                : canRequestAgent
+                  ? 'Send to agent'
+                  : agentConnected
+                    ? 'Request sent'
+                    : 'Agent unavailable'}
+            </Button>
+          </div>
+        )}
+        {typeof agentError === 'string' ? (
+          <p
+            className="agent-copy-error"
+            role="alert"
+          >
+            {agentError}
+          </p>
+        ) : (
+          agentError
+        )}
+      </section>
       <footer className="live-session-footer">
         <span
           className={`agent-connection-status ${agentConnected ? 'connected' : 'offline'} ${isAgentWorking || selectionConfirmed ? 'working' : ''}`}

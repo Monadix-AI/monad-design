@@ -8,6 +8,7 @@ import { Button } from '../../primitives/button';
 import { Input } from '../../primitives/input';
 
 export interface DesignLibraryController {
+  clearDraft?: () => void;
   entries: DesignReference[];
   selected: DesignReference[];
   favorites: string[];

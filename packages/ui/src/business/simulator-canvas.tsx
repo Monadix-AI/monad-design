@@ -1,6 +1,7 @@
 import type { DeviceFrameMetrics } from '@monaddesign/device-frame';
 import type { SimulatorOrientation } from '@monaddesign/simulator';
-import type { ClipboardEvent, KeyboardEvent, PointerEvent, ReactNode, Ref } from 'react';
+
+import { type ClipboardEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref, useRef } from 'react';
 
 import { cn } from '../primitives/utils';
 
@@ -18,9 +19,9 @@ export interface SimulatorCanvasProps {
   deviceHeight: number;
   deviceWidth: number;
   framebufferMask?: string;
-  onKeyDown?: (event: KeyboardEvent<HTMLButtonElement>) => void;
-  onKeyUp?: (event: KeyboardEvent<HTMLButtonElement>) => void;
-  onPaste?: (event: ClipboardEvent<HTMLButtonElement>) => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
+  onKeyUp?: (event: KeyboardEvent<HTMLElement>) => void;
+  onPaste?: (event: ClipboardEvent<HTMLElement>) => void;
   onPointerCancel?: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerLeave?: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -84,6 +85,7 @@ export function SimulatorCanvas({
   screenClassName,
   streamUrl
 }: SimulatorCanvasProps) {
+  const keyboardInputRef = useRef<HTMLDivElement>(null);
   const isLandscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   const layer = screenLayer({ deviceHeight, deviceWidth, orientation });
   const chromeScale = deviceChrome
@@ -122,9 +124,7 @@ export function SimulatorCanvas({
           pointer && 'simulator-pointer-visible',
           screenClassName
         )}
-        onKeyDown={onKeyDown}
-        onKeyUp={onKeyUp}
-        onPaste={onPaste}
+        onFocus={() => keyboardInputRef.current?.focus({ preventScroll: true })}
         onPointerCancel={onPointerCancel}
         onPointerDown={onPointerDown}
         onPointerLeave={onPointerLeave}
@@ -137,6 +137,7 @@ export function SimulatorCanvas({
           paddingLeft: deviceFrame.insets.left,
           borderRadius: deviceChrome ? 0 : deviceFrame.outerRadius
         }}
+        tabIndex={-1}
         type="button"
       >
         {deviceChrome && (
@@ -215,6 +216,16 @@ export function SimulatorCanvas({
           />
         )}
       </button>
+      <div
+        aria-label="Simulator keyboard input"
+        className="simulator-keyboard-input"
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        onPaste={onPaste}
+        ref={keyboardInputRef}
+        role="application"
+        tabIndex={-1}
+      />
       {controls}
     </div>
   );

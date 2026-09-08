@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { LiveWorkspaceMode } from './workspace-inspector';
 
 import { cn } from '../../primitives/utils';
@@ -18,8 +18,16 @@ export interface LiveSimulatorWorkspaceCanvasProps
   annotation: {
     captureImage: () => Promise<string>;
     onCancel: () => void;
-    onFinish: (image: string) => Promise<void>;
+    onFinish: (image: string, annotationNotes: string) => Promise<void>;
   };
+  annotationResetKey?: number;
+  onActivateAnnotation?: () => void;
+  toolsDisabled?: boolean;
+  annotationToolsHost?: HTMLElement | null;
+  annotationSubmitRef?: RefObject<(() => Promise<void>) | null>;
+  onAnnotationCountChange?: (count: number) => void;
+  preserveAnnotations?: boolean;
+  canSendAnnotation?: boolean;
   annotationNotesHost?: HTMLElement | null;
   appearance: 'dark' | 'light';
   canvasOffset: { x: number; y: number };
@@ -52,7 +60,15 @@ export const orientedSimulatorImageSize = (
 
 export function LiveSimulatorWorkspaceCanvas({
   annotation,
+  annotationResetKey,
+  onActivateAnnotation,
+  toolsDisabled,
   annotationNotesHost,
+  annotationToolsHost,
+  annotationSubmitRef,
+  onAnnotationCountChange,
+  preserveAnnotations,
+  canSendAnnotation,
   appearance,
   canvasOffset,
   canvasScale,
@@ -67,7 +83,7 @@ export function LiveSimulatorWorkspaceCanvas({
   ...simulator
 }: LiveSimulatorWorkspaceCanvasProps) {
   const isAnnotationMode = mode === 'annotate';
-  const canvasMode = mode === 'select' ? 'interact' : mode;
+  const canvasMode = mode === 'variants' ? 'variants' : 'interact';
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
   const annotationImageSize = orientedSimulatorImageSize(simulator.orientation, simulator);
   const selectionElements = selection?.elements;
@@ -76,30 +92,32 @@ export function LiveSimulatorWorkspaceCanvas({
     width: simulator.deviceWidth
   };
   const selectionOverlay =
-    mode === 'select' ? (
+    mode === 'select' || selection?.selectedPath ? (
       <>
         {selectionElements ? (
           <span
             aria-hidden="true"
             className="ax-overlay"
           >
-            {selectionElements.map((element) => (
-              <span
-                className={cn(
-                  'ax-element-box',
-                  element.isContainer && 'container',
-                  element.path === selection?.hoveredPath && 'hovered',
-                  element.path === selection?.selectedPath && 'selected'
-                )}
-                key={`${element.path}-${element.id}`}
-                style={{
-                  left: `${(element.frame.x / selectionScreen.width) * 100}%`,
-                  top: `${(element.frame.y / selectionScreen.height) * 100}%`,
-                  width: `${(element.frame.width / selectionScreen.width) * 100}%`,
-                  height: `${(element.frame.height / selectionScreen.height) * 100}%`
-                }}
-              />
-            ))}
+            {selectionElements
+              .filter((element) => mode === 'select' || element.path === selection?.selectedPath)
+              .map((element) => (
+                <span
+                  className={cn(
+                    'ax-element-box',
+                    element.isContainer && 'container',
+                    element.path === selection?.hoveredPath && 'hovered',
+                    element.path === selection?.selectedPath && 'selected'
+                  )}
+                  key={`${element.path}-${element.id}`}
+                  style={{
+                    left: `${(element.frame.x / selectionScreen.width) * 100}%`,
+                    top: `${(element.frame.y / selectionScreen.height) * 100}%`,
+                    width: `${(element.frame.width / selectionScreen.width) * 100}%`,
+                    height: `${(element.frame.height / selectionScreen.height) * 100}%`
+                  }}
+                />
+              ))}
           </span>
         ) : null}
         {(!selectionElements || selection?.error) && (
@@ -115,13 +133,21 @@ export function LiveSimulatorWorkspaceCanvas({
 
   return (
     <LiveAnnotationSurface
-      active={isAnnotationMode}
+      active={isAnnotationMode && !toolsDisabled}
+      canSend={canSendAnnotation}
       captureImage={annotation.captureImage}
       imageSize={annotationImageSize}
       notesHost={annotationNotesHost}
+      onActivate={onActivateAnnotation}
       onCancel={annotation.onCancel}
+      onCountChange={onAnnotationCountChange}
       onFinish={annotation.onFinish}
       orientation={simulator.orientation}
+      preserveDraft={preserveAnnotations}
+      resetKey={annotationResetKey}
+      submitRef={annotationSubmitRef}
+      toolsDisabled={toolsDisabled}
+      toolsHost={annotationToolsHost}
     >
       {(annotationOverlay) => (
         <div
@@ -139,6 +165,7 @@ export function LiveSimulatorWorkspaceCanvas({
             controls={
               <SimulatorDeviceControls
                 appearance={appearance}
+                disabled={mode !== 'interact' || toolsDisabled}
                 isAppearanceChanging={isAppearanceChanging}
                 onChangeAppearance={onChangeAppearance}
                 onHome={onHome}
@@ -147,7 +174,12 @@ export function LiveSimulatorWorkspaceCanvas({
                 scale={canvasScale}
               />
             }
-            overlay={isAnnotationMode ? annotationOverlay : selectionOverlay}
+            overlay={
+              <>
+                {selectionOverlay}
+                {annotationOverlay}
+              </>
+            }
             screenClassName={`phone-frame interactive canvas-phone device-${simulator.deviceFrame.kind} ${simulator.deviceChrome ? 'native-device-chrome' : ''}`}
           />
         </div>

@@ -9,7 +9,7 @@ describe('workspace store', () => {
     expect(workspaceStore.getState()).toMatchObject(initialWorkspaceState);
   });
 
-  test('clears handoff text when the runtime selection changes', () => {
+  test('preserves handoff text when the runtime selection changes', () => {
     const store = workspaceStore.getState();
     store.setSelectedElementPath('0.1');
     store.setAgentRequest('Make this action clearer');
@@ -19,7 +19,7 @@ describe('workspace store', () => {
 
     expect(workspaceStore.getState()).toMatchObject({
       selectedElementPath: '0.2',
-      agentRequest: '',
+      agentRequest: 'Make this action clearer',
       copyStatus: 'idle'
     });
   });
@@ -34,13 +34,21 @@ describe('workspace store', () => {
     });
   });
 
-  test('clears selection state when leaving selection mode', () => {
+  test('preserves selection and written request when switching to annotation', () => {
     const store = workspaceStore.getState();
     store.setSelectionMode(true);
     store.setSelectedElementPath('0.1');
     store.setAgentRequest('Move this control');
     store.setSelectionMode(false);
 
+    expect(workspaceStore.getState()).toMatchObject({
+      selectionMode: false,
+      selectedElementPath: '0.1',
+      agentRequest: 'Move this control'
+    });
+    store.setSelectedElementPath(null);
+    expect(workspaceStore.getState().agentRequest).toBe('Move this control');
+    store.resetWorkspaceState();
     expect(workspaceStore.getState()).toMatchObject(initialWorkspaceState);
   });
 });

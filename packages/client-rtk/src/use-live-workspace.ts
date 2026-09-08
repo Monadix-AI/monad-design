@@ -77,7 +77,8 @@ export function useLiveWorkspaceController({
   const runtime = useSimulatorRuntime({
     axSnapshot: accessibility.snapshot,
     connection,
-    hasConnectedSimulator: Boolean(connected?.connected),
+    // Discovery metadata can predate Connect; the active connection owns input readiness.
+    hasConnectedSimulator: connection !== null,
     isSelectionMode: selectionMode,
     onError,
     onHoveredPathChange: accessibility.setHoveredPath,
@@ -162,9 +163,8 @@ export function useLiveWorkspaceController({
     onBeginAnnotation?.();
     setSelectionMode(false);
     accessibility.setHoveredPath(null);
-    setSelectedPath(null);
     setAnnotationMode(true);
-  }, [accessibility.setHoveredPath, annotationMode, connection, onBeginAnnotation, setSelectedPath, setSelectionMode]);
+  }, [accessibility.setHoveredPath, annotationMode, connection, onBeginAnnotation, setSelectionMode]);
 
   const closeAnnotation = useCallback(() => {
     setAnnotationMode(false);
@@ -173,16 +173,28 @@ export function useLiveWorkspaceController({
 
   const changeWorkspaceMode = useCallback(
     (mode: string) => {
-      if (!mode) return;
+      if (!mode || (mode === 'select' && annotationMode)) return;
       if (mode === 'annotate') {
         openAnnotation();
         return;
+      }
+      if (mode === 'interact') {
+        setSelectedPath(null);
+        request.setAgentSessionError(null);
       }
       if (annotationMode) closeAnnotation();
       accessibility.setHoveredPath(null);
       setSelectionMode(mode === 'select');
     },
-    [accessibility.setHoveredPath, annotationMode, closeAnnotation, openAnnotation, setSelectionMode]
+    [
+      accessibility.setHoveredPath,
+      annotationMode,
+      closeAnnotation,
+      openAnnotation,
+      request.setAgentSessionError,
+      setSelectedPath,
+      setSelectionMode
+    ]
   );
 
   const captureSimulatorImage = useCallback(async () => {
@@ -244,8 +256,8 @@ export function useLiveWorkspaceController({
     annotation: {
       captureImage: captureSimulatorImage,
       onCancel: closeAnnotation,
-      onFinish: async (annotationScreenshot: string) => {
-        await request.sendAnnotatedAgentRequest(annotationScreenshot);
+      onFinish: async (annotationScreenshot: string, annotationNotes: string) => {
+        await request.sendAnnotatedAgentRequest(annotationScreenshot, annotationNotes);
         closeAnnotation();
       }
     },

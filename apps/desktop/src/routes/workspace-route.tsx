@@ -74,7 +74,7 @@ function WorkspaceContent() {
           previewLabel={activePreviewVariant ? variantLabels[activePreviewVariant] : undefined}
         />
       }
-      inspector={workspaceInspector}
+      inspector={{ ...workspaceInspector, variantCountControl: 'system' }}
       mode={workspaceMode}
       simulator={{ ...workspaceSimulator, canvasOffset: viewport.offset, canvasScale: viewport.scale, deviceFrame }}
       variantComparison={

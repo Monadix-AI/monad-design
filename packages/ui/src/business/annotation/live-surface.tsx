@@ -6,7 +6,7 @@ import type {
   DrawnAnnotation,
   ShapeAnnotation
 } from '@monaddesign/simulator/annotation';
-import type { PointerEvent, ReactNode } from 'react';
+import type { PointerEvent, ReactNode, RefObject } from 'react';
 
 import {
   ArrowUpRight01Icon,
@@ -43,6 +43,7 @@ import {
   transformAnnotationWithKeyboard
 } from './history';
 import { AnnotationShape } from './model';
+import { serializeAnnotationNotes } from './notes';
 
 type Point = AnnotationPoint;
 
@@ -176,7 +177,15 @@ export interface LiveAnnotationIcons {
 
 export function LiveAnnotationSurface({
   active,
+  preserveDraft = false,
+  resetKey = 0,
+  onActivate,
+  toolsDisabled = false,
+  toolsHost,
+  submitRef,
+  onCountChange,
   captureImage,
+  canSend = true,
   children,
   icons,
   imageSize,
@@ -186,13 +195,21 @@ export function LiveAnnotationSurface({
   orientation
 }: {
   active: boolean;
+  preserveDraft?: boolean;
+  resetKey?: number;
+  onActivate?: () => void;
+  toolsDisabled?: boolean;
+  toolsHost?: HTMLElement | null;
+  submitRef?: RefObject<(() => Promise<void>) | null>;
+  onCountChange?: (count: number) => void;
   captureImage: () => Promise<string>;
+  canSend?: boolean;
   children: (overlay: ReactNode) => ReactNode;
   icons?: LiveAnnotationIcons;
   imageSize: { height: number; width: number };
   notesHost?: HTMLElement | null;
   onCancel: () => void;
-  onFinish: (annotationScreenshot: string) => Promise<void>;
+  onFinish: (annotationScreenshot: string, annotationNotes: string) => Promise<void>;
   orientation: SimulatorOrientation;
 }) {
   const resolvedIcons: LiveAnnotationIcons = {
@@ -258,8 +275,11 @@ export function LiveAnnotationSurface({
   calloutsRef.current = callouts;
   imageSizeRef.current = imageSize;
 
+  const previousResetKey = useRef(resetKey);
   useEffect(() => {
-    if (active) return;
+    const resetRequested = previousResetKey.current !== resetKey;
+    previousResetKey.current = resetKey;
+    if (!resetRequested && (active || preserveDraft)) return;
     setActiveTool('rectangle');
     dispatchAnnotationHistory({ type: 'reset' });
     setDraft(null);
@@ -275,7 +295,7 @@ export function LiveAnnotationSurface({
     dragRef.current = null;
     resizeRef.current = null;
     setPointerState('idle');
-  }, [active]);
+  }, [active, preserveDraft, resetKey]);
   const commitAnnotations = (update: ShapeAnnotation[] | ((current: ShapeAnnotation[]) => ShapeAnnotation[])) => {
     const next = typeof update === 'function' ? update(annotationsRef.current) : update;
     dispatchAnnotationHistory({ type: 'commit', next });
@@ -402,12 +422,15 @@ export function LiveAnnotationSurface({
     if (deviceCluster)
       mutationObserver.observe(deviceCluster, { attributeFilter: ['class', 'style'], attributes: true });
     window.addEventListener('resize', scheduleConnectorUpdate);
+    // Scroll events do not bubble; capture scrolling in nested note panels and canvas ancestors.
+    window.addEventListener('scroll', scheduleConnectorUpdate, { capture: true, passive: true });
     scheduleConnectorUpdate(connectorGeometryKey);
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('resize', scheduleConnectorUpdate);
+      window.removeEventListener('scroll', scheduleConnectorUpdate, true);
     };
   }, [active, callouts.length, connectorGeometryKey]);
 
@@ -562,7 +585,7 @@ export function LiveAnnotationSurface({
     );
   };
   const finishAnnotation = async () => {
-    if (isFinishing) return;
+    if (isFinishing || !canSend) return;
     setIsFinishing(true);
     setAnnotationError('');
     try {
@@ -574,7 +597,8 @@ export function LiveAnnotationSurface({
           captureImage,
           orientation,
           overlay: annotationOverlay.current
-        })
+        }),
+        serializeAnnotationNotes(annotationsRef.current)
       );
     } catch (error) {
       setAnnotationError(error instanceof Error ? error.message : 'Could not send the annotation to the agent.');
@@ -583,147 +607,257 @@ export function LiveAnnotationSurface({
     }
   };
 
-  const annotationLayer = active ? (
-    <div
-      className={`canvas-annotation-layer tool-${activeTool}`}
-      data-pointer-state={pointerState}
-      onPointerCancel={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
-      onPointerMove={(event) => event.stopPropagation()}
-      onPointerUp={(event) => event.stopPropagation()}
-    >
-      <svg
-        aria-label="Annotation drawing area"
-        className="canvas-annotation-overlay"
-        preserveAspectRatio="none"
-        ref={annotationOverlay}
-        style={{ pointerEvents: 'auto' }}
-        viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+  useLayoutEffect(() => {
+    if (submitRef) submitRef.current = finishAnnotation;
+    return () => {
+      if (submitRef) submitRef.current = null;
+    };
+  });
+  useEffect(() => {
+    onCountChange?.(annotations.length);
+  }, [annotations.length, onCountChange]);
+
+  const annotationLayer =
+    active || (preserveDraft && annotations.length > 0) ? (
+      <div
+        className={`canvas-annotation-layer tool-${activeTool}`}
+        data-inactive={!active || undefined}
+        data-pointer-state={pointerState}
+        onPointerCancel={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerMove={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
       >
-        <title>Draw annotations on the live Simulator view</title>
-        {annotations.map((annotation) => (
-          <AnnotationShape
-            annotation={annotation}
-            imageSize={imageSize}
-            key={annotation.id}
-          />
-        ))}
-        {selectedId &&
-          (() => {
-            const selected = annotations.find(({ id }) => id === selectedId);
-            if (!selected) return null;
-            const bounds = annotationBounds(selected);
-            const padding = Math.max(7, imageSize.width * 0.009);
+        <svg
+          aria-label="Annotation drawing area"
+          className="canvas-annotation-overlay"
+          preserveAspectRatio="none"
+          ref={annotationOverlay}
+          style={{ pointerEvents: active ? 'auto' : 'none' }}
+          viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+        >
+          <title>Draw annotations on the live Simulator view</title>
+          {annotations.map((annotation) => (
+            <AnnotationShape
+              annotation={annotation}
+              imageSize={imageSize}
+              key={annotation.id}
+            />
+          ))}
+          {active &&
+            selectedId &&
+            (() => {
+              const selected = annotations.find(({ id }) => id === selectedId);
+              if (!selected) return null;
+              const bounds = annotationBounds(selected);
+              const padding = Math.max(7, imageSize.width * 0.009);
+              return (
+                <g data-annotation-selection>
+                  <rect
+                    fill="none"
+                    height={bounds.height + padding * 2}
+                    pointerEvents="none"
+                    rx={padding}
+                    stroke="#ffffff"
+                    strokeDasharray={`${padding} ${padding * 0.7}`}
+                    strokeWidth={Math.max(2, imageSize.width * 0.0025)}
+                    width={bounds.width + padding * 2}
+                    x={bounds.x - padding}
+                    y={bounds.y - padding}
+                  />
+                </g>
+              );
+            })()}
+          {draft && (
+            <AnnotationShape
+              annotation={draft}
+              imageSize={imageSize}
+            />
+          )}
+          {callouts.map((callout, index) => {
+            const radius = Math.max(13, imageSize.width * 0.019);
+            const badge = calloutBadgeGeometry(callout, imageSize, radius);
             return (
-              <g data-annotation-selection>
-                <rect
-                  fill="none"
-                  height={bounds.height + padding * 2}
-                  pointerEvents="none"
-                  rx={padding}
-                  stroke="#ffffff"
-                  strokeDasharray={`${padding} ${padding * 0.7}`}
-                  strokeWidth={Math.max(2, imageSize.width * 0.0025)}
-                  width={bounds.width + padding * 2}
-                  x={bounds.x - padding}
-                  y={bounds.y - padding}
+              <g key={`badge-${callout.id}`}>
+                <circle
+                  cx={badge.center.x}
+                  cy={badge.center.y}
+                  fill={annotationInk}
+                  r={radius}
                 />
+                <text
+                  dominantBaseline="central"
+                  fill="#0d0d0d"
+                  fontSize={radius}
+                  fontWeight="800"
+                  textAnchor="middle"
+                  x={badge.center.x}
+                  y={badge.center.y}
+                >
+                  {index + 1}
+                </text>
               </g>
             );
-          })()}
-        {draft && (
-          <AnnotationShape
-            annotation={draft}
-            imageSize={imageSize}
+          })}
+          <rect
+            data-annotation-hit-target
+            data-annotation-interaction
+            fill="transparent"
+            height={imageSize.height}
+            onPointerCancel={finishAnnotationGesture}
+            onPointerDown={startAnnotation}
+            onPointerMove={moveAnnotation}
+            onPointerUp={finishAnnotationGesture}
+            style={{ pointerEvents: active ? 'all' : 'none' }}
+            width={imageSize.width}
+            x="0"
+            y="0"
           />
+          {active &&
+            selectedId &&
+            (() => {
+              const selected = annotations.find(({ id }) => id === selectedId);
+              if (!selected || !isDrawnAnnotation(selected)) return null;
+              return annotationResizeHandles(selected).map(({ handle, point }) => (
+                <circle
+                  className="canvas-annotation-resize-handle"
+                  cx={point.x}
+                  cy={point.y}
+                  data-resize-handle={handle}
+                  fill="#ffffff"
+                  key={`interactive-${handle}`}
+                  onPointerCancel={finishResize}
+                  onPointerDown={(event) => startResize(event, selected, handle)}
+                  onPointerMove={moveResize}
+                  onPointerUp={finishResize}
+                  r={Math.max(6, imageSize.width * 0.009)}
+                  stroke={annotationInk}
+                  strokeWidth={Math.max(2, imageSize.width * 0.003)}
+                  style={{ cursor: resizeHandleCursor[handle] }}
+                />
+              ));
+            })()}
+        </svg>
+        {textPoint && (
+          <form
+            className="canvas-annotation-text-entry"
+            onSubmit={(event) => {
+              event.preventDefault();
+              commitText();
+            }}
+            style={{
+              left: `${(textPoint.x / imageSize.width) * 100}%`,
+              top: `${(textPoint.y / imageSize.height) * 100}%`
+            }}
+          >
+            <input
+              aria-label="Annotation text"
+              onBlur={commitText}
+              onChange={(event) => setTextValue(event.target.value)}
+              placeholder="Type annotation"
+              ref={annotationTextInput}
+              value={textValue}
+            />
+          </form>
         )}
-        {callouts.map((callout, index) => {
-          const radius = Math.max(13, imageSize.width * 0.019);
-          const badge = calloutBadgeGeometry(callout, imageSize, radius);
-          return (
-            <g key={`badge-${callout.id}`}>
-              <circle
-                cx={badge.center.x}
-                cy={badge.center.y}
-                fill={annotationInk}
-                r={radius}
-              />
-              <text
-                dominantBaseline="central"
-                fill="#0d0d0d"
-                fontSize={radius}
-                fontWeight="800"
-                textAnchor="middle"
-                x={badge.center.x}
-                y={badge.center.y}
-              >
-                {index + 1}
-              </text>
-            </g>
-          );
-        })}
-        <rect
-          data-annotation-hit-target
-          data-annotation-interaction
-          fill="transparent"
-          height={imageSize.height}
-          onPointerCancel={finishAnnotationGesture}
-          onPointerDown={startAnnotation}
-          onPointerMove={moveAnnotation}
-          onPointerUp={finishAnnotationGesture}
-          pointerEvents="all"
-          width={imageSize.width}
-          x="0"
-          y="0"
-        />
-        {selectedId &&
-          (() => {
-            const selected = annotations.find(({ id }) => id === selectedId);
-            if (!selected || !isDrawnAnnotation(selected)) return null;
-            return annotationResizeHandles(selected).map(({ handle, point }) => (
-              <circle
-                className="canvas-annotation-resize-handle"
-                cx={point.x}
-                cy={point.y}
-                data-resize-handle={handle}
-                fill="#ffffff"
-                key={`interactive-${handle}`}
-                onPointerCancel={finishResize}
-                onPointerDown={(event) => startResize(event, selected, handle)}
-                onPointerMove={moveResize}
-                onPointerUp={finishResize}
-                r={Math.max(6, imageSize.width * 0.009)}
-                stroke={annotationInk}
-                strokeWidth={Math.max(2, imageSize.width * 0.003)}
-                style={{ cursor: resizeHandleCursor[handle] }}
-              />
-            ));
-          })()}
-      </svg>
-      {textPoint && (
-        <form
-          className="canvas-annotation-text-entry"
-          onSubmit={(event) => {
-            event.preventDefault();
-            commitText();
-          }}
-          style={{
-            left: `${(textPoint.x / imageSize.width) * 100}%`,
-            top: `${(textPoint.y / imageSize.height) * 100}%`
-          }}
+      </div>
+    ) : null;
+
+  const annotationToolbar = (
+    <div
+      className="canvas-annotation-rail"
+      data-canvas-ui
+    >
+      <div
+        aria-label="Annotation controls"
+        className="canvas-annotation-toolbar"
+        role="toolbar"
+      >
+        <fieldset
+          aria-label="Drawing tools"
+          className="canvas-annotation-tool-group"
+          disabled={toolsDisabled || isFinishing}
         >
-          <input
-            aria-label="Annotation text"
-            onBlur={commitText}
-            onChange={(event) => setTextValue(event.target.value)}
-            placeholder="Type annotation"
-            ref={annotationTextInput}
-            value={textValue}
+          {annotationTools.map((tool) => (
+            <Button
+              aria-label={tool.label}
+              aria-pressed={active && activeTool === tool.id}
+              className={active && activeTool === tool.id ? 'active' : undefined}
+              key={tool.id}
+              onClick={() => {
+                onActivate?.();
+                setActiveTool(tool.id);
+                setTextPoint(null);
+              }}
+              title={tool.label}
+              type="button"
+            >
+              {resolvedIcons.tools?.[tool.id]}
+            </Button>
+          ))}
+        </fieldset>
+        <fieldset
+          aria-label="Annotation actions"
+          className="canvas-annotation-action-group"
+          disabled={toolsDisabled || isFinishing}
+        >
+          <Button
+            aria-label="Undo last annotation"
+            disabled={!annotationHistory.past.length}
+            onClick={undo}
+            title="Undo (⌘Z)"
+            type="button"
+          >
+            {resolvedIcons.undo}
+          </Button>
+          <Button
+            aria-label="Redo annotation"
+            disabled={!annotationHistory.future.length}
+            onClick={redo}
+            title="Redo (⌘⇧Z)"
+            type="button"
+          >
+            {resolvedIcons.redo}
+          </Button>
+          <span
+            aria-hidden="true"
+            className="canvas-annotation-divider"
           />
-        </form>
-      )}
+          <Button
+            aria-label="Delete selected annotation"
+            disabled={!selectedId}
+            onClick={deleteSelected}
+            title="Delete"
+            type="button"
+          >
+            {resolvedIcons.remove}
+          </Button>
+          <Button
+            aria-label="Clear annotations"
+            disabled={!annotations.length}
+            onClick={() => {
+              commitAnnotations([]);
+              setSelectedId(null);
+            }}
+            title="Clear"
+            type="button"
+          >
+            {resolvedIcons.clear}
+          </Button>
+          {!onActivate && (
+            <Button
+              aria-label="Return to interaction tool"
+              className="annotation-cancel"
+              onClick={onCancel}
+              type="button"
+            >
+              {resolvedIcons.cancel}
+            </Button>
+          )}
+        </fieldset>
+      </div>
     </div>
-  ) : null;
+  );
 
   return (
     <>
@@ -741,122 +875,9 @@ export function LiveAnnotationSurface({
           ))}
         </svg>
       )}
-      {active && (
-        <div
-          className="canvas-annotation-rail"
-          data-canvas-ui
-        >
-          <div
-            aria-label="Annotation controls"
-            className="canvas-annotation-toolbar"
-            role="toolbar"
-          >
-            <fieldset
-              aria-label="Drawing tools"
-              className="canvas-annotation-tool-group"
-            >
-              {annotationTools.map((tool) => (
-                <Button
-                  aria-label={tool.label}
-                  aria-pressed={activeTool === tool.id}
-                  className={activeTool === tool.id ? 'active' : undefined}
-                  key={tool.id}
-                  onClick={() => {
-                    setActiveTool(tool.id);
-                    setTextPoint(null);
-                  }}
-                  title={tool.label}
-                  type="button"
-                >
-                  {resolvedIcons.tools?.[tool.id]}
-                </Button>
-              ))}
-            </fieldset>
-            <fieldset
-              aria-label="Annotation actions"
-              className="canvas-annotation-action-group"
-            >
-              <Button
-                aria-label="Undo last annotation"
-                disabled={!annotationHistory.past.length}
-                onClick={undo}
-                title="Undo (⌘Z)"
-                type="button"
-              >
-                {resolvedIcons.undo}
-              </Button>
-              <Button
-                aria-label="Redo annotation"
-                disabled={!annotationHistory.future.length}
-                onClick={redo}
-                title="Redo (⌘⇧Z)"
-                type="button"
-              >
-                {resolvedIcons.redo}
-              </Button>
-              <span
-                aria-hidden="true"
-                className="canvas-annotation-divider"
-              />
-              <Button
-                aria-label="Delete selected annotation"
-                disabled={!selectedId}
-                onClick={deleteSelected}
-                title="Delete"
-                type="button"
-              >
-                {resolvedIcons.remove}
-              </Button>
-              <Button
-                aria-label="Clear annotations"
-                disabled={!annotations.length}
-                onClick={() => {
-                  commitAnnotations([]);
-                  setSelectedId(null);
-                }}
-                title="Clear"
-                type="button"
-              >
-                {resolvedIcons.clear}
-              </Button>
-              <span
-                aria-hidden="true"
-                className="canvas-annotation-divider"
-              />
-              <span
-                aria-hidden="true"
-                className="canvas-annotation-spacer"
-              />
-              <Button
-                className="annotation-cancel"
-                onClick={onCancel}
-                type="button"
-              >
-                {resolvedIcons.cancel}
-                <span>Cancel</span>
-              </Button>
-              <Button
-                className="annotation-done"
-                disabled={isFinishing}
-                onClick={() => void finishAnnotation()}
-                type="button"
-              >
-                {isFinishing ? (resolvedIcons.finishing ?? resolvedIcons.finish) : resolvedIcons.finish}
-                <span>{isFinishing ? 'Finishing…' : 'Finish'}</span>
-              </Button>
-            </fieldset>
-            {annotationError && (
-              <span
-                className="canvas-annotation-error"
-                role="alert"
-              >
-                {annotationError}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-      {active && notesHost
+      {(active || onActivate) &&
+        (toolsHost === undefined ? annotationToolbar : toolsHost ? createPortal(annotationToolbar, toolsHost) : null)}
+      {callouts.length > 0 && notesHost
         ? createPortal(
             <>
               <header>
@@ -868,37 +889,50 @@ export function LiveAnnotationSurface({
                 </div>
                 <output aria-label={`${callouts.length} annotations`}>{callouts.length}</output>
               </header>
-              {callouts.length > 0 ? (
-                <ol ref={annotationNotesList}>
-                  {callouts.map((callout, index) => (
-                    <li key={callout.id}>
-                      <span className="canvas-annotation-note-number">{index + 1}</span>
-                      <label>
-                        <span className="inspector-annotation-note-type">{calloutTypeLabel[callout.type]}</span>
-                        <textarea
-                          aria-label={`Note ${index + 1}`}
-                          className="inspector-annotation-note-input"
-                          onChange={(event) => updateNote(callout.id, event.target.value)}
-                          placeholder="Describe what should change…"
-                          ref={(node) => {
-                            if (node) noteInputs.current.set(callout.id, node);
-                            else noteInputs.current.delete(callout.id);
-                          }}
-                          rows={3}
-                          value={callout.note}
-                        />
-                      </label>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <div className="inspector-annotation-notes-empty">
-                  <strong className="inspector-annotation-notes-empty-title">No annotations yet</strong>
-                  <span className="inspector-annotation-notes-empty-description">
-                    Draw a rectangle, ellipse, or arrow to add an implementation note.
-                  </span>
-                </div>
-              )}
+              <ol ref={annotationNotesList}>
+                {callouts.map((callout, index) => (
+                  <li key={callout.id}>
+                    <span className="canvas-annotation-note-number">{index + 1}</span>
+                    <label>
+                      <span className="inspector-annotation-note-type">{calloutTypeLabel[callout.type]}</span>
+                      <textarea
+                        aria-label={`Note ${index + 1}`}
+                        className="inspector-annotation-note-input"
+                        onChange={(event) => updateNote(callout.id, event.target.value)}
+                        placeholder="Describe what should change…"
+                        ref={(node) => {
+                          if (node) noteInputs.current.set(callout.id, node);
+                          else noteInputs.current.delete(callout.id);
+                        }}
+                        rows={3}
+                        value={callout.note}
+                      />
+                    </label>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="request-footer annotation-request-footer">
+                {annotationError && (
+                  <p
+                    className="agent-copy-error"
+                    role="alert"
+                  >
+                    {annotationError}
+                  </p>
+                )}
+                {!submitRef && (
+                  <Button
+                    className="copy-prompt-action"
+                    disabled={isFinishing || !canSend}
+                    onClick={() => void finishAnnotation()}
+                    type="button"
+                  >
+                    {isFinishing ? (resolvedIcons.finishing ?? resolvedIcons.finish) : resolvedIcons.finish}
+                    <span>{isFinishing ? 'Sending…' : canSend ? 'Send to agent' : 'Agent unavailable'}</span>
+                  </Button>
+                )}
+              </div>
             </>,
             notesHost
           )

@@ -189,21 +189,23 @@ export function LiveSessionSimulatorPicker({
       </section>
       {error}
       <footer className="simulator-action-bar">
-        <Button
-          className="connect-button"
-          disabled={!selectedSimulatorUdid || !selectedTargetBundleIdentifier || isConnecting}
-          onClick={onConnect}
-          type="button"
-        >
-          {connectLabel ??
-            (isConnecting
-              ? selectedSimulator?.state === 'Shutdown'
-                ? 'Starting Simulator…'
-                : 'Connecting…'
-              : selectedSimulator?.state === 'Shutdown'
-                ? 'Start & connect'
-                : 'Connect')}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            className="connect-button"
+            disabled={!selectedSimulatorUdid || !selectedTargetBundleIdentifier || isConnecting}
+            onClick={onConnect}
+            type="button"
+          >
+            {connectLabel ??
+              (isConnecting
+                ? selectedSimulator?.state === 'Shutdown'
+                  ? 'Starting Simulator…'
+                  : 'Connecting…'
+                : selectedSimulator?.state === 'Shutdown'
+                  ? 'Start & connect'
+                  : 'Connect')}
+          </Button>
+        </div>
       </footer>
     </section>
   );

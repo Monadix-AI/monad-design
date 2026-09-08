@@ -402,7 +402,7 @@
 			"refersTo": "button-primary",
 			"description": "Commits a local primary operation such as connect, copy, export, or open selected live.",
 			"html": "<button class=\"ds-primary-action\">Copy complete prompt</button>",
-			"css": ".ds-primary-action { min-height: 34px; padding: 7px 10px; border: 1px solid var(--primary); border-radius: 8px; color: var(--primary-foreground); background: var(--primary); font: 700 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-primary-action:hover { border-color: #b9ff94; background: #b9ff94; } .ds-primary-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } .ds-primary-action:active { transform: translateY(1px); }"
+			"css": ".ds-primary-action { min-height: 34px; padding: 7px 10px; border: 1px solid var(--primary); border-radius: 8px; color: var(--primary-foreground); background: var(--primary); font: 700 10px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-primary-action:hover { border-color: #b9ff94; background: #b9ff94; } .ds-primary-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }"
 		},
 		{
 			"name": "Compact Tool Button",
