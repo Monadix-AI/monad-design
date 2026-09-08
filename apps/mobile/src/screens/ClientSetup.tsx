@@ -20,10 +20,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassControl } from '../components/GlassControl';
 import { PairingScanner } from '../components/PairingScanner';
 import { savedClientKey } from '../session';
-import { styles } from '../styles';
-import { colors, errorMessage } from '../theme';
+import { useStyles } from '../styles';
+import { createThemedStyles, errorMessage, useColors } from '../theme';
 
 const connectionTimeoutMilliseconds = 30_000;
+const candidateProbeTimeoutMilliseconds = 5_000;
+
+const candidateOrigins = ({ origin, fallbackOrigins = [] }: ClientConnection) => [
+  ...new Set([origin, ...fallbackOrigins])
+];
 
 interface ConnectionAttempt {
   api: ClientApi<ClientConnection>;
@@ -39,6 +44,9 @@ export function ClientSetup({
   initial: ClientConnection | null;
   onConnected: (api: ClientApi<ClientConnection>) => void;
 }) {
+  const colors = useColors();
+  const local = useLocal();
+  const styles = useStyles();
   const { width } = useWindowDimensions();
   const compact = width < 900;
   const [origin, setOrigin] = useState(initial?.origin ?? '');
@@ -65,7 +73,14 @@ export function ClientSetup({
       setBusy(true);
       setError(null);
       const controller = new AbortController();
-      const api = new ClientApi(connection, { signal: controller.signal });
+      const origins = candidateOrigins(connection);
+      let api = new ClientApi(
+        { origin: origins[0] ?? connection.origin, pairingCode: connection.pairingCode },
+        {
+          requestTimeoutMilliseconds: origins.length > 1 ? candidateProbeTimeoutMilliseconds : undefined,
+          signal: controller.signal
+        }
+      );
       const attempt: ConnectionAttempt = {
         api,
         controller,
@@ -77,12 +92,38 @@ export function ClientSetup({
       };
       activeAttempt.current = attempt;
       try {
-        await api.pair();
-        const health = await api.health();
-        if (health.protocolVersion !== 1) throw new Error('This Client uses an unsupported protocol version.');
-        await Promise.all([api.simulators(), AsyncStorage.setItem(savedClientKey, JSON.stringify(api.connection))]);
-        if (activeAttempt.current !== attempt) return;
-        onConnected(api);
+        let lastFailure: unknown;
+        for (const candidateOrigin of origins) {
+          if (activeAttempt.current !== attempt) return;
+          api = new ClientApi(
+            { origin: candidateOrigin, pairingCode: connection.pairingCode },
+            {
+              requestTimeoutMilliseconds: origins.length > 1 ? candidateProbeTimeoutMilliseconds : undefined,
+              signal: controller.signal
+            }
+          );
+          attempt.api.dispose();
+          attempt.api = api;
+          try {
+            await api.pair();
+            const health = await api.health();
+            if (health.protocolVersion !== 1) throw new Error('This Client uses an unsupported protocol version.');
+
+            if (origins.length > 1) {
+              api.dispose();
+              api = new ClientApi(api.connection, { signal: controller.signal });
+              attempt.api = api;
+            }
+            await Promise.all([api.simulators(), AsyncStorage.setItem(savedClientKey, JSON.stringify(api.connection))]);
+            if (activeAttempt.current !== attempt) return;
+            onConnected(api);
+            return;
+          } catch (reason) {
+            lastFailure = reason;
+            api.dispose();
+          }
+        }
+        throw lastFailure ?? new Error('No reachable Client address was found.');
       } catch (reason) {
         if (activeAttempt.current !== attempt) return;
         attempt.api.dispose();
@@ -145,6 +186,7 @@ export function ClientSetup({
         >
           <View style={[local.intro, compact && local.introCompact]}>
             <View
+              accessibilityElementsHidden
               accessible={false}
               importantForAccessibility="no-hide-descendants"
               pointerEvents="none"
@@ -154,14 +196,14 @@ export function ClientSetup({
               <View style={[local.frame, local.frameMiddle]} />
               <View style={local.scanTile}>
                 <Ionicons
-                  color={colors.accent}
+                  color={colors.accentText}
                   name="scan-outline"
                   size={76}
                 />
               </View>
               <View style={local.linkBadge}>
                 <Ionicons
-                  color="#10130e"
+                  color={colors.onAccent}
                   name="link"
                   size={22}
                 />
@@ -179,13 +221,13 @@ export function ClientSetup({
               tone="accent"
             >
               <Ionicons
-                color="#10130e"
+                color={colors.onAccent}
                 name="scan"
                 size={24}
               />
               <Text style={local.scanTitle}>Scan to connect</Text>
               <Ionicons
-                color="#10130e"
+                color={colors.onAccent}
                 name="arrow-forward"
                 size={20}
               />
@@ -253,78 +295,88 @@ export function ClientSetup({
   );
 }
 
-const local = StyleSheet.create({
-  keyboard: { flex: 1 },
-  body: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 48, gap: 80 },
-  bodyCompact: { flexDirection: 'column', paddingHorizontal: 24, paddingVertical: 32, gap: 36 },
-  intro: { alignItems: 'center', width: 360, gap: 32 },
-  introCompact: { width: '100%', maxWidth: 420, gap: 20 },
-  artwork: { width: 240, height: 210, alignItems: 'center', justifyContent: 'center' },
-  frame: { position: 'absolute', borderWidth: 1, borderRadius: 40 },
-  frameOuter: { width: 196, height: 196, borderColor: '#23292a', transform: [{ rotate: '-16deg' }] },
-  frameMiddle: { width: 166, height: 166, borderColor: '#3b4935', transform: [{ rotate: '12deg' }] },
-  scanTile: {
-    width: 136,
-    height: 136,
-    borderRadius: 32,
-    backgroundColor: colors.panelRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24
-  },
-  linkBadge: {
-    position: 'absolute',
-    right: 36,
-    bottom: 24,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-12deg' }]
-  },
-  title: {
-    color: colors.text,
-    fontSize: 38,
-    lineHeight: 44,
-    fontWeight: '700',
-    letterSpacing: -1.2,
-    textAlign: 'center'
-  },
-  titleCompact: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
-  form: { width: '100%', maxWidth: 380 },
-  scanButton: { borderRadius: 16, minHeight: 64 },
-  scanContent: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 18 },
-  scanTitle: { flex: 1, color: '#10130e', fontSize: 17, fontWeight: '700' },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 24 },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  dividerText: { color: colors.muted, fontSize: 13 },
-  label: { color: colors.muted, fontSize: 13, fontWeight: '500', marginBottom: 10 },
-  input: {
-    minHeight: 56,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.panel,
-    color: colors.text,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    marginBottom: 20
-  },
-  codeInput: { fontSize: 24, fontWeight: '600', letterSpacing: 8, fontVariant: ['tabular-nums'] },
-  connectButton: { minHeight: 56, borderRadius: 14, marginTop: 4 },
-  connectContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 20
-  },
-  connectText: { color: colors.text, fontSize: 16, fontWeight: '600' }
-});
+const useLocal = createThemedStyles((colors) =>
+  StyleSheet.create({
+    keyboard: { flex: 1 },
+    body: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 48, gap: 80 },
+    bodyCompact: { flexDirection: 'column', paddingHorizontal: 24, paddingVertical: 32, gap: 36 },
+    intro: { alignItems: 'center', width: 360, gap: 32 },
+    introCompact: { width: '100%', maxWidth: 420, gap: 20 },
+    artwork: { width: 240, height: 210, alignItems: 'center', justifyContent: 'center' },
+    frame: { position: 'absolute', borderWidth: 1, borderRadius: 40 },
+    frameOuter: { width: 196, height: 196, borderColor: colors.border, transform: [{ rotate: '-16deg' }] },
+    frameMiddle: { width: 166, height: 166, borderColor: colors.border, transform: [{ rotate: '12deg' }] },
+    scanTile: {
+      width: 136,
+      height: 136,
+      borderRadius: 32,
+      backgroundColor: colors.panelRaised,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 18 },
+      shadowOpacity: 0.35,
+      shadowRadius: 24
+    },
+    linkBadge: {
+      position: 'absolute',
+      right: 36,
+      bottom: 24,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      transform: [{ rotate: '-12deg' }]
+    },
+    title: {
+      color: colors.text,
+      fontSize: 38,
+      lineHeight: 44,
+      fontWeight: '700',
+      letterSpacing: -1.2,
+      textAlign: 'center'
+    },
+    titleCompact: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
+    form: { width: '100%', maxWidth: 380 },
+    scanButton: { borderRadius: 16, minHeight: 64 },
+    scanContent: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 18 },
+    scanTitle: { flex: 1, color: colors.onAccent, fontSize: 17, fontWeight: '700' },
+    divider: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 24 },
+    dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+    dividerText: { color: colors.muted, fontSize: 13 },
+    label: { color: colors.muted, fontSize: 13, fontWeight: '500', marginBottom: 10 },
+    input: {
+      minHeight: 56,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      backgroundColor: colors.panel,
+      color: colors.text,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      letterSpacing: 0,
+      marginBottom: 20
+    },
+    codeInput: {
+      fontSize: 24,
+      fontWeight: '600',
+      letterSpacing: 2,
+      fontVariant: ['tabular-nums'],
+      paddingVertical: 0,
+      textAlignVertical: 'center'
+    },
+    connectButton: { minHeight: 56, borderRadius: 14, marginTop: 4 },
+    connectContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingVertical: 16,
+      paddingHorizontal: 20
+    },
+    connectText: { color: colors.text, fontSize: 16, fontWeight: '600' }
+  })
+);

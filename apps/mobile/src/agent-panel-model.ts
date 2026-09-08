@@ -9,3 +9,11 @@ export const agentPanelStatus = (session: AgentSessionSnapshot | null) => {
   if (session.status === 'selection_confirmed') return 'Selection sent · agent is finalizing';
   return 'Agent session active';
 };
+
+/** A different project's global Live session must never lock this workspace. */
+export function agentSessionForProject<T extends { project: { id: string } }>(
+  session: T | null,
+  projectId: string
+): T | null {
+  return session?.project.id === projectId ? session : null;
+}

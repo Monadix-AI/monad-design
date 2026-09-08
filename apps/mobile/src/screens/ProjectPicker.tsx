@@ -6,15 +6,15 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Brand } from '../components/Brand';
+import { BackButton, HeaderActionButton } from '../components/BackButton';
 import { GlassControl } from '../components/GlassControl';
-import { Action } from '../components/WorkspaceControls';
-import { styles } from '../styles';
-import { colors, errorMessage } from '../theme';
+import { useStyles } from '../styles';
+import { errorMessage, useColors } from '../theme';
 
 const skeletonRows = ['first', 'second', 'third'];
 
 function ProjectListSkeleton() {
+  const styles = useStyles();
   const opacity = useRef(new Animated.Value(0.46)).current;
 
   useEffect(() => {
@@ -60,6 +60,8 @@ export function ProjectPicker({
   onForget: () => void;
   onOpen: (project: RemoteProject) => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   const { data, error: queryError, isFetching, isLoading, refetch } = useListProjectsQuery({ limit: 100, offset: 0 });
   const [openProject] = useOpenProjectMutation();
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -83,26 +85,19 @@ export function ProjectPicker({
 
   return (
     <SafeAreaView style={styles.projectRoot}>
-      <View style={styles.pickerHeader}>
-        <Brand />
-        <View style={styles.headerActions}>
-          <GlassControl
-            contentStyle={styles.textButtonContent}
-            glassStyle="clear"
+      <View style={styles.projectBody}>
+        <View style={styles.pageActions}>
+          <BackButton
+            label="Connection"
             onPress={onForget}
-            style={styles.textButton}
-          >
-            <Text style={styles.textButtonLabel}>Change desktop</Text>
-          </GlassControl>
-          <Action
+          />
+          <HeaderActionButton
             disabled={busy}
             icon="refresh"
             label="Refresh"
             onPress={() => void refetch()}
           />
         </View>
-      </View>
-      <View style={styles.projectBody}>
         <View style={styles.projectHeading}>
           <View>
             <Text style={styles.projectTitle}>Projects</Text>
@@ -123,11 +118,12 @@ export function ProjectPicker({
               disabled={openingId !== null}
               key={project.id}
               onPress={() => void open(project)}
+              solid
               style={styles.projectItem}
             >
               <View style={styles.projectIcon}>
                 <Ionicons
-                  color={colors.accent}
+                  color={colors.accentText}
                   name="folder-open-outline"
                   size={22}
                 />
@@ -141,7 +137,7 @@ export function ProjectPicker({
                 </Text>
               </View>
               {openingId === project.id ? (
-                <ActivityIndicator color={colors.accent} />
+                <ActivityIndicator color={colors.accentText} />
               ) : (
                 <Ionicons
                   color={colors.muted}
@@ -155,7 +151,7 @@ export function ProjectPicker({
           {!busy && projects.length === 0 && !error && (
             <View style={styles.projectStatus}>
               <Ionicons
-                color="#666a72"
+                color={colors.muted}
                 name="folder-open-outline"
                 size={38}
               />

@@ -1,8 +1,9 @@
-import type { DesignGuidance, DesignReference } from '@monaddesign/client-contract';
+import { type DesignGuidance, type DesignReference, isAdjustmentGoal } from '@monaddesign/client-contract';
 
 export function toggleDesignReference(current: DesignReference[], entry: DesignReference) {
   if (current.some(({ id }) => id === entry.id)) return current.filter(({ id }) => id !== entry.id);
-  return current.length < 4 ? [...current, entry] : current;
+  const remaining = isAdjustmentGoal(entry) ? current.filter((reference) => !isAdjustmentGoal(reference)) : current;
+  return remaining.length < 4 ? [...remaining, structuredClone(entry)] : current;
 }
 
 export function buildDesignGuidance(

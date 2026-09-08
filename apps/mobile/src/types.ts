@@ -1,4 +1,3 @@
-export interface ClientConnection {
-  origin: string;
-  pairingCode: string;
-}
+import type { PairingConnection } from '@monaddesign/pairing';
+
+export type ClientConnection = PairingConnection;

@@ -24,11 +24,15 @@ export const reconcileSimulatorOrientation = ({
 };
 
 export const useSimulatorInput = ({
+  active = true,
+  reconnectRevision = 0,
   initialOrientation,
   initialScreenSize,
   inputUrl,
   onError
 }: {
+  active?: boolean;
+  reconnectRevision?: number;
   initialOrientation: SimulatorOrientation;
   initialScreenSize: SimulatorScreenSize;
   inputUrl: string;
@@ -50,6 +54,15 @@ export const useSimulatorInput = ({
       requested: false,
       synchronized: false
     };
+  }, [initialOrientation]);
+
+  useEffect(() => {
+    // A resumed connection must retain rotations made during this workspace session.
+    void reconnectRevision;
+    setReady(false);
+    if (!active) return;
+    orientationSynchronization.current.requested = false;
+    orientationSynchronization.current.synchronized = false;
     const ws = new WebSocket(inputUrl);
     ws.binaryType = 'arraybuffer';
     ws.onopen = () => {
@@ -100,9 +113,13 @@ export const useSimulatorInput = ({
     socket.current = ws;
     return () => {
       socket.current = null;
+      ws.onopen = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      ws.onmessage = null;
       ws.close();
     };
-  }, [initialOrientation, inputUrl, onError]);
+  }, [active, inputUrl, onError, reconnectRevision]);
 
   const send = useCallback(
     (tag: number, payload: object) => {

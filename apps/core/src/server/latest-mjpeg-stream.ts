@@ -2,7 +2,10 @@ const maxFrameBytes = 32 * 1024 * 1024;
 const maxHeaderBytes = 4096;
 
 /** Drain capture continuously, retaining only the newest complete multipart frame. */
-export const latestMjpegStream = (source: ReadableStream<Uint8Array>) => {
+export const latestMjpegStream = (
+  source: ReadableStream<Uint8Array>,
+  options: { isDisconnected?: () => boolean } = {}
+) => {
   const reader = source.getReader();
   let pending: Buffer | undefined;
   let finished = false;
@@ -54,7 +57,10 @@ export const latestMjpegStream = (source: ReadableStream<Uint8Array>) => {
         }
       }
     } catch (error) {
-      failure = error;
+      // Bridge teardown resets its sockets; an obsolete response should end
+      // normally rather than forward that reset to the HTTP server.
+      if (!cancelled && !options.isDisconnected?.()) failure = error;
+      else pending = undefined;
       await reader.cancel(error).catch(() => {});
     } finally {
       finished = true;
@@ -85,7 +91,7 @@ export const latestMjpegStream = (source: ReadableStream<Uint8Array>) => {
       async cancel(reason) {
         cancelled = true;
         pending = undefined;
-        if (!finished) await reader.cancel(reason);
+        if (!finished) await reader.cancel(reason).catch(() => {});
       }
     },
     { highWaterMark: 0 }

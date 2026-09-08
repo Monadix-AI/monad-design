@@ -4,6 +4,8 @@ import type { ClientApi } from '@monaddesign/client-rtk/client-api';
 import { agentSessionNeedsConnection, nextAgentSession } from '@monaddesign/client-contract/live-session';
 import { useEffect, useState } from 'react';
 
+import { agentSessionForProject } from '../agent-panel-model';
+
 export const useLiveAgentSession = (api: ClientApi, connection: SimulatorConnectionResponse) => {
   const [session, setSession] = useState<AgentSessionSnapshot | null>(null);
   const { bundleIdentifier, projectId, udid } = connection;
@@ -14,6 +16,7 @@ export const useLiveAgentSession = (api: ClientApi, connection: SimulatorConnect
     const refresh = async () => {
       try {
         let { session: incoming } = await api.activeAgentSession();
+        incoming = agentSessionForProject(incoming, projectId);
         const activeConnection = { bundleIdentifier, projectId, udid };
         if (agentSessionNeedsConnection(incoming, activeConnection) && !connecting) {
           connecting = true;

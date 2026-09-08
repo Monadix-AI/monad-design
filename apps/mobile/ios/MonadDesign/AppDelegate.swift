@@ -61,7 +61,22 @@ class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
 
   override func bundleURL() -> URL? {
 #if DEBUG
-    return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: ".expo/.virtual-metro-entry")
+    let provider = RCTBundleURLProvider.sharedSettings()
+    if let url = provider.jsBundleURL(forBundleRoot: ".expo/.virtual-metro-entry") {
+      return url
+    }
+    // A timed-out status probe must not discard the build's Metro address.
+    // Loading the bundle directly also lets iOS complete local-network permission.
+    let buildHost = Bundle.main.url(forResource: "ip", withExtension: "txt")
+      .flatMap { try? String(contentsOf: $0, encoding: .utf8) }?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let host = provider.jsLocation ?? buildHost, !host.isEmpty else { return nil }
+    return RCTBundleURLProvider.jsBundleURL(
+      forBundleRoot: ".expo/.virtual-metro-entry",
+      packagerHost: host,
+      enableDev: provider.enableDev,
+      enableMinification: provider.enableMinification,
+      inlineSourceMap: provider.inlineSourceMap)
 #else
     return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif

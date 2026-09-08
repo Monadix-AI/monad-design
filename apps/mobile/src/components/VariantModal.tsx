@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { createThemedStyles, useColors } from '../theme';
 import { applyVariantReviewAction, variantComparisonLayout } from '../variant-review';
 import { GlassControl } from './GlassControl';
 
@@ -36,6 +37,11 @@ const touchMidpoint = (first: { locationX: number; locationY: number }, second: 
 });
 
 export function VariantModal({
+  onBusyChange,
+  embedded = false,
+  locked = false,
+  selectedVariant,
+  onSelectionChange,
   bundleIdentifier,
   visible,
   variants = defaultVariants,
@@ -45,6 +51,11 @@ export function VariantModal({
   onOpened,
   onRestored
 }: {
+  onBusyChange?: (busy: boolean) => void;
+  embedded?: boolean;
+  locked?: boolean;
+  selectedVariant?: SimulatorVariantId | null;
+  onSelectionChange?: (variant: SimulatorVariantId) => void;
   bundleIdentifier: string;
   visible: boolean;
   variants?: SimulatorVariantId[];
@@ -54,12 +65,20 @@ export function VariantModal({
   onOpened: (variant: SimulatorVariantId) => void;
   onRestored: () => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   const [launchVariant] = useLaunchSimulatorVariantMutation();
   const [launchApp] = useLaunchSimulatorAppMutation();
   const [captureScreenshot] = useLazyCaptureSimulatorScreenshotQuery();
   const [captures, setCaptures] = useState<Partial<Record<SimulatorVariantId, string>>>({});
   const [selected, setSelected] = useState<SimulatorVariantId | null>(null);
+  useEffect(() => {
+    if (selectedVariant !== undefined) setSelected(selectedVariant);
+  }, [selectedVariant]);
   const [working, setWorking] = useState<SimulatorVariantId | 'open' | 'restore' | null>(null);
+  useEffect(() => {
+    onBusyChange?.(working !== null);
+  }, [working, onBusyChange]);
   const [error, setError] = useState<string | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
@@ -294,6 +313,212 @@ export function VariantModal({
       setWorking(null);
     }
   };
+  const content = (
+    <View style={[styles.root, embedded && { paddingTop: 0 }]}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Compare native variants</Text>
+          <Text style={styles.boundary}>
+            {working === 'open'
+              ? 'Opening selected variant…'
+              : working === 'restore'
+                ? 'Restoring original…'
+                : working
+                  ? 'Capturing runtime evidence…'
+                  : selected
+                    ? 'Selected · not applied to source'
+                    : 'Preview evidence only'}
+          </Text>
+        </View>
+        <GlassControl
+          accessibilityLabel="Close variant comparison"
+          contentStyle={styles.closeContent}
+          disabled={locked || Boolean(working)}
+          glassStyle="clear"
+          onPress={onClose}
+          style={styles.close}
+        >
+          <Ionicons
+            color={colors.text}
+            name="close"
+            size={20}
+          />
+        </GlassControl>
+      </View>
+      <View style={styles.captureBar}>
+        <View style={styles.field}>
+          <Text style={styles.label}>TARGET BUNDLE IDENTIFIER</Text>
+          <Text style={styles.targetBundle}>{bundleIdentifier}</Text>
+        </View>
+        <Text style={styles.help}>Requires the Debug-only Monad Design variant hook.</Text>
+        <GlassControl
+          contentStyle={styles.primaryContent}
+          disabled={locked || Boolean(working)}
+          onPress={() => void capture()}
+          style={styles.primary}
+          tone="accent"
+        >
+          {working && working !== 'open' && working !== 'restore' ? (
+            <ActivityIndicator color={colors.onAccent} />
+          ) : (
+            <Ionicons
+              color={colors.onAccent}
+              name="camera-outline"
+              size={19}
+            />
+          )}
+          <Text style={styles.primaryText}>
+            {working && variants.includes(working as SimulatorVariantId)
+              ? simulatorVariantLabels[working as SimulatorVariantId]
+              : `Capture ${variants.length}`}
+          </Text>
+        </GlassControl>
+      </View>
+      <View
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setCanvasViewport((current) =>
+            current?.width === width && current.height === height ? current : { width, height }
+          );
+        }}
+        style={styles.gridViewport}
+        {...canvasResponder.panHandlers}
+      >
+        <View
+          style={[
+            styles.grid,
+            {
+              width: comparisonLayout.width,
+              height: comparisonLayout.height,
+              transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }, { scale: canvasScale }]
+            }
+          ]}
+        >
+          {variants.map((variant) => (
+            <Pressable
+              accessibilityLabel={simulatorVariantLabels[variant]}
+              accessibilityRole="button"
+              accessibilityState={{
+                selected: selected === variant,
+                disabled: !captures[variant] || Boolean(working)
+              }}
+              disabled={locked || !captures[variant] || Boolean(working)}
+              key={variant}
+              onPress={() => {
+                setSelected(variant);
+                onSelectionChange?.(variant);
+              }}
+              style={[
+                styles.tile,
+                { width: comparisonLayout.tileWidth, height: comparisonLayout.tileHeight },
+                selected === variant && styles.selected
+              ]}
+            >
+              <View style={styles.tileHeader}>
+                <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
+                <Text style={styles.tileState}>
+                  {working === variant
+                    ? 'CAPTURING'
+                    : captures[variant]
+                      ? selected === variant
+                        ? 'SELECTED'
+                        : 'CAPTURED'
+                      : 'WAITING'}
+                </Text>
+              </View>
+              {captures[variant] ? (
+                <Image
+                  resizeMode="contain"
+                  source={{ uri: captures[variant] }}
+                  style={styles.image}
+                />
+              ) : (
+                <View style={styles.placeholder}>
+                  {working === variant && <ActivityIndicator color={colors.accentText} />}
+                </View>
+              )}
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.zoomControls}>
+          <GlassControl
+            accessibilityLabel="Zoom comparison out"
+            contentStyle={styles.zoomButtonContent}
+            disabled={canvasScale <= minimumCanvasScale}
+            glassStyle="clear"
+            onPress={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+            style={styles.zoomButton}
+          >
+            <Ionicons
+              color={colors.text}
+              name="remove"
+              size={18}
+            />
+          </GlassControl>
+          <Text style={styles.zoomValue}>{Math.round(canvasScale * 100)}%</Text>
+          <GlassControl
+            accessibilityLabel="Zoom comparison in"
+            contentStyle={styles.zoomButtonContent}
+            disabled={canvasScale >= maximumCanvasScale}
+            glassStyle="clear"
+            onPress={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+            style={styles.zoomButton}
+          >
+            <Ionicons
+              color={colors.text}
+              name="add"
+              size={18}
+            />
+          </GlassControl>
+          <GlassControl
+            accessibilityLabel="Fit comparison to view"
+            contentStyle={styles.zoomButtonContent}
+            glassStyle="clear"
+            onPress={fitCanvas}
+            style={styles.zoomButton}
+          >
+            <Ionicons
+              color={colors.text}
+              name="scan-outline"
+              size={17}
+            />
+          </GlassControl>
+        </View>
+      </View>
+      {error && <Text style={styles.error}>{error}</Text>}
+      <View style={styles.footer}>
+        <GlassControl
+          contentStyle={styles.secondaryContent}
+          disabled={locked || Boolean(working)}
+          onPress={() => void restore()}
+          style={styles.secondary}
+        >
+          <Text style={styles.secondaryText}>{confirmSelection ? 'Discard' : 'Restore original'}</Text>
+        </GlassControl>
+        {confirmSelection && (
+          <GlassControl
+            contentStyle={styles.secondaryContent}
+            disabled={locked || !selected || Boolean(working)}
+            onPress={() => void open(false)}
+            style={styles.secondary}
+          >
+            <Text style={styles.secondaryText}>Preview live</Text>
+          </GlassControl>
+        )}
+        <GlassControl
+          contentStyle={styles.primaryContent}
+          disabled={locked || !selected || Boolean(working)}
+          onPress={() => void open(true)}
+          style={styles.primary}
+          tone="accent"
+        >
+          {working === 'open' && <ActivityIndicator color={colors.onAccent} />}
+          <Text style={styles.primaryText}>{confirmSelection ? 'Accept' : 'Open selected live'}</Text>
+        </GlassControl>
+      </View>
+    </View>
+  );
+  if (embedded) return visible ? content : null;
   return (
     <Modal
       animationType="slide"
@@ -303,337 +528,142 @@ export function VariantModal({
       supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
       visible={visible}
     >
-      <View style={styles.root}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Compare native variants</Text>
-            <Text style={styles.boundary}>
-              {working === 'open'
-                ? 'Opening selected variant…'
-                : working === 'restore'
-                  ? 'Restoring original…'
-                  : working
-                    ? 'Capturing runtime evidence…'
-                    : selected
-                      ? 'Selected · not applied to source'
-                      : 'Preview evidence only'}
-            </Text>
-          </View>
-          <GlassControl
-            accessibilityLabel="Close variant comparison"
-            contentStyle={styles.closeContent}
-            disabled={Boolean(working)}
-            glassStyle="clear"
-            onPress={onClose}
-            style={styles.close}
-          >
-            <Ionicons
-              color="#eef0f4"
-              name="close"
-              size={20}
-            />
-          </GlassControl>
-        </View>
-        <View style={styles.captureBar}>
-          <View style={styles.field}>
-            <Text style={styles.label}>TARGET BUNDLE IDENTIFIER</Text>
-            <Text style={styles.targetBundle}>{bundleIdentifier}</Text>
-          </View>
-          <Text style={styles.help}>Requires the Debug-only Monad Design variant hook.</Text>
-          <GlassControl
-            contentStyle={styles.primaryContent}
-            disabled={Boolean(working)}
-            onPress={() => void capture()}
-            style={styles.primary}
-            tone="accent"
-          >
-            {working && working !== 'open' && working !== 'restore' ? (
-              <ActivityIndicator color="#10130e" />
-            ) : (
-              <Ionicons
-                color="#10130e"
-                name="camera-outline"
-                size={19}
-              />
-            )}
-            <Text style={styles.primaryText}>
-              {working && variants.includes(working as SimulatorVariantId)
-                ? simulatorVariantLabels[working as SimulatorVariantId]
-                : `Capture ${variants.length}`}
-            </Text>
-          </GlassControl>
-        </View>
-        <View
-          onLayout={(event) => {
-            const { width, height } = event.nativeEvent.layout;
-            setCanvasViewport((current) =>
-              current?.width === width && current.height === height ? current : { width, height }
-            );
-          }}
-          style={styles.gridViewport}
-          {...canvasResponder.panHandlers}
-        >
-          <View
-            style={[
-              styles.grid,
-              {
-                width: comparisonLayout.width,
-                height: comparisonLayout.height,
-                transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }, { scale: canvasScale }]
-              }
-            ]}
-          >
-            {variants.map((variant) => (
-              <Pressable
-                accessibilityLabel={simulatorVariantLabels[variant]}
-                accessibilityRole="button"
-                accessibilityState={{
-                  selected: selected === variant,
-                  disabled: !captures[variant] || Boolean(working)
-                }}
-                disabled={!captures[variant] || Boolean(working)}
-                key={variant}
-                onPress={() => setSelected(variant)}
-                style={[
-                  styles.tile,
-                  { width: comparisonLayout.tileWidth, height: comparisonLayout.tileHeight },
-                  selected === variant && styles.selected
-                ]}
-              >
-                <View style={styles.tileHeader}>
-                  <Text style={styles.tileTitle}>{simulatorVariantLabels[variant]}</Text>
-                  <Text style={styles.tileState}>
-                    {working === variant
-                      ? 'CAPTURING'
-                      : captures[variant]
-                        ? selected === variant
-                          ? 'SELECTED'
-                          : 'CAPTURED'
-                        : 'WAITING'}
-                  </Text>
-                </View>
-                {captures[variant] ? (
-                  <Image
-                    resizeMode="contain"
-                    source={{ uri: captures[variant] }}
-                    style={styles.image}
-                  />
-                ) : (
-                  <View style={styles.placeholder}>{working === variant && <ActivityIndicator color="#a8ff78" />}</View>
-                )}
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.zoomControls}>
-            <GlassControl
-              accessibilityLabel="Zoom comparison out"
-              contentStyle={styles.zoomButtonContent}
-              disabled={canvasScale <= minimumCanvasScale}
-              glassStyle="clear"
-              onPress={() => changeCanvasScale(canvasScale - canvasScaleStep)}
-              style={styles.zoomButton}
-            >
-              <Ionicons
-                color="#eef0f4"
-                name="remove"
-                size={18}
-              />
-            </GlassControl>
-            <Text style={styles.zoomValue}>{Math.round(canvasScale * 100)}%</Text>
-            <GlassControl
-              accessibilityLabel="Zoom comparison in"
-              contentStyle={styles.zoomButtonContent}
-              disabled={canvasScale >= maximumCanvasScale}
-              glassStyle="clear"
-              onPress={() => changeCanvasScale(canvasScale + canvasScaleStep)}
-              style={styles.zoomButton}
-            >
-              <Ionicons
-                color="#eef0f4"
-                name="add"
-                size={18}
-              />
-            </GlassControl>
-            <GlassControl
-              accessibilityLabel="Fit comparison to view"
-              contentStyle={styles.zoomButtonContent}
-              glassStyle="clear"
-              onPress={fitCanvas}
-              style={styles.zoomButton}
-            >
-              <Ionicons
-                color="#eef0f4"
-                name="scan-outline"
-                size={17}
-              />
-            </GlassControl>
-          </View>
-        </View>
-        {error && <Text style={styles.error}>{error}</Text>}
-        <View style={styles.footer}>
-          <GlassControl
-            contentStyle={styles.secondaryContent}
-            disabled={Boolean(working)}
-            onPress={() => void restore()}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>{confirmSelection ? 'Discard' : 'Restore original'}</Text>
-          </GlassControl>
-          {confirmSelection && (
-            <GlassControl
-              contentStyle={styles.secondaryContent}
-              disabled={!selected || Boolean(working)}
-              onPress={() => void open(false)}
-              style={styles.secondary}
-            >
-              <Text style={styles.secondaryText}>Preview live</Text>
-            </GlassControl>
-          )}
-          <GlassControl
-            contentStyle={styles.primaryContent}
-            disabled={!selected || Boolean(working)}
-            onPress={() => void open(true)}
-            style={styles.primary}
-            tone="accent"
-          >
-            {working === 'open' && <ActivityIndicator color="#10130e" />}
-            <Text style={styles.primaryText}>{confirmSelection ? 'Accept' : 'Open selected live'}</Text>
-          </GlassControl>
-        </View>
-      </View>
+      {content}
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0d0e11', paddingTop: 44 },
-  header: {
-    minHeight: 76,
-    paddingHorizontal: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#292b31',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  title: { color: '#eef0f4', fontSize: 22, fontWeight: '700' },
-  boundary: { color: '#a8ff78', fontSize: 11, marginTop: 4 },
-  close: {
-    width: 44,
-    height: 44,
-    borderRadius: 20
-  },
-  closeContent: {
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  captureBar: {
-    minHeight: 94,
-    padding: 18,
-    paddingHorizontal: 26,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end',
-    gap: 14
-  },
-  field: { flexGrow: 1, flexBasis: 200, gap: 6 },
-  label: {
-    color: '#8d929c',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1
-  },
-  targetBundle: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#363940',
-    backgroundColor: '#15171b',
-    borderRadius: 10,
-    color: '#eef0f4',
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    fontFamily: 'Courier'
-  },
-  help: { flexGrow: 1, flexBasis: 150, color: '#777b84', fontSize: 12, marginBottom: 13 },
-  primary: {
-    minHeight: 44,
-    borderRadius: 10
-  },
-  primaryContent: {
-    paddingHorizontal: 17,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  primaryText: { color: '#10130e', fontWeight: '800' },
-  gridViewport: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  grid: {
-    padding: 18,
-    paddingTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14
-  },
-  zoomControls: {
-    position: 'absolute',
-    left: 26,
-    bottom: 14,
-    height: 44,
-    padding: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 11,
-    backgroundColor: 'rgba(25, 27, 31, 0.94)'
-  },
-  zoomButton: { width: 38, height: 38, borderRadius: 8 },
-  zoomButtonContent: { alignItems: 'center', justifyContent: 'center' },
-  zoomValue: { width: 52, color: '#eef0f4', fontSize: 11, textAlign: 'center' },
-  tile: {
-    borderWidth: 1,
-    borderColor: '#303238',
-    borderRadius: 14,
-    backgroundColor: '#15171b',
-    overflow: 'hidden'
-  },
-  selected: { borderColor: '#a8ff78', borderWidth: 2 },
-  tileHeader: {
-    height: 44,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  tileTitle: { color: '#eef0f4', fontWeight: '700' },
-  tileState: { color: '#8d929c', fontSize: 9, letterSpacing: 1 },
-  image: { flex: 1, backgroundColor: '#090a0c' },
-  placeholder: {
-    flex: 1,
-    backgroundColor: '#111216',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  error: { color: '#ff7388', marginHorizontal: 26, marginBottom: 8 },
-  footer: {
-    minHeight: 76,
-    paddingHorizontal: 18,
-    borderTopWidth: 1,
-    borderTopColor: '#292b31',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    paddingVertical: 12,
-    gap: 10
-  },
-  secondary: {
-    height: 44,
-    borderRadius: 10
-  },
-  secondaryContent: {
-    paddingHorizontal: 17,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  secondaryText: { color: '#eef0f4', fontWeight: '600' }
-});
+const useStyles = createThemedStyles((colors) =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.background, paddingTop: 44 },
+    header: {
+      minHeight: 76,
+      paddingHorizontal: 18,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    title: { color: colors.text, fontSize: 22, fontWeight: '700' },
+    boundary: { color: colors.accentText, fontSize: 13, marginTop: 4 },
+    close: {
+      width: 44,
+      height: 44,
+      borderRadius: 20
+    },
+    closeContent: {
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    captureBar: {
+      minHeight: 94,
+      padding: 18,
+      paddingHorizontal: 26,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-end',
+      gap: 14
+    },
+    field: { flexGrow: 1, flexBasis: 200, gap: 6 },
+    label: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 1
+    },
+    targetBundle: {
+      height: 44,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.panel,
+      borderRadius: 10,
+      color: colors.text,
+      paddingHorizontal: 13,
+      paddingVertical: 12,
+      fontFamily: 'Courier'
+    },
+    help: { flexGrow: 1, flexBasis: 150, color: colors.muted, fontSize: 12, marginBottom: 13 },
+    primary: {
+      minHeight: 44,
+      borderRadius: 10
+    },
+    primaryContent: {
+      paddingHorizontal: 17,
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    primaryText: { color: colors.onAccent, fontWeight: '800' },
+    gridViewport: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    grid: {
+      padding: 18,
+      paddingTop: 8,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 14
+    },
+    zoomControls: {
+      position: 'absolute',
+      left: 26,
+      bottom: 14,
+      height: 44,
+      padding: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 11,
+      backgroundColor: colors.panelRaised
+    },
+    zoomButton: { width: 44, height: 44, borderRadius: 8 },
+    zoomButtonContent: { alignItems: 'center', justifyContent: 'center' },
+    zoomValue: { width: 52, color: colors.text, fontSize: 13, textAlign: 'center' },
+    tile: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      backgroundColor: colors.panel,
+      overflow: 'hidden'
+    },
+    selected: { borderColor: colors.accentText, borderWidth: 2 },
+    tileHeader: {
+      height: 44,
+      paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    tileTitle: { color: colors.text, fontWeight: '700' },
+    tileState: { color: colors.muted, fontSize: 12, letterSpacing: 1 },
+    image: { flex: 1, backgroundColor: '#090a0c' },
+    placeholder: {
+      flex: 1,
+      backgroundColor: colors.panel,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    error: { color: colors.danger, marginHorizontal: 26, marginBottom: 8 },
+    footer: {
+      minHeight: 76,
+      paddingHorizontal: 18,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      flexWrap: 'wrap',
+      paddingVertical: 12,
+      gap: 10
+    },
+    secondary: {
+      height: 44,
+      borderRadius: 10
+    },
+    secondaryContent: {
+      paddingHorizontal: 17,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    secondaryText: { color: colors.text, fontWeight: '600' }
+  })
+);

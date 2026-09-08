@@ -1,8 +1,9 @@
 import { Text, View } from 'react-native';
 
-import { styles } from '../styles';
+import { useStyles } from '../styles';
 
 export function Brand() {
+  const styles = useStyles();
   return (
     <View style={styles.brand}>
       <View style={styles.brandMark}>

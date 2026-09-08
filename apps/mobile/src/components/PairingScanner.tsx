@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { styles } from '../styles';
-import { colors } from '../theme';
+import { useStyles } from '../styles';
+import { useColors } from '../theme';
 import { GlassControl } from './GlassControl';
 
 export function PairingScanner({
@@ -20,6 +20,8 @@ export function PairingScanner({
   onClose: () => void;
   onScanned: (connection: ClientConnection) => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   const [locked, setLocked] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 

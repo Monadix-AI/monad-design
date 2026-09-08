@@ -2,7 +2,10 @@
   "name": "@monaddesign/mobile",
   "version": "0.0.0",
   "dependencies": {
+    "@expo/ui": "~57.0.16",
     "@expo/vector-icons": "^15.0.3",
+    "@hugeicons/core-free-icons": "^4.3.2",
+    "@hugeicons/react-native": "^1.0.16",
     "@monaddesign/client-contract": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/device-frame": "workspace:*",
@@ -21,6 +24,7 @@
     "expo-linking": "~57.0.9",
     "expo-router": "~57.0.19",
     "expo-status-bar": "~57.0.1",
+    "lucide-react-native": "^1.42.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~3.2.1",

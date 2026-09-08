@@ -3,14 +3,18 @@ import type {
   IOSSimulator,
   SimulatorConnectionResponse as SimulatorConnection
 } from '@monaddesign/client-contract';
-import type { SimulatorOrientation, SimulatorVariantId } from '@monaddesign/simulator';
+import type { SimulatorVariantId } from '@monaddesign/simulator';
 
 import { resolveAdjustmentRequest } from '@monaddesign/client-contract';
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
 
+import { createThemedStyles, useColors } from '../theme';
+
 type AXElement = AXSnapshot['elements'][number];
 
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { FitToScreenIcon, ZoomInIcon, ZoomOutIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
   useDisconnectSimulatorMutation,
   useGetAccessibilitySnapshotQuery,
@@ -21,6 +25,7 @@ import {
 } from '@monaddesign/client-rtk/endpoints';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 import {
+  accessibilityScreenMatchesOrientation,
   accessibilityElementAtPoint as axElementAtPoint,
   buildAgentTurnContext,
   canvasOffsetForZoom,
@@ -34,7 +39,7 @@ import {
 } from '@monaddesign/simulator';
 import { workspaceStore } from '@monaddesign/state/workspace-store';
 import MaskedView from '@react-native-masked-view/masked-view';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -42,7 +47,6 @@ import {
   Modal,
   PanResponder,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,45 +60,27 @@ import { WebView } from 'react-native-webview';
 import { useStore } from 'zustand';
 
 import { AgentRequestPanel } from '../components/AgentRequestPanel';
-import { AnnotationModal } from '../components/AnnotationModal';
+import { AnnotationWorkspace, type AnnotationWorkspaceParts } from '../components/AnnotationWorkspace';
+import { BackButton } from '../components/BackButton';
 import { DesignDocumentPanel } from '../components/DesignDocumentPanel';
-import { DesignGuidancePanel } from '../components/DesignGuidancePanel';
-import { GlassControl } from '../components/GlassControl';
+import { GlassControl, GlassSurface } from '../components/GlassControl';
+import { GlassToolGroup } from '../components/GlassToolGroup';
 import { VariantModal } from '../components/VariantModal';
-import { CanvasControl, ModeButton, WorkspaceToolButton } from '../components/WorkspaceControls';
+import { CanvasControl } from '../components/WorkspaceControls';
 import { useDesignGuidance } from '../hooks/use-design-guidance';
 import { useLiveAgentSession } from '../hooks/use-live-agent-session';
 import { useSimulatorInput } from '../hooks/use-simulator-input';
-import { styles } from '../styles';
-import { colors, errorMessage } from '../theme';
+import { useSimulatorLifecycle } from '../hooks/use-simulator-lifecycle';
+import { useStyles } from '../styles';
+import { errorMessage } from '../theme';
 import { simulatorChromeLayout, simulatorFrameSize, simulatorMaskGeometry } from '../workspace-layout';
+import { useWorkspaceColors } from '../workspace-theme';
 
-const displayFrame = (element: AXElement, snapshot: AXSnapshot, orientation: SimulatorOrientation) => {
+const displayFrame = (element: AXElement, snapshot: AXSnapshot) => {
   const x = element.frame.x / snapshot.screen.width;
   const y = element.frame.y / snapshot.screen.height;
   const width = element.frame.width / snapshot.screen.width;
   const height = element.frame.height / snapshot.screen.height;
-  if (orientation === 'landscape_left')
-    return {
-      left: `${(1 - y - height) * 100}%` as const,
-      top: `${x * 100}%` as const,
-      width: `${height * 100}%` as const,
-      height: `${width * 100}%` as const
-    };
-  if (orientation === 'landscape_right')
-    return {
-      left: `${y * 100}%` as const,
-      top: `${(1 - x - width) * 100}%` as const,
-      width: `${height * 100}%` as const,
-      height: `${width * 100}%` as const
-    };
-  if (orientation === 'portrait_upside_down')
-    return {
-      left: `${(1 - x - width) * 100}%` as const,
-      top: `${(1 - y - height) * 100}%` as const,
-      width: `${width * 100}%` as const,
-      height: `${height * 100}%` as const
-    };
   return {
     left: `${x * 100}%` as const,
     top: `${y * 100}%` as const,
@@ -117,32 +103,38 @@ const touchMidpoint = (first: { locationX: number; locationY: number }, second: 
 });
 
 function CanvasGrid() {
+  const colors = useColors();
   return (
-    <Svg
+    <View
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
     >
-      <Defs>
-        <Pattern
-          height="24"
-          id="canvas-grid"
-          patternUnits="userSpaceOnUse"
-          width="24"
-        >
-          <Circle
-            cx="1"
-            cy="1"
-            fill="#30343b"
-            r="1"
-          />
-        </Pattern>
-      </Defs>
-      <Rect
-        fill="url(#canvas-grid)"
+      <Svg
         height="100%"
         width="100%"
-      />
-    </Svg>
+      >
+        <Defs>
+          <Pattern
+            height="24"
+            id="canvas-grid"
+            patternUnits="userSpaceOnUse"
+            width="24"
+          >
+            <Circle
+              cx="1"
+              cy="1"
+              fill={colors.grid}
+              r="1"
+            />
+          </Pattern>
+        </Defs>
+        <Rect
+          fill="url(#canvas-grid)"
+          height="100%"
+          width="100%"
+        />
+      </Svg>
+    </View>
   );
 }
 
@@ -157,11 +149,19 @@ export function Workspace({
   connection: SimulatorConnection;
   onExit: () => void;
 }) {
+  const colors = useColors();
+  const workspaceColors = useWorkspaceColors();
+  const parityStyles = useParityStyles();
+  const styles = useStyles();
   const { width, height } = useWindowDimensions();
-  const dockInspector = width >= 1000 && height >= 600;
+  const [workspaceSize, setWorkspaceSize] = useState({ width, height });
+  const dockInspector = workspaceSize.width >= 760 && workspaceSize.height >= 560;
+  const [isLeaving, setIsLeaving] = useState(false);
   const [isEndingLive, setIsEndingLive] = useState(false);
   const touchActive = useRef(false);
-  const [streamReady, setStreamReady] = useState(false);
+  const [, setStreamReady] = useState(false);
+  const simulatorLifecycle = useSimulatorLifecycle();
+  const [streamRevision, setStreamRevision] = useState(0);
   const { data: appearanceData } = useGetSimulatorAppearanceQuery();
   const appearance = appearanceData?.appearance ?? null;
   const selectionMode = useStore(workspaceStore, (state) => state.selectionMode);
@@ -183,12 +183,13 @@ export function Workspace({
   } | null>(null);
   const [inspectorVisible, setInspectorVisible] = useState(dockInspector);
   const autoOpenedAgentRequest = useRef<string | null>(null);
-  const [supportPanel, setSupportPanel] = useState<'design' | 'references' | null>(null);
+  const [designOpen, setDesignOpen] = useState(false);
   const [pasteVisible, setPasteVisible] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [annotationImage, setAnnotationImage] = useState<string | null>(null);
+  const [variantCaptureBusy, setVariantCaptureBusy] = useState(false);
   const [variantVisible, setVariantVisible] = useState(false);
-  const [activeVariant, setActiveVariant] = useState<SimulatorVariantId | null>(null);
+  const [, setActiveVariant] = useState<SimulatorVariantId | null>(null);
   const [agentSession, setAgentSession] = useLiveAgentSession(api, connection);
   const [agentSessionError, setAgentSessionError] = useState<string | null>(null);
   const [isSendingAgentRequest, setIsSendingAgentRequest] = useState(false);
@@ -202,13 +203,9 @@ export function Workspace({
   const [captureScreenshot, captureState] = useLazyCaptureSimulatorScreenshotQuery();
   const [disconnectSimulator] = useDisconnectSimulatorMutation();
   const [error, setError] = useState<string | null>(null);
-  const {
-    orientation,
-    ready: socketReady,
-    screenSize,
-    send,
-    setOrientation
-  } = useSimulatorInput({
+  const { orientation, screenSize, send, setOrientation } = useSimulatorInput({
+    active: simulatorLifecycle.active,
+    reconnectRevision: simulatorLifecycle.revision,
     initialOrientation: connection.orientation ?? 'portrait',
     initialScreenSize: simulator.screen
       ? { width: simulator.screen.width, height: simulator.screen.height }
@@ -263,7 +260,7 @@ export function Workspace({
     setInspectorVisible(false);
     setSelectionMode(false);
     setAnnotationImage(null);
-    setSupportPanel(null);
+    setDesignOpen(false);
     setVariantVisible(true);
   }, [agentSession?.changeRequest?.id, agentSession?.status, setSelectionMode]);
 
@@ -296,7 +293,11 @@ export function Workspace({
             y: locationY / Math.max(1, frameLayout.current.height)
           };
           if (selectionMode) {
-            setSelectedPath(snapshot ? (axElementAtPoint(snapshot, point)?.path ?? null) : null);
+            setSelectedPath(
+              snapshot && accessibilityScreenMatchesOrientation(snapshot.screen, orientation)
+                ? (axElementAtPoint(snapshot, point)?.path ?? null)
+                : null
+            );
             return;
           }
           lastSimulatorTouch.current = point;
@@ -329,7 +330,7 @@ export function Workspace({
           lastSimulatorTouch.current = null;
         }
       }),
-    [onTouch, selectionMode, snapshot, setSelectedPath]
+    [onTouch, orientation, selectionMode, snapshot, setSelectedPath]
   );
   const rotate = (direction: 'left' | 'right') => {
     const next = rotatedOrientation(orientation, direction);
@@ -357,7 +358,6 @@ export function Workspace({
   };
   const annotate = async () => {
     try {
-      setSelectionMode(false);
       setVariantVisible(false);
       setAnnotationImage((await captureScreenshot().unwrap()).image);
     } catch (reason) {
@@ -386,15 +386,20 @@ export function Workspace({
   };
   const activateInteract = () => {
     const hasDraft = Boolean(
-      selectedPath || request.trim() || designGuidance.selected.length || designGuidance.focus.trim()
+      selectedPath ||
+        annotationImage ||
+        request.trim() ||
+        designGuidance.selected.length ||
+        designGuidance.focus.trim() ||
+        designGuidance.preserve !== 'Existing content, navigation and interactions'
     );
     if (!hasDraft) {
-      setSelectionMode(false);
+      clearEditingDraft();
       return;
     }
     Alert.alert(
       'Clear draft and interact?',
-      'Returning to Interact clears the selected element, request, references and adjustment goals. This cannot be undone.',
+      'Returning to Interact clears the selected element, all annotations and notes, request, references and adjustment goals. This cannot be undone.',
       [
         { text: 'Keep editing', style: 'cancel' },
         { text: 'Clear and interact', style: 'destructive', onPress: clearEditingDraft }
@@ -457,11 +462,12 @@ export function Workspace({
       const context = buildAgentTurnContext({
         bundleIdentifier: connection.bundleIdentifier,
         snapshot: currentSnapshot,
+        ...(selected ? { element: selected } : {}),
         simulator
       });
       const next = await api.submitAgentRequest(agentSession.id, {
         request: [
-          request.trim() || 'Implement the changes shown in the attached annotated screenshot.',
+          effectiveRequest.trim() || 'Implement the changes shown in the attached annotated screenshot.',
           annotationNotes
         ]
           .filter(Boolean)
@@ -469,7 +475,7 @@ export function Workspace({
         variantCount,
         context: {
           ...context,
-          ...(designGuidance.guidance ? { designGuidance: { ...designGuidance.guidance, scope: 'screen' } } : {})
+          ...(designGuidance.guidance ? { designGuidance: designGuidance.guidance } : {})
         },
         annotationScreenshot
       });
@@ -485,7 +491,7 @@ export function Workspace({
       setIsSendingAgentRequest(false);
     }
   };
-  const agentVariants = simulatorVariantIdsForCount(agentSession?.changeRequest?.variantCount ?? 3);
+  const agentVariants = simulatorVariantIdsForCount(agentSession?.changeRequest?.variantCount ?? 1);
   const confirmAgentVariant = async (variant: SimulatorVariantId) => {
     const requestId = agentSession?.changeRequest?.id;
     if (agentSession?.status !== 'variants_ready' || !requestId) return;
@@ -721,6 +727,8 @@ export function Workspace({
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>html,body{margin:0;background:transparent;width:100%;height:100%;overflow:hidden}img{position:absolute;left:50%;top:50%;object-fit:fill;transform:translate(-50%,-50%) ${streamTransform};width:${landscape ? `${portraitScreenAspectRatio * 100}%` : '100%'};height:${landscape ? `${(1 / portraitScreenAspectRatio) * 100}%` : '100%'}}</style><img src=${JSON.stringify(stream)} onload="window.ReactNativeWebView.postMessage('ready')">`;
 
   const exit = async () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
     try {
       await disconnectSimulator().unwrap();
     } catch {
@@ -740,514 +748,43 @@ export function Workspace({
       setIsEndingLive(false);
     }
   };
-  const inspector = (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.inspectorModal}
-    >
-      <View style={styles.inspectorTitlebar}>
-        <View>
-          <Text style={styles.inspectorTitle}>Workspace</Text>
-          <Text style={styles.inspectorRuntime}>{simulator.runtime}</Text>
-        </View>
-        {!dockInspector && (
-          <GlassControl
-            accessibilityLabel="Close workspace controls"
-            contentStyle={styles.modalCloseContent}
-            glassStyle="clear"
-            onPress={() => setInspectorVisible(false)}
-            style={styles.modalClose}
-          >
-            <Ionicons
-              color={colors.muted}
-              name="close"
-              size={20}
-            />
-          </GlassControl>
-        )}
-      </View>
-      <ScrollView
-        contentContainerStyle={styles.inspectorContent}
-        keyboardShouldPersistTaps="handled"
+  const renderWorkspace = (annotation: AnnotationWorkspaceParts) => {
+    const supportPanels = (
+      <View
+        pointerEvents="box-none"
+        style={[parityStyles.supportPanels, !dockInspector && parityStyles.supportPanelsCompact]}
       >
-        <AgentRequestPanel
-          designGuidance={designGuidance}
-          error={agentSessionError}
-          isEndingLive={isEndingLive}
-          isSending={isSendingAgentRequest}
-          onAccept={() => void acceptAgentVariant()}
-          onClearSelection={() => setSelectedPath(null)}
-          onCompare={() => {
-            setSelectionMode(false);
-            setAnnotationImage(null);
-            setInspectorVisible(false);
-            setVariantVisible(true);
-          }}
-          onDiscard={() => void discardAgentChange()}
-          onEndLive={() => void endLive()}
-          onOpenReferences={() => setSupportPanel('references')}
-          onPreviewVariant={(variant) => void previewAgentVariant(variant)}
-          onRequestChange={setRequest}
-          onSelectEvidence={() => {
-            setAnnotationImage(null);
-            setSelectionMode(true);
-            if (!dockInspector) setInspectorVisible(false);
-          }}
-          onSend={() => void sendAgentRequest()}
-          onVariantCountChange={setVariantCount}
-          request={request}
-          selected={selected}
-          selectedVariant={selectedAgentVariant}
-          session={agentSession?.project.id === connection.projectId ? agentSession : null}
-          snapshot={snapshot}
-          transition={agentVariantTransition}
-          variantCount={variantCount}
-          variants={agentVariants}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-  const support = (
-    <SafeAreaView style={styles.inspectorModal}>
-      <View style={styles.inspectorTitlebar}>
-        <Text style={styles.inspectorTitle}>{supportPanel === 'design' ? 'DESIGN.md' : 'Design references'}</Text>
-        <ModeButton
-          label="Done"
-          onPress={() => setSupportPanel(null)}
-        />
-      </View>
-      <ScrollView
-        contentContainerStyle={styles.inspectorContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {supportPanel === 'design' ? (
+        <WorkspaceSupportPanel
+          icon="document-text-outline"
+          onToggle={() => setDesignOpen(!designOpen)}
+          open={designOpen}
+          title="DESIGN.md"
+        >
           <DesignDocumentPanel
             api={api}
             projectId={connection.projectId}
             showTrigger={false}
           />
-        ) : (
-          <DesignGuidancePanel
-            controller={designGuidance}
-            disabled={agentSession?.status !== 'awaiting_request' || isSendingAgentRequest || isEndingLive}
-            hasSelection={Boolean(selected)}
-            referencesOnly
-          />
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
-  return (
-    <SafeAreaView style={styles.workspaceRoot}>
-      <View style={styles.canvasArea}>
-        <View style={[styles.canvasReadout, parityStyles.readout]}>
-          <View style={[styles.canvasReadoutDot, socketReady && streamReady && styles.liveDotOn]} />
-          <Text
-            numberOfLines={1}
-            style={[styles.canvasSize, parityStyles.readoutText]}
-          >
-            {simulator.name} · {Math.round(screenSize.width)} × {Math.round(screenSize.height)} ·{' '}
-            {orientation.replaceAll('_', ' ')}
-          </Text>
-          {activeVariant && <Text style={styles.previewBoundary}>{activeVariant.toUpperCase()} · PREVIEW ONLY</Text>}
-        </View>
-        {!agentFlowLocked && (
-          <View style={styles.canvasModeBar}>
-            <WorkspaceToolButton
-              active={!selectionMode && !annotationImage && !variantVisible}
-              disabled={toolsDisabled || variantVisible}
-              icon="navigate-outline"
-              label="Interact"
-              onPress={activateInteract}
-            />
-            <WorkspaceToolButton
-              active={selectionMode}
-              disabled={toolsDisabled || variantVisible}
-              icon="scan-outline"
-              label="Select"
-              onPress={() => {
-                setAnnotationImage(null);
-                setSelectionMode(true);
-              }}
-            />
-            <WorkspaceToolButton
-              active={Boolean(annotationImage)}
-              disabled={toolsDisabled || variantVisible}
-              icon="pencil-outline"
-              label={busy === 'capture' ? 'Capturing…' : 'Annotate'}
-              onPress={() => void annotate()}
-            />
-          </View>
-        )}
-        <View style={[parityStyles.supportBar, dockInspector && parityStyles.supportBarDocked]}>
-          <ModeButton
-            label="DESIGN.md"
-            onPress={() => setSupportPanel('design')}
-          />
-          <ModeButton
-            disabled={Boolean(annotationImage)}
-            label={`References${designGuidance.selected.length ? ` · ${designGuidance.selected.length}` : ''}`}
-            onPress={() => setSupportPanel('references')}
-          />
-        </View>
-        <Text style={[styles.canvasGestureHint, parityStyles.gestureHint]}>
-          {selectionMode
-            ? 'Tap an element to select · drag background to pan'
-            : 'Touch app to interact · drag background to pan · pinch to zoom'}
-        </Text>
-        <View
-          onLayout={(event) => {
-            const { width, height } = event.nativeEvent.layout;
-            setCanvasViewport((current) =>
-              current?.width === width && current.height === height ? current : { width, height }
-            );
-          }}
-          style={[styles.canvasCenter, dockInspector && parityStyles.canvasCenterDocked]}
-        >
-          <CanvasGrid />
-          <View
-            accessible={false}
-            style={styles.canvasGestureSurface}
-            {...canvasResponder.panHandlers}
-          />
-          <View
-            style={[
-              styles.deviceCluster,
-              { transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }] }
-            ]}
-          >
-            <View
-              style={[
-                styles.deviceFrame,
-                chromeLayout && styles.nativeDeviceFrame,
-                {
-                  width: deviceFrame.frameWidth,
-                  height: deviceFrame.frameHeight,
-                  borderRadius: deviceFrame.outerRadius
-                }
-              ]}
-            >
-              {chromeLayout && simulator.deviceChrome && (
-                <Image
-                  resizeMode="stretch"
-                  source={{ uri: simulator.deviceChrome.image }}
-                  style={[
-                    styles.nativeDeviceChrome,
-                    {
-                      left: chromeLayout.body.left,
-                      top: chromeLayout.body.top,
-                      width: chromeLayout.body.width,
-                      height: chromeLayout.body.height,
-                      transform: [{ rotate: chromeLayout.body.rotation }]
-                    }
-                  ]}
-                />
-              )}
-              <View
-                onLayout={(event) => {
-                  frameLayout.current = event.nativeEvent.layout;
-                }}
-                style={[
-                  styles.deviceScreen,
-                  {
-                    left: deviceFrame.insets.left,
-                    top: deviceFrame.insets.top,
-                    width: frameSize.width,
-                    height: frameSize.height
-                  }
-                ]}
-              >
-                <MaskedView
-                  maskElement={
-                    simulator.framebufferMask ? (
-                      <View style={styles.screenMaskCenter}>
-                        <Image
-                          resizeMode="stretch"
-                          source={{ uri: simulator.framebufferMask }}
-                          style={{
-                            width: maskGeometry.width,
-                            height: maskGeometry.height,
-                            transform: [{ rotate: maskGeometry.rotation }]
-                          }}
-                        />
-                      </View>
-                    ) : (
-                      <View
-                        style={[
-                          StyleSheet.absoluteFill,
-                          { backgroundColor: '#000', borderRadius: deviceFrame.screenRadius }
-                        ]}
-                      />
-                    )
-                  }
-                  style={StyleSheet.absoluteFill}
-                >
-                  <View style={styles.screenSurface}>
-                    <WebView
-                      bounces={false}
-                      javaScriptEnabled
-                      onMessage={() => setStreamReady(true)}
-                      opaque={false}
-                      originWhitelist={['*']}
-                      scrollEnabled={false}
-                      source={{ html }}
-                      style={styles.webview}
-                    />
-                    {selectionMode && snapshot && (
-                      <View
-                        pointerEvents="none"
-                        style={StyleSheet.absoluteFill}
-                      >
-                        {snapshot.elements
-                          .filter(({ frame }) => frame.width > 0 && frame.height > 0)
-                          .map((element) => (
-                            <View
-                              key={element.path}
-                              style={[
-                                styles.axFrame,
-                                element.isContainer && styles.axContainer,
-                                element.path === selectedPath && styles.axSelected,
-                                displayFrame(element, snapshot, orientation)
-                              ]}
-                            />
-                          ))}
-                      </View>
-                    )}
-                    <View
-                      style={StyleSheet.absoluteFill}
-                      {...responder.panHandlers}
-                    />
-                  </View>
-                </MaskedView>
-              </View>
-              {!chromeLayout && !simulator.framebufferMask && deviceFrame.hardware && (
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.deviceHardware,
-                    deviceFrame.hardware.kind === 'home-button' && styles.deviceHomeButton,
-                    deviceFrame.hardware.kind === 'camera' && styles.deviceCamera,
-                    {
-                      left: deviceFrame.hardware.x,
-                      top: deviceFrame.hardware.y,
-                      width: deviceFrame.hardware.width,
-                      height: deviceFrame.hardware.height,
-                      borderRadius: deviceFrame.hardware.height / 2
-                    }
-                  ]}
-                />
-              )}
-            </View>
-            <View style={styles.deviceControls}>
-              <CanvasControl
-                icon="arrow-undo"
-                label="Rotate left"
-                onPress={() => rotate('left')}
-              />
-              <CanvasControl
-                icon="home-outline"
-                label="Home"
-                onPress={() => send(0x04, { button: 'home' })}
-              />
-              <CanvasControl
-                disabled={busy === 'appearance'}
-                icon={appearance === 'dark' ? 'moon-outline' : 'sunny-outline'}
-                label={appearance === 'dark' ? 'Dark' : 'Light'}
-                onPress={() => void changeAppearance(appearance === 'dark' ? 'light' : 'dark')}
-              />
-              <CanvasControl
-                icon="lock-closed-outline"
-                label="Lock"
-                onPress={() => send(0x04, { button: 'lock' })}
-              />
-              <CanvasControl
-                icon="clipboard-outline"
-                label="Paste"
-                onPress={() => setPasteVisible(true)}
-              />
-              <CanvasControl
-                icon="arrow-redo"
-                label="Rotate right"
-                onPress={() => rotate('right')}
-              />
-            </View>
-          </View>
-        </View>
-        {selectionMode && (
-          <View style={[styles.canvasSelectionCard, parityStyles.selectionCard]}>
-            <View style={styles.canvasSelectionIcon}>
-              <Ionicons
-                color={selected ? colors.accent : colors.muted}
-                name={selected ? 'checkmark' : 'scan-outline'}
-                size={18}
-              />
-            </View>
-            <View style={styles.canvasSelectionCopy}>
-              <Text
-                numberOfLines={1}
-                style={styles.canvasSelectionTitle}
-              >
-                {selected
-                  ? selected.label || selected.value || selected.role || selected.type
-                  : snapshot
-                    ? 'Tap an element on the Simulator'
-                    : 'Preparing selection…'}
-              </Text>
-              <Text style={styles.canvasSelectionMeta}>
-                {selected
-                  ? `${selected.role || selected.type} · ${Math.round(selected.frame.width)} × ${Math.round(selected.frame.height)} at ${Math.round(selected.frame.x)}, ${Math.round(selected.frame.y)}`
-                  : 'Accessibility bounds will appear over the live screen.'}
-              </Text>
-            </View>
-            {selected && (
-              <GlassControl
-                accessibilityLabel="Clear selected element"
-                contentStyle={styles.canvasSelectionActionContent}
-                glassStyle="clear"
-                onPress={() => setSelectedPath(null)}
-                style={styles.canvasSelectionAction}
-              >
-                <Ionicons
-                  color={colors.muted}
-                  name="close"
-                  size={17}
-                />
-              </GlassControl>
-            )}
-            <GlassControl
-              accessibilityLabel="Open request with selected evidence"
-              contentStyle={styles.canvasSelectionActionContent}
-              glassStyle="clear"
-              onPress={() => setInspectorVisible(true)}
-              style={styles.canvasSelectionAction}
-            >
-              <Ionicons
-                color={colors.text}
-                name="arrow-forward"
-                size={17}
-              />
-            </GlassControl>
-          </View>
-        )}
-        <View style={styles.zoomControls}>
-          <GlassControl
-            accessibilityLabel="Zoom out"
-            contentStyle={styles.zoomButtonContent}
-            disabled={canvasScale <= minimumCanvasScale}
-            glassStyle="clear"
-            onPress={() => changeCanvasScale(canvasScale - canvasScaleStep)}
-            style={styles.zoomButton}
-          >
-            <Ionicons
-              color={colors.text}
-              name="remove"
-              size={18}
-            />
-          </GlassControl>
-          <Text style={styles.zoomValue}>{Math.round(canvasScale * 100)}%</Text>
-          <GlassControl
-            accessibilityLabel="Zoom in"
-            contentStyle={styles.zoomButtonContent}
-            disabled={canvasScale >= maximumCanvasScale}
-            glassStyle="clear"
-            onPress={() => changeCanvasScale(canvasScale + canvasScaleStep)}
-            style={styles.zoomButton}
-          >
-            <Ionicons
-              color={colors.text}
-              name="add"
-              size={18}
-            />
-          </GlassControl>
-          <GlassControl
-            accessibilityLabel="Fit simulator to view"
-            contentStyle={styles.zoomButtonContent}
-            glassStyle="clear"
-            onPress={() => {
-              fitCanvas();
-            }}
-            style={styles.zoomButton}
-          >
-            <Ionicons
-              color={colors.text}
-              name="scan-outline"
-              size={17}
-            />
-          </GlassControl>
-          <GlassControl
-            accessibilityLabel="Open workspace controls"
-            contentStyle={styles.zoomButtonContent}
-            glassStyle="clear"
-            onPress={() => setInspectorVisible(true)}
-            style={styles.zoomButton}
-          >
-            <Ionicons
-              color={colors.text}
-              name="options-outline"
-              size={18}
-            />
-          </GlassControl>
-          <GlassControl
-            accessibilityLabel="Disconnect Simulator"
-            contentStyle={styles.zoomButtonContent}
-            glassStyle="clear"
-            onPress={() => void exit()}
-            style={styles.zoomButton}
-          >
-            <Ionicons
-              color={colors.muted}
-              name="log-out-outline"
-              size={18}
-            />
-          </GlassControl>
-        </View>
-        {error && (
-          <Pressable
-            onPress={() => setError(null)}
-            style={styles.canvasError}
-          >
-            <Ionicons
-              color={colors.danger}
-              name="warning-outline"
-              size={17}
-            />
-            <Text style={styles.canvasErrorText}>{error}</Text>
-            <Ionicons
-              color={colors.muted}
-              name="close"
-              size={16}
-            />
-          </Pressable>
-        )}
-        {dockInspector && supportPanel && <View style={parityStyles.supportDock}>{support}</View>}
-        {dockInspector && <View style={parityStyles.inspectorDock}>{inspector}</View>}
+        </WorkspaceSupportPanel>
       </View>
-      {!dockInspector && (
-        <Modal
-          animationType="slide"
-          onRequestClose={() => (supportPanel ? setSupportPanel(null) : setInspectorVisible(false))}
-          supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
-          visible={inspectorVisible || Boolean(supportPanel)}
-        >
-          {supportPanel ? support : <SafeAreaView style={styles.inspectorModal}>{inspector}</SafeAreaView>}
-        </Modal>
-      )}
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setPasteVisible(false)}
-        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
-        transparent
-        visible={pasteVisible}
+    );
+    const inspector = (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.inspectorModal, { backgroundColor: workspaceColors.panel }]}
       >
-        <View style={styles.modalScrim}>
-          <View style={[styles.pasteCard, parityStyles.pasteCard]}>
-            <View style={styles.pasteHeading}>
-              <Text style={styles.cardTitle}>Paste into Simulator</Text>
+        {!dockInspector && (
+          <View style={styles.inspectorTitlebar}>
+            <View>
+              <Text style={styles.inspectorTitle}>Workspace</Text>
+              <Text style={styles.inspectorRuntime}>{simulator.runtime}</Text>
+            </View>
+            {!dockInspector && (
               <GlassControl
-                accessibilityLabel="Close paste dialog"
+                accessibilityLabel="Close workspace controls"
                 contentStyle={styles.modalCloseContent}
                 glassStyle="clear"
-                onPress={() => setPasteVisible(false)}
+                onPress={() => setInspectorVisible(false)}
                 style={styles.modalClose}
               >
                 <Ionicons
@@ -1256,94 +793,666 @@ export function Workspace({
                   size={20}
                 />
               </GlassControl>
-            </View>
-            <TextInput
-              autoFocus
-              multiline
-              onChangeText={setPasteText}
-              placeholder="Text to place on the Simulator pasteboard"
-              placeholderTextColor="#666a72"
-              style={styles.pasteInput}
-              value={pasteText}
-            />
-            <GlassControl
-              contentStyle={styles.connectButtonContent}
-              disabled={!pasteText || Boolean(busy)}
-              onPress={() => void paste()}
-              style={styles.connectButton}
-              tone="accent"
-            >
-              <Text style={styles.connectText}>Paste now</Text>
-            </GlassControl>
+            )}
           </View>
-        </View>
-      </Modal>
-      <AnnotationModal
-        image={annotationImage}
-        isRecapturing={captureState.isFetching}
-        onClose={() => setAnnotationImage(null)}
-        onFinish={sendAnnotatedAgentRequest}
-        onRecapture={() => void annotate()}
-      />
-      <VariantModal
-        autoCaptureKey={agentSession?.status === 'variants_ready' ? agentSession.changeRequest?.id : undefined}
-        bundleIdentifier={connection.bundleIdentifier}
-        confirmSelection={agentSession?.status === 'variants_ready' ? confirmAgentVariant : undefined}
-        onClose={() => setVariantVisible(false)}
-        onOpened={(variant) => {
-          setActiveVariant(variant);
-          setSelectedAgentVariant(variant);
-        }}
-        onRestored={() => {
-          setActiveVariant(null);
-          setSelectedAgentVariant('original');
-        }}
-        variants={agentVariants}
-        visible={variantVisible}
-      />
-    </SafeAreaView>
+        )}
+        {!dockInspector && supportPanels}
+        <AgentRequestPanel
+          annotationNotes={annotation.notes}
+          designGuidance={designGuidance}
+          error={agentSessionError}
+          hasAnnotations={annotation.count > 0}
+          isEndingLive={isEndingLive}
+          isSending={isSendingAgentRequest || annotation.isFinishing}
+          onAccept={() => void acceptAgentVariant()}
+          onClearSelection={() => setSelectedPath(null)}
+          onDiscard={() => void discardAgentChange()}
+          onEndLive={() => void endLive()}
+          onPreviewVariant={(variant) => void previewAgentVariant(variant)}
+          onRequestChange={setRequest}
+          onSend={() => void (annotation.count > 0 ? annotation.submit() : sendAgentRequest())}
+          onVariantCountChange={setVariantCount}
+          request={request}
+          selected={selected}
+          selectedVariant={selectedAgentVariant}
+          session={agentSession?.project.id === connection.projectId ? agentSession : null}
+          snapshot={snapshot}
+          transition={variantCaptureBusy ? 'previewing' : agentVariantTransition}
+          variantCount={variantCount}
+          variants={agentVariants}
+        />
+      </KeyboardAvoidingView>
+    );
+    return (
+      <View style={styles.workspaceRoot}>
+        <CanvasGrid />
+        <SafeAreaView style={parityStyles.workspaceContent}>
+          <View
+            onLayout={({ nativeEvent: { layout } }) =>
+              setWorkspaceSize((current) =>
+                current.width === layout.width && current.height === layout.height
+                  ? current
+                  : { width: layout.width, height: layout.height }
+              )
+            }
+            style={styles.canvasArea}
+          >
+            <View
+              pointerEvents="box-none"
+              style={[parityStyles.pageHeading, dockInspector && parityStyles.pageHeadingDocked]}
+            >
+              <BackButton
+                disabled={isLeaving}
+                label="Simulators"
+                onPress={() => void exit()}
+              />
+              <Text
+                accessibilityRole="header"
+                numberOfLines={1}
+                style={parityStyles.simulatorTitle}
+              >
+                {simulator.name}
+              </Text>
+            </View>
+            {dockInspector && supportPanels}
+            <View
+              onLayout={(event) => {
+                const { width, height } = event.nativeEvent.layout;
+                setCanvasViewport((current) =>
+                  current?.width === width && current.height === height ? current : { width, height }
+                );
+              }}
+              style={[styles.canvasCenter, dockInspector && parityStyles.canvasCenterDocked]}
+            >
+              <View
+                accessible={false}
+                pointerEvents="auto"
+                style={styles.canvasGestureSurface}
+                {...canvasResponder.panHandlers}
+              />
+              <View
+                style={[
+                  styles.deviceCluster,
+                  { transform: [{ translateX: canvasOffset.x }, { translateY: canvasOffset.y }] }
+                ]}
+              >
+                <View
+                  style={[
+                    styles.deviceFrame,
+                    chromeLayout && styles.nativeDeviceFrame,
+                    {
+                      width: deviceFrame.frameWidth,
+                      height: deviceFrame.frameHeight,
+                      borderRadius: deviceFrame.outerRadius
+                    }
+                  ]}
+                >
+                  {chromeLayout && simulator.deviceChrome && (
+                    <Image
+                      resizeMode="stretch"
+                      source={{ uri: simulator.deviceChrome.image }}
+                      style={[
+                        styles.nativeDeviceChrome,
+                        {
+                          left: chromeLayout.body.left,
+                          top: chromeLayout.body.top,
+                          width: chromeLayout.body.width,
+                          height: chromeLayout.body.height,
+                          transform: [{ rotate: chromeLayout.body.rotation }]
+                        }
+                      ]}
+                    />
+                  )}
+                  <View
+                    onLayout={(event) => {
+                      frameLayout.current = event.nativeEvent.layout;
+                    }}
+                    style={[
+                      styles.deviceScreen,
+                      {
+                        left: deviceFrame.insets.left,
+                        top: deviceFrame.insets.top,
+                        width: frameSize.width,
+                        height: frameSize.height
+                      }
+                    ]}
+                  >
+                    <MaskedView
+                      maskElement={
+                        simulator.framebufferMask ? (
+                          <View style={styles.screenMaskCenter}>
+                            <Image
+                              resizeMode="stretch"
+                              source={{ uri: simulator.framebufferMask }}
+                              style={{
+                                width: maskGeometry.width,
+                                height: maskGeometry.height,
+                                transform: [{ rotate: maskGeometry.rotation }]
+                              }}
+                            />
+                          </View>
+                        ) : (
+                          <View
+                            style={[
+                              StyleSheet.absoluteFill,
+                              { backgroundColor: '#000', borderRadius: deviceFrame.screenRadius }
+                            ]}
+                          />
+                        )
+                      }
+                      style={StyleSheet.absoluteFill}
+                    >
+                      <View style={styles.screenSurface}>
+                        {simulatorLifecycle.active && (
+                          <WebView
+                            bounces={false}
+                            javaScriptEnabled
+                            key={`${simulatorLifecycle.revision}:${streamRevision}`}
+                            onContentProcessDidTerminate={() => setStreamRevision((revision) => revision + 1)}
+                            onMessage={() => setStreamReady(true)}
+                            onRenderProcessGone={() => setStreamRevision((revision) => revision + 1)}
+                            opaque={false}
+                            originWhitelist={['*']}
+                            scrollEnabled={false}
+                            source={{ html }}
+                            style={styles.webview}
+                          />
+                        )}
+                        {selectionMode &&
+                          !annotationImage &&
+                          snapshot &&
+                          accessibilityScreenMatchesOrientation(snapshot.screen, orientation) && (
+                            <View
+                              pointerEvents="none"
+                              style={StyleSheet.absoluteFill}
+                            >
+                              {snapshot.elements
+                                .filter(({ frame }) => frame.width > 0 && frame.height > 0)
+                                .map((element) => (
+                                  <View
+                                    key={element.path}
+                                    style={[
+                                      styles.axFrame,
+                                      element.isContainer && styles.axContainer,
+                                      element.path === selectedPath && styles.axSelected,
+                                      displayFrame(element, snapshot)
+                                    ]}
+                                  />
+                                ))}
+                            </View>
+                          )}
+                        <View
+                          pointerEvents={annotationImage ? 'none' : 'auto'}
+                          style={StyleSheet.absoluteFill}
+                          {...responder.panHandlers}
+                        />
+                        {annotationImage && <View style={StyleSheet.absoluteFill}>{annotation.canvas}</View>}
+                      </View>
+                    </MaskedView>
+                  </View>
+                  {!chromeLayout && !simulator.framebufferMask && deviceFrame.hardware && (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.deviceHardware,
+                        deviceFrame.hardware.kind === 'home-button' && styles.deviceHomeButton,
+                        deviceFrame.hardware.kind === 'camera' && styles.deviceCamera,
+                        {
+                          left: deviceFrame.hardware.x,
+                          top: deviceFrame.hardware.y,
+                          width: deviceFrame.hardware.width,
+                          height: deviceFrame.hardware.height,
+                          borderRadius: deviceFrame.hardware.height / 2
+                        }
+                      ]}
+                    />
+                  )}
+                </View>
+                <GlassSurface style={styles.deviceControls}>
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon="arrow-undo"
+                    label="Rotate left"
+                    onPress={() => rotate('left')}
+                  />
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon="home-outline"
+                    label="Home"
+                    onPress={() => send(0x04, { button: 'home' })}
+                  />
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon={appearance === 'dark' ? 'moon-outline' : 'sunny-outline'}
+                    label={appearance === 'dark' ? 'Dark' : 'Light'}
+                    onPress={() => void changeAppearance(appearance === 'dark' ? 'light' : 'dark')}
+                  />
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon="lock-closed-outline"
+                    label="Lock"
+                    onPress={() => send(0x04, { button: 'lock' })}
+                  />
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon="clipboard-outline"
+                    label="Paste"
+                    onPress={() => setPasteVisible(true)}
+                  />
+                  <CanvasControl
+                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                    icon="arrow-redo"
+                    label="Rotate right"
+                    onPress={() => rotate('right')}
+                  />
+                </GlassSurface>
+              </View>
+            </View>
+            {selectionMode && !annotationImage && !dockInspector && (
+              <View style={[styles.canvasSelectionCard, parityStyles.selectionCard]}>
+                <View style={styles.canvasSelectionIcon}>
+                  <Ionicons
+                    color={selected ? colors.accent : colors.muted}
+                    name={selected ? 'checkmark' : 'scan-outline'}
+                    size={18}
+                  />
+                </View>
+                <View style={styles.canvasSelectionCopy}>
+                  <Text
+                    numberOfLines={1}
+                    style={styles.canvasSelectionTitle}
+                  >
+                    {selected
+                      ? selected.label || selected.value || selected.role || selected.type
+                      : snapshot
+                        ? 'Tap an element on the Simulator'
+                        : 'Preparing selection…'}
+                  </Text>
+                  <Text style={styles.canvasSelectionMeta}>
+                    {selected
+                      ? `${selected.role || selected.type} · ${Math.round(selected.frame.width)} × ${Math.round(selected.frame.height)} at ${Math.round(selected.frame.x)}, ${Math.round(selected.frame.y)}`
+                      : 'Accessibility bounds will appear over the live screen.'}
+                  </Text>
+                </View>
+                {selected && (
+                  <GlassControl
+                    accessibilityLabel="Clear selected element"
+                    contentStyle={styles.canvasSelectionActionContent}
+                    glassStyle="clear"
+                    onPress={() => setSelectedPath(null)}
+                    style={styles.canvasSelectionAction}
+                  >
+                    <Ionicons
+                      color={colors.muted}
+                      name="close"
+                      size={17}
+                    />
+                  </GlassControl>
+                )}
+                <GlassControl
+                  accessibilityLabel="Open request with selected evidence"
+                  contentStyle={styles.canvasSelectionActionContent}
+                  glassStyle="clear"
+                  onPress={() => setInspectorVisible(true)}
+                  style={styles.canvasSelectionAction}
+                >
+                  <Ionicons
+                    color={colors.text}
+                    name="arrow-forward"
+                    size={17}
+                  />
+                </GlassControl>
+              </View>
+            )}
+            <GlassSurface style={styles.zoomControls}>
+              <GlassControl
+                accessibilityLabel="Zoom out"
+                contentStyle={styles.zoomButtonContent}
+                disabled={canvasScale <= minimumCanvasScale}
+                glassStyle="clear"
+                onPress={() => changeCanvasScale(canvasScale - canvasScaleStep)}
+                palette={workspaceColors}
+                style={styles.zoomButton}
+                systemImage="minus"
+              >
+                <HugeiconsIcon
+                  color={workspaceColors.muted}
+                  icon={ZoomOutIcon}
+                  size={18}
+                  strokeWidth={1.8}
+                />
+              </GlassControl>
+              <Text style={[styles.zoomValue, { color: workspaceColors.muted }]}>{Math.round(canvasScale * 100)}%</Text>
+              <GlassControl
+                accessibilityLabel="Zoom in"
+                contentStyle={styles.zoomButtonContent}
+                disabled={canvasScale >= maximumCanvasScale}
+                glassStyle="clear"
+                onPress={() => changeCanvasScale(canvasScale + canvasScaleStep)}
+                palette={workspaceColors}
+                style={styles.zoomButton}
+                systemImage="plus"
+              >
+                <HugeiconsIcon
+                  color={workspaceColors.muted}
+                  icon={ZoomInIcon}
+                  size={18}
+                  strokeWidth={1.8}
+                />
+              </GlassControl>
+              <GlassControl
+                accessibilityLabel="Fit simulator to view"
+                contentStyle={styles.zoomButtonContent}
+                glassStyle="clear"
+                onPress={fitCanvas}
+                palette={workspaceColors}
+                style={[styles.zoomButton, styles.zoomFitButton]}
+                systemImage="arrow.up.left.and.arrow.down.right"
+              >
+                <HugeiconsIcon
+                  color={workspaceColors.muted}
+                  icon={FitToScreenIcon}
+                  size={18}
+                  strokeWidth={1.8}
+                />
+              </GlassControl>
+              {!dockInspector && (
+                <GlassControl
+                  accessibilityLabel="Open workspace controls"
+                  contentStyle={styles.zoomButtonContent}
+                  glassStyle="clear"
+                  onPress={() => setInspectorVisible(true)}
+                  palette={workspaceColors}
+                  style={styles.zoomButton}
+                >
+                  <Ionicons
+                    color={workspaceColors.muted}
+                    name="options-outline"
+                    size={18}
+                  />
+                </GlassControl>
+              )}
+            </GlassSurface>
+            {error && (
+              <GlassControl
+                accessibilityLabel="Dismiss error"
+                contentStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                onPress={() => setError(null)}
+                solid
+                style={styles.canvasError}
+              >
+                <Ionicons
+                  color={colors.danger}
+                  name="warning-outline"
+                  size={17}
+                />
+                <Text style={styles.canvasErrorText}>{error}</Text>
+                <Ionicons
+                  color={colors.muted}
+                  name="close"
+                  size={16}
+                />
+              </GlassControl>
+            )}
+            <View
+              pointerEvents={variantVisible ? 'auto' : 'none'}
+              style={[parityStyles.variantCanvas, dockInspector && { right: 380 }]}
+            >
+              <VariantModal
+                autoCaptureKey={agentSession?.status === 'variants_ready' ? agentSession.changeRequest?.id : undefined}
+                bundleIdentifier={connection.bundleIdentifier}
+                confirmSelection={agentSession?.status === 'variants_ready' ? confirmAgentVariant : undefined}
+                embedded
+                locked={
+                  agentVariantTransition !== null || agentSession?.status === 'selection_confirmed' || isEndingLive
+                }
+                onBusyChange={setVariantCaptureBusy}
+                onClose={() => setVariantVisible(false)}
+                onOpened={(variant) => {
+                  setActiveVariant(variant);
+                  setSelectedAgentVariant(variant);
+                }}
+                onRestored={() => {
+                  setActiveVariant(null);
+                  setSelectedAgentVariant('original');
+                }}
+                onSelectionChange={setSelectedAgentVariant}
+                selectedVariant={selectedAgentVariant}
+                variants={agentVariants}
+                visible={variantVisible}
+              />
+            </View>
+            {dockInspector && <View style={parityStyles.inspectorDock}>{inspector}</View>}
+            {!agentFlowLocked && (
+              <View
+                collapsable={false}
+                style={parityStyles.toolRail}
+              >
+                <ScrollView
+                  automaticallyAdjustContentInsets={false}
+                  contentContainerStyle={parityStyles.toolRailContent}
+                  contentInsetAdjustmentBehavior="never"
+                  removeClippedSubviews={false}
+                  showsVerticalScrollIndicator={false}
+                  style={{ flex: 1 }}
+                >
+                  <GlassToolGroup
+                    accessibilityLabel="Canvas tools"
+                    items={[
+                      {
+                        label: 'Interact',
+                        symbol: 'hand.point.up.left',
+                        disabled: toolsDisabled || annotation.isFinishing || variantVisible,
+                        onPress: activateInteract
+                      },
+                      {
+                        label: 'Select',
+                        symbol: 'cursorarrow.and.square.on.square.dashed',
+                        disabled: toolsDisabled || annotation.isFinishing || variantVisible || Boolean(annotationImage),
+                        onPress: () => {
+                          setAnnotationImage(null);
+                          setSelectionMode(true);
+                        }
+                      },
+                      ...annotation.drawingTools
+                    ]}
+                    selectedIndex={
+                      variantVisible ? -1 : annotationImage ? 2 + annotation.selectedToolIndex : selectionMode ? 1 : 0
+                    }
+                    style={parityStyles.toolGroup}
+                  />
+                  {annotation.tools}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+          {!dockInspector && (
+            <Modal
+              allowSwipeDismissal
+              animationType="slide"
+              onRequestClose={() => setInspectorVisible(false)}
+              presentationStyle="pageSheet"
+              supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+              visible={inspectorVisible}
+            >
+              <SafeAreaView style={[styles.inspectorModal, { backgroundColor: workspaceColors.panel }]}>
+                {inspector}
+              </SafeAreaView>
+            </Modal>
+          )}
+          <Modal
+            allowSwipeDismissal
+            animationType="slide"
+            onRequestClose={() => setPasteVisible(false)}
+            presentationStyle="formSheet"
+            supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+            visible={pasteVisible}
+          >
+            <View style={[styles.modalScrim, { backgroundColor: colors.panel }]}>
+              <View style={[styles.pasteCard, parityStyles.pasteCard]}>
+                <View style={styles.pasteHeading}>
+                  <Text style={styles.cardTitle}>Paste into Simulator</Text>
+                  <GlassControl
+                    accessibilityLabel="Close paste dialog"
+                    contentStyle={styles.modalCloseContent}
+                    glassStyle="clear"
+                    onPress={() => setPasteVisible(false)}
+                    style={styles.modalClose}
+                  >
+                    <Ionicons
+                      color={colors.muted}
+                      name="close"
+                      size={20}
+                    />
+                  </GlassControl>
+                </View>
+                <TextInput
+                  autoFocus
+                  multiline
+                  onChangeText={setPasteText}
+                  placeholder="Text to place on the Simulator pasteboard"
+                  placeholderTextColor={colors.muted}
+                  style={styles.pasteInput}
+                  value={pasteText}
+                />
+                <GlassControl
+                  contentStyle={styles.connectButtonContent}
+                  disabled={!pasteText || Boolean(busy)}
+                  onPress={() => void paste()}
+                  style={styles.connectButton}
+                  tone="accent"
+                >
+                  <Text style={styles.connectText}>Paste now</Text>
+                </GlassControl>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
+      </View>
+    );
+  };
+  return (
+    <AnnotationWorkspace
+      disabled={toolsDisabled}
+      image={annotationImage}
+      onActivate={() => void annotate()}
+      onClose={() => setAnnotationImage(null)}
+      onFinish={sendAnnotatedAgentRequest}
+    >
+      {renderWorkspace}
+    </AnnotationWorkspace>
   );
 }
 
-const parityStyles = StyleSheet.create({
-  inspectorDock: {
-    position: 'absolute',
-    top: 70,
-    right: 18,
-    bottom: 18,
-    zIndex: 12,
-    width: 344,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16
-  },
-  canvasCenterDocked: { paddingRight: 394 },
-  supportDock: {
-    position: 'absolute',
-    top: 100,
-    right: 380,
-    bottom: 18,
-    zIndex: 10,
-    width: 340,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10
-  },
-  readout: { right: 18 },
-  readoutText: { flexShrink: 1 },
-  supportBar: {
-    position: 'absolute',
-    top: 50,
-    right: 18,
-    zIndex: 4,
-    width: 244,
-    flexDirection: 'row',
-    gap: 8
-  },
-  supportBarDocked: { right: 380 },
-  gestureHint: { top: 104, left: 82, textAlign: 'left' },
-  selectionCard: { maxWidth: '90%', bottom: 76 },
-  pasteCard: { maxWidth: '92%' }
-});
+const useParityStyles = createThemedStyles((colors) =>
+  StyleSheet.create({
+    pageHeading: { position: 'absolute', top: 16, left: 24, right: 24, maxWidth: 320, zIndex: 4 },
+    pageHeadingDocked: { right: 362 },
+    simulatorTitle: { color: colors.text, fontSize: 26, fontWeight: '600', letterSpacing: -1.04, marginTop: 10 },
+    workspaceContent: { position: 'absolute', inset: 0 },
+    variantCanvas: { position: 'absolute', top: 116, left: 12, right: 12, bottom: 74, zIndex: 8 },
+    inspectorDock: {
+      position: 'absolute',
+      top: 70,
+      right: 18,
+      bottom: 18,
+      zIndex: 12,
+      width: 326,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 13
+    },
+    canvasCenterDocked: { marginRight: 362, marginLeft: 78 },
+    toolRail: { position: 'absolute', left: 18, top: 150, bottom: 90, width: 64, zIndex: 20 },
+    toolRailContent: { gap: 10, alignItems: 'center' },
+    toolGroup: { alignSelf: 'center' },
+    readout: { right: 18 },
+    readoutText: { flexShrink: 1 },
+    supportPanels: {
+      position: 'absolute',
+      top: 70,
+      right: 362,
+      left: 82,
+      bottom: 18,
+      zIndex: 15,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 10
+    },
+    supportPanelsCompact: {
+      position: 'relative',
+      top: 0,
+      right: 0,
+      left: 0,
+      bottom: 0,
+      flexDirection: 'column',
+      padding: 12
+    },
+    selectionCard: { maxWidth: '90%', bottom: 76 },
+    pasteCard: { maxWidth: '92%' }
+  })
+);
+
+function WorkspaceSupportPanel({
+  title,
+  icon,
+  open,
+  onToggle,
+  children
+}: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const colors = useColors();
+  const panelStyles = usePanelStyles();
+  return (
+    <View style={[panelStyles.panel, open && panelStyles.open]}>
+      <GlassControl
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        contentStyle={panelStyles.trigger}
+        onPress={onToggle}
+        solid
+      >
+        <Ionicons
+          color={colors.text}
+          name={icon}
+          size={16}
+        />
+        <Text style={panelStyles.title}>{title}</Text>
+        <Ionicons
+          color={colors.muted}
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={14}
+        />
+      </GlassControl>
+      <ScrollView
+        contentContainerStyle={panelStyles.content}
+        keyboardShouldPersistTaps="handled"
+        style={!open && { display: 'none' }}
+      >
+        {children}
+      </ScrollView>
+    </View>
+  );
+}
+const usePanelStyles = createThemedStyles((colors) =>
+  StyleSheet.create({
+    panel: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      overflow: 'hidden'
+    },
+    open: { flexShrink: 1, width: 340, maxWidth: '100%', maxHeight: '100%' },
+    trigger: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    title: { color: colors.text, fontSize: 12, flexShrink: 1 },
+    content: { padding: 12 }
+  })
+);

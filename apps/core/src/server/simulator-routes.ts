@@ -142,12 +142,17 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
       if (!upstream.ok || !upstream.body) {
         throw new CoreApiError(502, 'BAD_GATEWAY', 'Simulator stream is unavailable.', true);
       }
-      return new Response(latestMjpegStream(upstream.body), {
-        headers: {
-          'cache-control': 'no-store',
-          'content-type': upstream.headers.get('content-type') ?? 'multipart/x-mixed-replace'
+      return new Response(
+        latestMjpegStream(upstream.body, {
+          isDisconnected: () => request.signal.aborted || simulatorBridge.connection?.streamUrl !== connection.streamUrl
+        }),
+        {
+          headers: {
+            'cache-control': 'no-store',
+            'content-type': upstream.headers.get('content-type') ?? 'multipart/x-mixed-replace'
+          }
         }
-      });
+      );
     })
     .ws('/simulator/input', {
       beforeHandle: () => {

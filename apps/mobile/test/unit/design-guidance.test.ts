@@ -7,15 +7,23 @@ const first = adjustmentGoalReferences[0];
 if (!first) throw new Error('Built-in goals must be available on mobile.');
 
 describe('mobile design guidance', () => {
-  test('enforces the transport limit while allowing a selected goal to be removed', () => {
-    const four = adjustmentGoalReferences.slice(0, 4);
-    const fifth = adjustmentGoalReferences[4];
-    if (!fifth) throw new Error('Missing fifth goal');
-    expect(toggleDesignReference(four, fifth)).toEqual(four);
-    const reduced = toggleDesignReference(four, first);
-    expect(reduced).toHaveLength(3);
-    expect(toggleDesignReference(reduced, fifth)).toHaveLength(4);
-    expect(four).toHaveLength(4);
+  test('replaces the active adjustment goal while preserving attached references', () => {
+    const second = adjustmentGoalReferences[1];
+    if (!second) throw new Error('Missing second goal');
+    const reference = { ...first, id: 'style', kind: 'style' as const, skillName: undefined };
+    const current = [reference, first];
+    expect(toggleDesignReference(current, second)).toEqual([reference, second]);
+    expect(toggleDesignReference(current, first)).toEqual([reference]);
+    expect(current).toEqual([reference, first]);
+  });
+  test('enforces the transport limit for non-goal references', () => {
+    const four = Array.from({ length: 4 }, (_, id) => ({
+      ...first,
+      id: `style-${id}`,
+      kind: 'style' as const,
+      skillName: undefined
+    }));
+    expect(toggleDesignReference(four, { ...four[0], id: 'extra' } as typeof first)).toEqual(four);
   });
   test('falls back to screen evidence after selection clears and keeps constraints', () => {
     const guidance = buildDesignGuidance([first], 'selected_element', false, 'Reading comfort', 'Navigation');

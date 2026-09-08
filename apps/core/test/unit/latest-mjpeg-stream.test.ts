@@ -6,7 +6,7 @@ const frame = (body: string) =>
   Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}\r\n`);
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const fixture = () => {
+const fixture = (options: Parameters<typeof latestMjpegStream>[1] = {}) => {
   let input!: ReadableStreamDefaultController<Uint8Array>;
   let cancelled = false;
   const source = new ReadableStream<Uint8Array>({
@@ -17,7 +17,7 @@ const fixture = () => {
       cancelled = true;
     }
   });
-  return { input, reader: latestMjpegStream(source).getReader(), cancelled: () => cancelled };
+  return { input, reader: latestMjpegStream(source, options).getReader(), cancelled: () => cancelled };
 };
 
 describe('latestMjpegStream', () => {
@@ -67,6 +67,31 @@ describe('latestMjpegStream', () => {
     const { input, reader } = fixture();
     input.error(new Error('capture stopped'));
     await expect(reader.read()).rejects.toThrow('capture stopped');
+  });
+
+  test('ends an obsolete connection normally when bridge teardown resets its socket', async () => {
+    let disconnected = false;
+    const { input, reader } = fixture({ isDisconnected: () => disconnected });
+    input.enqueue(frame('old connection'));
+    await tick();
+    disconnected = true;
+    input.error(Object.assign(new TypeError('Socket closed'), { code: 'ECONNRESET' }));
+    await tick();
+    expect((await reader.read()).done).toBe(true);
+  });
+
+  test('preserves unexpected socket resets on the current connection', async () => {
+    const { input, reader } = fixture({ isDisconnected: () => false });
+    const error = Object.assign(new TypeError('Socket closed'), { code: 'ECONNRESET' });
+    input.error(error);
+    await expect(reader.read()).rejects.toBe(error);
+  });
+
+  test('client cancellation succeeds when the upstream has already errored', async () => {
+    const { input, reader } = fixture();
+    input.error(Object.assign(new TypeError('Socket closed'), { code: 'ECONNRESET' }));
+    await reader.cancel();
+    expect((await reader.read()).done).toBe(true);
   });
 
   test('rejects a truncated frame at end of stream', async () => {

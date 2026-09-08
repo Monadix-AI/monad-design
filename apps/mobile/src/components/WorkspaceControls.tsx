@@ -1,9 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { MousePointer2, SquareDashedMousePointer } from 'lucide-react-native';
 import { Text } from 'react-native';
 
-import { styles } from '../styles';
-import { colors } from '../theme';
+import { useStyles } from '../styles';
+import { useColors } from '../theme';
 import { GlassControl } from './GlassControl';
+import { hasNativeToolSelection } from './GlassToolGroup';
+import { WorkspacePanelControl } from './WorkspacePanelControl';
 
 export function Action({
   icon,
@@ -18,6 +21,8 @@ export function Action({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <GlassControl
       accessibilityRole="button"
@@ -28,9 +33,9 @@ export function Action({
       tone={active ? 'accent' : 'neutral'}
     >
       <Ionicons
-        color={active ? '#10130e' : colors.text}
+        color={active ? colors.onAccent : colors.text}
         name={icon}
-        size={18}
+        size={20}
       />
       <Text style={[styles.actionText, active && styles.actionTextActive]}>{label}</Text>
     </GlassControl>
@@ -48,6 +53,7 @@ export function ModeButton({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const styles = useStyles();
   return (
     <GlassControl
       accessibilityRole="button"
@@ -77,8 +83,10 @@ export function WorkspaceToolButton({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
-    <GlassControl
+    <WorkspacePanelControl
       accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ selected: active, disabled }}
@@ -87,14 +95,20 @@ export function WorkspaceToolButton({
       glassStyle="clear"
       onPress={onPress}
       style={styles.workspaceToolButton}
-      tone={active ? 'selected' : 'neutral'}
+      tone={active && !hasNativeToolSelection ? 'selected' : 'neutral'}
     >
-      <Ionicons
-        color={active ? colors.text : colors.muted}
-        name={icon}
-        size={20}
-      />
-    </GlassControl>
+      {icon === 'navigate-outline' ? (
+        <MousePointer2
+          color={active ? colors.blue : colors.muted}
+          size={20}
+        />
+      ) : (
+        <SquareDashedMousePointer
+          color={active ? colors.blue : colors.muted}
+          size={20}
+        />
+      )}
+    </WorkspacePanelControl>
   );
 }
 
@@ -109,6 +123,8 @@ export function CanvasControl({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <GlassControl
       accessibilityLabel={label}
@@ -122,7 +138,7 @@ export function CanvasControl({
       <Ionicons
         color={colors.text}
         name={icon}
-        size={18}
+        size={20}
       />
       <Text style={styles.canvasControlText}>{label}</Text>
     </GlassControl>

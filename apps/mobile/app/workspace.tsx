@@ -20,8 +20,7 @@ export default function WorkspaceRoute() {
       api={api}
       {...session}
       onExit={() => {
-        closeSession();
-        router.replace('/simulators');
+        router.dismissTo('/simulators');
       }}
     />
   );

@@ -15,16 +15,58 @@ import {
   sortSimulatorsForProject
 } from '@monaddesign/simulator-history';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Brand } from '../components/Brand';
+import { BackButton, HeaderActionButton } from '../components/BackButton';
 import { GlassControl } from '../components/GlassControl';
 import { SimulatorDeviceGlyph } from '../components/SimulatorDeviceGlyph';
-import { Action } from '../components/WorkspaceControls';
-import { styles } from '../styles';
-import { colors, errorMessage } from '../theme';
+import { useStyles } from '../styles';
+import { errorMessage, useColors } from '../theme';
+
+const skeletonCards = ['first', 'second', 'third', 'fourth'];
+
+function SimulatorListSkeleton() {
+  const styles = useStyles();
+  const opacity = useRef(new Animated.Value(0.46)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { duration: 720, toValue: 0.82, useNativeDriver: true }),
+        Animated.timing(opacity, { duration: 720, toValue: 0.46, useNativeDriver: true })
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      accessibilityLabel="Loading Simulators"
+      accessibilityRole="progressbar"
+      accessibilityState={{ busy: true }}
+      style={[styles.deviceGrid, styles.deviceSkeletonList, { opacity }]}
+    >
+      {skeletonCards.map((card) => (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          key={card}
+          style={[styles.deviceCard, styles.deviceCardContent, styles.deviceSkeletonCard]}
+        >
+          <View style={styles.deviceSkeletonGlyph} />
+          <View style={styles.deviceSkeletonDetails}>
+            <View style={styles.deviceSkeletonName} />
+            <View style={styles.deviceSkeletonRuntime} />
+          </View>
+          <View style={styles.deviceSkeletonStatus} />
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
 
 export function SimulatorPicker({
   project,
@@ -35,6 +77,8 @@ export function SimulatorPicker({
   onConnected: (simulator: IOSSimulator, connection: SimulatorConnectionResponse) => void;
   onBack: () => void;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   const { data, error: queryError, isFetching, isLoading, refetch } = useListSimulatorsQuery();
   const { data: projectIcons } = useGetProjectIconsQuery(project.id);
   const [connectSimulator, connectState] = useConnectSimulatorMutation();
@@ -111,26 +155,19 @@ export function SimulatorPicker({
 
   return (
     <SafeAreaView style={styles.pickerRoot}>
-      <View style={styles.pickerHeader}>
-        <Brand />
-        <View style={styles.headerActions}>
-          <GlassControl
-            contentStyle={styles.textButtonContent}
-            glassStyle="clear"
+      <View style={styles.pickerBody}>
+        <View style={styles.pageActions}>
+          <BackButton
+            label="Projects"
             onPress={onBack}
-            style={styles.textButton}
-          >
-            <Text style={styles.textButtonLabel}>All projects</Text>
-          </GlassControl>
-          <Action
+          />
+          <HeaderActionButton
             disabled={busy}
             icon="refresh"
             label="Refresh"
             onPress={() => void refetch()}
           />
         </View>
-      </View>
-      <View style={styles.pickerBody}>
         <View style={styles.pickerIntro}>
           <Text style={styles.pickerTitle}>{project.name}</Text>
           <Text style={styles.pickerHint}>
@@ -145,6 +182,7 @@ export function SimulatorPicker({
               disabled={busy}
               key={app.bundleIdentifier}
               onPress={() => setSelectedTarget(app.bundleIdentifier)}
+              solid
               style={[styles.targetAppCard, selectedTarget === app.bundleIdentifier && styles.targetAppCardSelected]}
               tone={selectedTarget === app.bundleIdentifier ? 'selected' : 'neutral'}
             >
@@ -192,6 +230,7 @@ export function SimulatorPicker({
                 disabled={busy}
                 key={item.udid}
                 onPress={() => setSelected(item.udid)}
+                solid
                 style={styles.deviceCard}
                 tone={selected === item.udid ? 'selected' : 'neutral'}
               >
@@ -215,10 +254,11 @@ export function SimulatorPicker({
                 </View>
               </GlassControl>
             ))}
-            {!busy && simulators.length === 0 && (
+            {(isLoading || isFetching) && simulators.length === 0 && <SimulatorListSkeleton />}
+            {!busy && simulators.length === 0 && !error && (
               <View style={styles.empty}>
                 <Ionicons
-                  color="#666a72"
+                  color={colors.muted}
                   name="phone-portrait-outline"
                   size={42}
                 />
@@ -237,10 +277,10 @@ export function SimulatorPicker({
           tone="accent"
         >
           {busy ? (
-            <ActivityIndicator color="#10130e" />
+            <ActivityIndicator color={colors.onAccent} />
           ) : (
             <Ionicons
-              color="#10130e"
+              color={colors.onAccent}
               name="play"
               size={18}
             />

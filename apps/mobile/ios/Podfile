@@ -59,5 +59,17 @@ target 'MonadDesign' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # RN Screens directly imports headers nested inside RN 0.86's prebuilt Core.
+    if ENV['RCT_USE_PREBUILT_RNCORE'] == '1'
+      installer.pods_project.targets.each do |target|
+        next unless target.name == 'RNScreens'
+        target.build_configurations.each do |build_config|
+          paths = Array(build_config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)')
+          paths << '$(PODS_ROOT)/React-Core-prebuilt/React.xcframework/Headers/React_Core'
+          build_config.build_settings['HEADER_SEARCH_PATHS'] = paths.uniq
+        end
+      end
+    end
   end
 end

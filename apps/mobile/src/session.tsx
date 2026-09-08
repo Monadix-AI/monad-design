@@ -3,7 +3,7 @@ import type { ClientApi } from '@monaddesign/client-rtk/client-api';
 import type { ClientConnection } from './types';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 
 export const savedClientKey = 'monaddesign.remote-client.v1';
@@ -35,6 +35,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [api, setApi] = useState<ClientApi<ClientConnection> | null>(null);
   const [project, setProject] = useState<RemoteProject | null>(null);
   const [session, setSession] = useState<SimulatorSession | null>(null);
+  // Route cleanup effects must not rerun when another session field changes.
+  const closeProject = useCallback(() => {
+    setSession(null);
+    setProject(null);
+  }, []);
+  const closeSession = useCallback(() => setSession(null), []);
 
   useEffect(() => {
     void AsyncStorage.getItem(savedClientKey)
@@ -68,14 +74,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
         await AsyncStorage.removeItem(savedClientKey);
       },
       openProject: setProject,
-      closeProject: () => {
-        setSession(null);
-        setProject(null);
-      },
+      closeProject,
       openSession: setSession,
-      closeSession: () => setSession(null)
+      closeSession
     }),
-    [api, hydrated, project, savedClient, session]
+    [api, closeProject, closeSession, hydrated, project, savedClient, session]
   );
 
   return (

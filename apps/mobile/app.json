@@ -6,13 +6,14 @@
     "version": "0.1.0",
     "platforms": ["ios"],
     "orientation": "landscape",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "isTabletOnly": true,
       "requireFullScreen": true,
       "bundleIdentifier": "ai.monadix.design",
+      "appleTeamId": "J6WWXL6B6P",
       "infoPlist": {
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationLandscapeLeft",

@@ -4,7 +4,7 @@ import type { ClientApi } from '@monaddesign/client-rtk/client-api';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { colors, errorMessage } from '../theme';
+import { createThemedStyles, errorMessage, useColors } from '../theme';
 import { GlassControl } from './GlassControl';
 
 export function DesignDocumentPanel({
@@ -16,6 +16,8 @@ export function DesignDocumentPanel({
   projectId: string;
   showTrigger?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   const [expanded, setExpanded] = useState(!showTrigger);
   const [data, setData] = useState<ProjectDesignDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function DesignDocumentPanel({
       )}
       {(!showTrigger || expanded) && (
         <View style={styles.document}>
-          {!data && !error && <ActivityIndicator color={colors.accent} />}
+          {!data && !error && <ActivityIndicator color={colors.accentText} />}
           {error && (
             <>
               <Text
@@ -95,13 +97,15 @@ export function DesignDocumentPanel({
     </View>
   );
 }
-const styles = StyleSheet.create({
-  section: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  button: { minHeight: 44, borderRadius: 10 },
-  buttonContent: { padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  title: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  help: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  document: { gap: 12, paddingTop: 16 },
-  body: { color: colors.text, fontSize: 14, lineHeight: 22 },
-  error: { color: colors.danger, fontSize: 13 }
-});
+const useStyles = createThemedStyles((colors) =>
+  StyleSheet.create({
+    section: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+    button: { minHeight: 44, borderRadius: 10 },
+    buttonContent: { padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    title: { color: colors.text, fontSize: 13, fontWeight: '600' },
+    help: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+    document: { gap: 12, paddingTop: 16 },
+    body: { color: colors.text, fontSize: 14, lineHeight: 22 },
+    error: { color: colors.danger, fontSize: 13 }
+  })
+);

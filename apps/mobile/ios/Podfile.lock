@@ -2376,7 +2376,7 @@ DEPENDENCIES:
   - "ExpoCamera (from `../../../node_modules/.bun/expo-camera@57.0.4+40481c672a9b6110/node_modules/expo-camera/ios`)"
   - "ExpoCameraBarcodeScanning (from `../../../node_modules/.bun/expo-camera@57.0.4+40481c672a9b6110/node_modules/expo-camera/ios`)"
   - "ExpoClipboard (from `../../../node_modules/.bun/expo-clipboard@57.0.1+40481c672a9b6110/node_modules/expo-clipboard/ios`)"
-  - "ExpoDomWebView (from `../../../node_modules/.bun/@expo+dom-webview@57.0.1+a5236dbc285c5380/node_modules/@expo/dom-webview/ios`)"
+  - "ExpoDomWebView (from `../../../node_modules/.bun/@expo+dom-webview@57.0.1+8a3e09d92a678eca/node_modules/@expo/dom-webview/ios`)"
   - "ExpoFileSystem (from `../../../node_modules/.bun/expo-file-system@57.0.6+a5236dbc285c5380/node_modules/expo-file-system/ios`)"
   - "ExpoFont (from `../../../node_modules/.bun/expo-font@57.0.3+40481c672a9b6110/node_modules/expo-font/ios`)"
   - "ExpoGlassEffect (from `../../../node_modules/.bun/expo-glass-effect@57.0.1+40481c672a9b6110/node_modules/expo-glass-effect/ios`)"
@@ -2389,7 +2389,7 @@ DEPENDENCIES:
   - "ExpoModulesWorkletsAdapter (from `../../../node_modules/.bun/expo-modules-core@57.0.16+e5c5f50d3b31cfc9/node_modules/expo-modules-core`)"
   - "ExpoRouter (from `../../../node_modules/.bun/expo-router@57.0.19+4268e00661465993/node_modules/expo-router/ios`)"
   - "ExpoSymbols (from `../../../node_modules/.bun/expo-symbols@57.0.2+0b6f4793abb7b242/node_modules/expo-symbols/ios`)"
-  - "ExpoUI (from `../../../node_modules/.bun/@expo+ui@57.0.16+d5925b98f2e44796/node_modules/@expo/ui/ios`)"
+  - "ExpoUI (from `../../../node_modules/.bun/@expo+ui@57.0.16+40481c672a9b6110/node_modules/@expo/ui/ios`)"
   - "FBLazyVector (from `../../../node_modules/.bun/react-native@0.86.3+e1b28b7868edb454/node_modules/react-native/Libraries/FBLazyVector`)"
   - "hermes-engine (from `../../../node_modules/.bun/react-native@0.86.3+e1b28b7868edb454/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)"
   - "RCTDeprecation (from `../../../node_modules/.bun/react-native@0.86.3+e1b28b7868edb454/node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)"
@@ -2496,7 +2496,7 @@ EXTERNAL SOURCES:
   ExpoClipboard:
     :path: "../../../node_modules/.bun/expo-clipboard@57.0.1+40481c672a9b6110/node_modules/expo-clipboard/ios"
   ExpoDomWebView:
-    :path: "../../../node_modules/.bun/@expo+dom-webview@57.0.1+a5236dbc285c5380/node_modules/@expo/dom-webview/ios"
+    :path: "../../../node_modules/.bun/@expo+dom-webview@57.0.1+8a3e09d92a678eca/node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
     :path: "../../../node_modules/.bun/expo-file-system@57.0.6+a5236dbc285c5380/node_modules/expo-file-system/ios"
   ExpoFont:
@@ -2522,7 +2522,7 @@ EXTERNAL SOURCES:
   ExpoSymbols:
     :path: "../../../node_modules/.bun/expo-symbols@57.0.2+0b6f4793abb7b242/node_modules/expo-symbols/ios"
   ExpoUI:
-    :path: "../../../node_modules/.bun/@expo+ui@57.0.16+d5925b98f2e44796/node_modules/@expo/ui/ios"
+    :path: "../../../node_modules/.bun/@expo+ui@57.0.16+40481c672a9b6110/node_modules/@expo/ui/ios"
   FBLazyVector:
     :path: "../../../node_modules/.bun/react-native@0.86.3+e1b28b7868edb454/node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2801,6 +2801,6 @@ SPEC CHECKSUMS:
   Yoga: 18b74b3ade30bebc1904004dfaceae1dd02a330a
   ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
-PODFILE CHECKSUM: ddc464661b063e2a4886d6f095e6354e9c65e1c2
+PODFILE CHECKSUM: 11fc9a3ecc44210292c3b31765342a27bc43696b
 
 COCOAPODS: 1.16.2
