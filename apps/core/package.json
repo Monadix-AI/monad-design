@@ -11,23 +11,23 @@
     "@monaddesign/simulator": "workspace:*",
     "@monaddesign/ui": "workspace:*",
     "elysia": "^1.4.29",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "react-redux": "^9.3.0",
     "serve-sim": "0.1.46",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.2",
-    "@types/node": "^26.5.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.3.0"
   },
   "exports": {
     ".": "./src/core-runtime.ts",
