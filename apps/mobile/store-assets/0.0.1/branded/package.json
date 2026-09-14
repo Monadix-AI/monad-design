@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "sharp": "0.35.4"
+  },
+  "private": true,
+  "scripts": {
+    "render": "node render.cjs"
+  }
+}

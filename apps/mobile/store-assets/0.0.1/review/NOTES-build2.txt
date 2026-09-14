@@ -1,0 +1,7 @@
+OFFLINE REVIEW PATH (NO MAC OR ACCOUNT REQUIRED)
+On a fresh launch, tap "Explore sample workspace" on the connection screen. The bundled fictional Daylight app screen opens locally on the iPad. Tap "Step outside" in Interact mode to change its completion indicator. In Select mode, tap the headline or intention card to highlight a sample interface region and inspect its label. In Annotate mode, drag a rectangle on the screen and enter a visual note. Tap "Preview request context" to see the request, selected region, and marked areas together. This preview stays on the iPad; it does not contact a coding agent or edit source.
+
+LIVE WORKFLOW
+Monad Design is a companion workspace for a developer's own Mac. For live Simulator control, accessibility inspection, sending visual feedback to a coding agent, source changes, and variant comparison, the iPad and Mac must be on the same trusted local network. The Mac runs Monad Design Core and Xcode with a booted iOS Simulator. On the iPad, scan the Mac's pairing QR code or enter its LAN address and six-digit pairing code, then choose the Simulator. There is no Monad Design account or password. Camera permission is optional.
+
+The live iOS app runs on the Mac Simulator and is streamed to the iPad; the iPad does not download or execute its source. The sample workspace makes the touch canvas and context preview accessible without that developer environment and is clearly marked OFFLINE SAMPLE. Setup details: https://github.com/Monadix-AI/monad-design/blob/main/apps/mobile/README.md

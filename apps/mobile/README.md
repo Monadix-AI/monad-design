@@ -2,7 +2,11 @@
 
 The Expo app connects to the machine's Monad Design Core on the same local network. Core remains responsible for Xcode, `simctl`, accessibility inspection, and `serve-sim`; the iPad provides the full touch workspace.
 
-Navigation uses Expo Router file routes: `/` pairs a Client, `/simulators` selects a booted device, and `/workspace` owns the live session. Route guards return incomplete deep links to the nearest valid step, and leaving the workspace disconnects the remote Simulator session.
+Navigation uses Expo Router file routes: `/` pairs a Client, `/sample` opens a bundled offline workspace, `/simulators` selects a booted device, and `/workspace` owns the live session. Route guards return incomplete live-session deep links to the nearest valid step, and leaving the workspace disconnects the remote Simulator session.
+
+## Explore without a Mac
+
+On the connection screen, tap **Explore sample workspace**. The bundled Daylight screen lets a new user try touch interaction, select interface regions, draw annotations, and preview a change request with its visual context. The sample is entirely local: it does not pair with a Mac, send a request, run a coding agent, or change source files. Use the connection flow below for a live project.
 
 ## Run
 

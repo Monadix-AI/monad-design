@@ -26,6 +26,7 @@ export default function RootLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="simulators" />
+      <Stack.Screen name="sample" />
       <Stack.Screen
         name="workspace"
         options={{ gestureEnabled: false }}

@@ -4,14 +4,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useColorScheme,
   useWindowDimensions,
   View
 } from 'react-native';
@@ -19,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassControl } from '../components/GlassControl';
 import { PairingScanner } from '../components/PairingScanner';
+import { SettingsButton } from '../components/SettingsButton';
 import { savedClientKey } from '../session';
 import { useStyles } from '../styles';
 import { createThemedStyles, errorMessage, useColors } from '../theme';
@@ -48,6 +52,7 @@ export function ClientSetup({
   const local = useLocal();
   const styles = useStyles();
   const { width } = useWindowDimensions();
+  const colorScheme = useColorScheme();
   const compact = width < 900;
   const [origin, setOrigin] = useState(initial?.origin ?? '');
   const [pairingCode, setPairingCode] = useState(initial?.pairingCode ?? '');
@@ -176,6 +181,9 @@ export function ClientSetup({
         onScanned={useScannedConnection}
         visible={scannerVisible}
       />
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: 24, paddingTop: 8 }}>
+        <SettingsButton />
+      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={local.keyboard}
@@ -195,10 +203,13 @@ export function ClientSetup({
               <View style={[local.frame, local.frameOuter]} />
               <View style={[local.frame, local.frameMiddle]} />
               <View style={local.scanTile}>
-                <Ionicons
-                  color={colors.accentText}
-                  name="scan-outline"
-                  size={76}
+                <Image
+                  source={
+                    colorScheme === 'dark'
+                      ? require('../../assets/icons/dark.png')
+                      : require('../../assets/icons/light.png')
+                  }
+                  style={local.appIcon}
                 />
               </View>
               <View style={local.linkBadge}>
@@ -288,6 +299,20 @@ export function ClientSetup({
               )}
               <Text style={local.connectText}>{busy ? 'Cancel connection' : 'Connect'}</Text>
             </GlassControl>
+            <GlassControl
+              accessibilityLabel="Explore sample workspace"
+              contentStyle={local.connectContent}
+              onPress={() => router.push('/sample')}
+              style={local.sampleButton}
+            >
+              <Ionicons
+                color={colors.text}
+                name="sparkles-outline"
+                size={20}
+              />
+              <Text style={local.connectText}>Explore sample workspace</Text>
+            </GlassControl>
+            <Text style={local.sampleHint}>Try selection and annotation without a Mac.</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -318,6 +343,7 @@ const useLocal = createThemedStyles((colors) =>
       shadowOpacity: 0.35,
       shadowRadius: 24
     },
+    appIcon: { width: 136, height: 136, borderRadius: 32 },
     linkBadge: {
       position: 'absolute',
       right: 36,
@@ -369,6 +395,8 @@ const useLocal = createThemedStyles((colors) =>
       textAlignVertical: 'center'
     },
     connectButton: { minHeight: 56, borderRadius: 14, marginTop: 4 },
+    sampleButton: { minHeight: 52, borderRadius: 14, marginTop: 12 },
+    sampleHint: { color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 8 },
     connectContent: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -3,12 +3,13 @@
     "name": "Monad Design",
     "slug": "monad-design",
     "scheme": "monaddesign",
-    "version": "0.1.0",
+    "version": "0.0.1",
     "platforms": ["ios"],
     "orientation": "landscape",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "buildNumber": "2",
       "icon": {
         "light": "./assets/icons/light.png",
         "dark": "./assets/icons/dark.png",

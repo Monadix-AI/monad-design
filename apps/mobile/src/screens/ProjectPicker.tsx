@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton, HeaderActionButton } from '../components/BackButton';
 import { GlassControl } from '../components/GlassControl';
+import { SettingsButton } from '../components/SettingsButton';
 import { useStyles } from '../styles';
 import { errorMessage, useColors } from '../theme';
 
@@ -91,12 +92,15 @@ export function ProjectPicker({
             label="Connection"
             onPress={onForget}
           />
-          <HeaderActionButton
-            disabled={busy}
-            icon="refresh"
-            label="Refresh"
-            onPress={() => void refetch()}
-          />
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <SettingsButton />
+            <HeaderActionButton
+              disabled={busy}
+              icon="refresh"
+              label="Refresh"
+              onPress={() => void refetch()}
+            />
+          </View>
         </View>
         <View style={styles.projectHeading}>
           <View>
