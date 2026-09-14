@@ -18,7 +18,7 @@
     "@react-native-masked-view/masked-view": "0.3.2",
     "expo": "~57.0.22",
     "expo-camera": "~57.0.4",
-    "expo-clipboard": "~57.0.2",
+    "expo-clipboard": "~58.0.0",
     "expo-constants": "~57.0.18",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.3",
