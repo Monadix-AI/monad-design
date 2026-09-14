@@ -15,10 +15,18 @@ export interface CoreRuntimeOptions {
   host?: string;
   port?: number;
   onSessionChanged?: (session: AgentSessionSnapshot) => void;
+  launchUi?: (url: string) => Promise<'desktop' | 'browser' | 'unavailable'>;
   ui?: (pathname: string) => Response | Promise<Response>;
 }
 
-export const createCoreRuntime = async ({ stateDirectory, host, port, onSessionChanged, ui }: CoreRuntimeOptions) => {
+export const createCoreRuntime = async ({
+  stateDirectory,
+  host,
+  port,
+  onSessionChanged,
+  ui,
+  launchUi
+}: CoreRuntimeOptions) => {
   await mkdir(stateDirectory, { recursive: true });
   const projectStore = new ProjectStore(join(stateDirectory, 'projects.json'));
   const errorJournal = new CoreErrorJournal(join(stateDirectory, 'core-errors.jsonl'));
@@ -44,7 +52,8 @@ export const createCoreRuntime = async ({ stateDirectory, host, port, onSessionC
     pairingStatePath: join(stateDirectory, 'pairing.json'),
     agentSessions,
     reportError: errorJournal.report,
-    ui
+    ui,
+    launchUi
   });
 
   return {

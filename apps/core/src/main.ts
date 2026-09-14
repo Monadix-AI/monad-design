@@ -9,8 +9,6 @@ import { launchPreferredUi } from './ui-launcher';
 
 const { stateDirectory, bootstrapPath, lockPath } = resolveCorePaths();
 const configuredPort = Number(process.env.MONAD_DESIGN_CORE_PORT ?? 41_765);
-let uiOrigin: string | null = null;
-const openedSessions = new Set<string>();
 
 const contentType = (path: string) => {
   if (path.endsWith('.html')) return 'text/html; charset=utf-8';
@@ -67,22 +65,16 @@ try {
     stateDirectory,
     host: process.env.MONAD_DESIGN_CORE_HOST ?? '0.0.0.0',
     port: Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 41_765,
-    onSessionChanged: (session) => {
-      if (session.status !== 'selecting_simulator' || openedSessions.has(session.id) || !uiOrigin) return;
-      openedSessions.add(session.id);
-      const url = `${uiOrigin}/`;
-      void launchPreferredUi(url, {
+    launchUi: (url) =>
+      launchPreferredUi(url, {
         reportError: (message, error) => {
-          openedSessions.delete(session.id);
           // biome-ignore lint/suspicious/noConsole: UI launch failures need operator-visible evidence.
           console.error(message, error);
         }
-      });
-    },
+      }),
     ui
   });
   const bootstrap = await runtime.start();
-  uiOrigin = bootstrap.localClient.origin;
   await writeBootstrap({
     schemaVersion: 1,
     pid: process.pid,

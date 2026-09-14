@@ -16,7 +16,7 @@ selection_confirmed --complete_change---------> awaiting_request
 any non-closed state --user ends Live---------> closed
 ```
 
-Every transition increments `revision`. Start returns full bootstrap data plus the clean localhost `uiUrl` that the agent opens and presents to the user. Direct access loads the current active live session without request authentication. Configure and get return full bootstrap data. Wait and mutation results return the current state with IDs, status, revision, timestamps, current request, and result when relevant.
+Every transition increments `revision`. Start returns full bootstrap data plus the clean localhost `uiUrl` and `uiTarget` (`desktop`, `browser`, or `unavailable`). The agent opens its browser only for `browser` or `unavailable`, and always presents the URL to the user. Direct access loads the current active live session without request authentication. Configure and get return full bootstrap data. Wait and mutation results return the current state with IDs, status, revision, timestamps, current request, and result when relevant.
 
 When Core cannot launch or stably capture a published variant, it records `captureFailure` with the request ID,
 variant ID, message, and timestamp, returns the session to `working`, and increments `revision`. This wakes an agent
@@ -25,7 +25,7 @@ again. A successful publish clears the prior failure.
 
 ## Tools
 
-- `start_live_session` — `{ workspacePath, task? }` → `{ session, uiUrl }`
+- `start_live_session` — `{ workspacePath, task? }` → `{ session, uiUrl, uiTarget }`
 - `configure_live_project` — `{ sessionId, targets: [{ bundleIdentifier, live }] }`
 - `get_live_session` — `{ sessionId? }`
 - `wait_for_change` — `{ sessionId, afterRevision, waitMs? }`, where `waitMs` is bounded to 120 seconds

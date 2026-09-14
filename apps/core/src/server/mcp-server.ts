@@ -72,7 +72,7 @@ const structuredResult = (value: Record<string, unknown>, references: DesignRefe
   };
 };
 
-const sessionResult = (session: AgentSessionSnapshot, presentation?: { uiUrl: string }) =>
+const sessionResult = (session: AgentSessionSnapshot, presentation?: { uiUrl: string; uiTarget: string }) =>
   structuredResult({ session, ...(presentation ?? {}) }, session.changeRequest?.context.designGuidance?.references);
 const stateResult = (session: AgentSessionSnapshot) =>
   structuredResult(
@@ -168,7 +168,12 @@ const ensureProjectBinding = async (projects: ProjectResolver, workspacePath: st
   );
 };
 
-const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, uiUrl: () => string) => {
+const buildMcpServer = (
+  projects: ProjectResolver,
+  sessions: AgentSessionStore,
+  uiUrl: () => string,
+  launchUi?: (url: string) => Promise<'desktop' | 'browser' | 'unavailable'>
+) => {
   const server = new McpServer(
     { name: 'monad-design', version: '1.0.0' },
     {
@@ -192,7 +197,10 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
     },
     async ({ task, workspacePath }) => {
       await ensureProjectBinding(projects, workspacePath);
-      return sessionResult(await sessions.create(workspacePath, task), { uiUrl: uiUrl() });
+      const session = await sessions.create(workspacePath, task);
+      const url = uiUrl();
+      const uiTarget = launchUi ? await launchUi(url) : 'browser';
+      return sessionResult(session, { uiUrl: url, uiTarget });
     }
   );
 
@@ -376,9 +384,10 @@ const buildMcpServer = (projects: ProjectResolver, sessions: AgentSessionStore, 
 export const createMonadDesignMcpHandler = (
   projects: ProjectResolver,
   sessions: AgentSessionStore,
-  uiUrl: () => string
+  uiUrl: () => string,
+  launchUi?: (url: string) => Promise<'desktop' | 'browser' | 'unavailable'>
 ) => {
-  const handler = createMcpHandler(() => buildMcpServer(projects, sessions, uiUrl));
+  const handler = createMcpHandler(() => buildMcpServer(projects, sessions, uiUrl, launchUi));
   return {
     close: () => handler.close(),
     fetch: (request: Request, parsedBody?: unknown) => {

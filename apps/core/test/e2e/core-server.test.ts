@@ -102,11 +102,12 @@ const projectStore = {
   }
 };
 
-const startServer = async () => {
+const startServer = async (launchUi?: (url: string) => Promise<'desktop' | 'browser' | 'unavailable'>) => {
   const server = new CoreServer(projectStore, {
     host: '127.0.0.1',
     port: 0,
-    pairingCode: '123456'
+    pairingCode: '123456',
+    launchUi
   });
   servers.push(server);
   await server.start();
@@ -121,6 +122,29 @@ const jsonHeaders = {
 };
 
 describe('Core server', () => {
+  for (const uiTarget of ['desktop', 'browser', 'unavailable'] as const) {
+    test(`returns the completed UI launch result: ${uiTarget}`, async () => {
+      const opened: string[] = [];
+      const { origin } = await startServer(async (url) => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        opened.push(url);
+        return uiTarget;
+      });
+      const client = new Client({ name: 'ui-launch-test', version: '1.0.0' });
+      await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`)));
+      try {
+        const result = await client.callTool({
+          name: 'start_live_session',
+          arguments: { workspacePath: '/tmp/example' }
+        });
+        expect(result.structuredContent).toMatchObject({ uiUrl: `${origin}/`, uiTarget });
+        expect(opened).toEqual([`${origin}/`]);
+      } finally {
+        await client.close();
+      }
+    });
+  }
+
   test('registers the simulator input WebSocket with the Node adapter', async () => {
     const warning = spyOn(console, 'warn').mockImplementation(() => undefined);
 

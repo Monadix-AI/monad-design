@@ -50,6 +50,7 @@ export interface CoreServerOptions {
   pairingStatePath?: string;
   addresses?: () => string[];
   agentSessions?: AgentSessionStore;
+  launchUi?: (url: string) => Promise<'desktop' | 'browser' | 'unavailable'>;
   ui?: (pathname: string) => Response | Promise<Response>;
   reportError?: CoreErrorReporter;
 }
@@ -143,7 +144,12 @@ export class CoreServer {
         ? resolvePairingCode(options.pairingStatePath, addresses)
         : String(randomInt(100_000, 1_000_000)));
     const agentSessions = options.agentSessions ?? new AgentSessionStore(projectStore);
-    this.#mcp = createMonadDesignMcpHandler(projectStore, agentSessions, () => `${this.localClient.origin}/`);
+    this.#mcp = createMonadDesignMcpHandler(
+      projectStore,
+      agentSessions,
+      () => `${this.localClient.origin}/`,
+      options.launchUi
+    );
     this.#app = createCoreApp(
       projectStore,
       this.#pairingCode,
