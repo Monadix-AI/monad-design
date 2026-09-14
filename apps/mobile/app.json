@@ -9,6 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "icon": {
+        "light": "./assets/icons/light.png",
+        "dark": "./assets/icons/dark.png",
+        "tinted": "./assets/icons/tinted.png"
+      },
       "supportsTablet": true,
       "isTabletOnly": true,
       "requireFullScreen": true,

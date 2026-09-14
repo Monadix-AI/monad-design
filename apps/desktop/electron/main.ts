@@ -63,6 +63,9 @@ const createWindow = () => {
 void app
   .whenReady()
   .then(async () => {
+    if (process.platform === 'darwin' && !app.isPackaged) {
+      app.dock?.setIcon(join(app.getAppPath(), 'build', 'dock-icon.png'));
+    }
     await replacePreviousDevelopmentInstance();
     await core.start();
     core.subscribeToAgentSession((session) => {
