@@ -3,10 +3,12 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  ErrorComponent,
   lazyRouteComponent
 } from '@tanstack/react-router';
 
 import { RootRoute } from './routes/root-route';
+import { showViteRuntimeOverlay } from './vite-runtime-overlay';
 
 const rootRoute = createRootRoute({
   component: RootRoute
@@ -28,7 +30,9 @@ const routeTree = rootRoute.addChildren([indexRoute, workspaceRoute]);
 
 export const router = createRouter({
   routeTree,
-  history: createHashHistory()
+  history: createHashHistory(),
+  defaultErrorComponent: ErrorComponent,
+  defaultOnCatch: showViteRuntimeOverlay
 });
 
 declare module '@tanstack/react-router' {
