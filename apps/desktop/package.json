@@ -2,7 +2,7 @@
   "name": "@monaddesign/client",
   "version": "0.0.0",
   "build": {
-    "appId": "design.mona.client",
+    "appId": "ai.monadix.design",
     "productName": "Monad Design",
     "directories": {
       "output": "release"

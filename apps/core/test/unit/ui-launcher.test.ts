@@ -12,7 +12,7 @@ describe('launchPreferredUi', () => {
     });
 
     expect(result).toBe('desktop');
-    expect(calls).toEqual([['-b', 'design.mona.client']]);
+    expect(calls).toEqual([['-b', 'ai.monadix.design']]);
   });
 
   test('falls back to the browser when Desktop is unavailable', async () => {
@@ -26,7 +26,7 @@ describe('launchPreferredUi', () => {
     });
 
     expect(result).toBe('browser');
-    expect(calls).toEqual([['-b', 'design.mona.client'], [url]]);
+    expect(calls).toEqual([['-b', 'ai.monadix.design'], [url]]);
   });
 
   test('does not reject when neither UI can be opened', async () => {
