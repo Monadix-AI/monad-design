@@ -22,7 +22,7 @@
     "expo-constants": "~57.0.18",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.3",
-    "expo-linking": "~57.0.10",
+    "expo-linking": "~58.0.0",
     "expo-router": "~57.0.21",
     "expo-status-bar": "~57.0.1",
     "lucide-react-native": "^1.45.0",
