@@ -40,6 +40,9 @@ export const parseSimulatorOrientation = (value: string): SimulatorOrientation |
 
 const loadSimulatorOrientation = createSharedOperation(
   async (udid: string): Promise<SimulatorOrientation> => {
+    const simulator = (await listAvailableSimulators()).find((item) => item.udid === udid);
+    // Apple TV framebuffers are already landscape; the canvas uses portrait for no rotation.
+    if (simulator?.runtime.startsWith('tvOS')) return 'portrait';
     try {
       const { stdout } = await execFileAsync(
         'xcrun',

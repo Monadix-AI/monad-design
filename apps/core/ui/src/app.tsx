@@ -43,6 +43,14 @@ export function App() {
   const [connectLabel, setConnectLabel] = useState('');
   const [selectedUdid, setSelectedUdid] = useState('');
   const [selectedBundleIdentifier, setSelectedBundleIdentifier] = useState('');
+  const selectedTargetPlatform = session?.project.targetApps.find(
+    ({ bundleIdentifier }) => bundleIdentifier === selectedBundleIdentifier
+  )?.platform;
+  const targetRuntime = selectedTargetPlatform === 'tvos' ? 'tvOS' : 'iOS';
+  const targetSimulators = useMemo(
+    () => simulators.filter(({ runtime }) => runtime.startsWith(targetRuntime)),
+    [simulators, targetRuntime]
+  );
   const [agentRequest, setAgentRequest] = useState('');
   const [isRestoringConnection, setIsRestoringConnection] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -136,16 +144,16 @@ export function App() {
   }, [session?.project.targetApps]);
 
   useEffect(() => {
-    if (!simulators.length) return;
+    if (!targetSimulators.length) return;
     setSelectedUdid(
       (current) =>
-        current ||
-        connectionUdid ||
-        simulators.find(({ state }) => state === 'Booted')?.udid ||
-        simulators[0]?.udid ||
+        (targetSimulators.some(({ udid }) => udid === current) ? current : '') ||
+        (targetSimulators.some(({ udid }) => udid === connectionUdid) ? connectionUdid : '') ||
+        targetSimulators.find(({ state }) => state === 'Booted')?.udid ||
+        targetSimulators[0]?.udid ||
         ''
     );
-  }, [connectionUdid, simulators]);
+  }, [connectionUdid, targetSimulators]);
 
   useEffect(() => {
     if (

@@ -555,6 +555,7 @@ export function Workspace({
     }
   };
   const stream = api.streamUrl(connection.streamPath);
+  const isTelevision = simulator.runtime.startsWith('tvOS');
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   const frameSize = simulatorFrameSize({
     screen: screenSize,
@@ -1009,24 +1010,28 @@ export function Workspace({
                   )}
                 </View>
                 <GlassSurface style={styles.deviceControls}>
-                  <CanvasControl
-                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
-                    icon="arrow-undo"
-                    label="Rotate left"
-                    onPress={() => rotate('left')}
-                  />
+                  {!isTelevision && (
+                    <CanvasControl
+                      disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                      icon="arrow-undo"
+                      label="Rotate left"
+                      onPress={() => rotate('left')}
+                    />
+                  )}
                   <CanvasControl
                     disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
                     icon="home-outline"
                     label="Home"
                     onPress={() => send(0x04, { button: 'home' })}
                   />
-                  <CanvasControl
-                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
-                    icon={appearance === 'dark' ? 'moon-outline' : 'sunny-outline'}
-                    label={appearance === 'dark' ? 'Dark' : 'Light'}
-                    onPress={() => void changeAppearance(appearance === 'dark' ? 'light' : 'dark')}
-                  />
+                  {!isTelevision && (
+                    <CanvasControl
+                      disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                      icon={appearance === 'dark' ? 'moon-outline' : 'sunny-outline'}
+                      label={appearance === 'dark' ? 'Dark' : 'Light'}
+                      onPress={() => void changeAppearance(appearance === 'dark' ? 'light' : 'dark')}
+                    />
+                  )}
                   <CanvasControl
                     disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
                     icon="lock-closed-outline"
@@ -1039,12 +1044,14 @@ export function Workspace({
                     label="Paste"
                     onPress={() => setPasteVisible(true)}
                   />
-                  <CanvasControl
-                    disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
-                    icon="arrow-redo"
-                    label="Rotate right"
-                    onPress={() => rotate('right')}
-                  />
+                  {!isTelevision && (
+                    <CanvasControl
+                      disabled={toolsDisabled || selectionMode || Boolean(annotationImage)}
+                      icon="arrow-redo"
+                      label="Rotate right"
+                      onPress={() => rotate('right')}
+                    />
+                  )}
                 </GlassSurface>
               </View>
             </View>

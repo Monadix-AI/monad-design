@@ -30,7 +30,14 @@ export const remoteProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
   lastOpenedAt: z.string(),
-  targetApps: z.array(z.object({ bundleIdentifier: z.string(), name: z.string(), sourcePath: z.string().optional() }))
+  targetApps: z.array(
+    z.object({
+      bundleIdentifier: z.string(),
+      name: z.string(),
+      sourcePath: z.string().optional(),
+      platform: z.enum(['ios', 'tvos']).optional()
+    })
+  )
 });
 export type RemoteProject = z.infer<typeof remoteProjectSchema>;
 export const listProjectsResponseSchema = z.object({
@@ -86,6 +93,7 @@ export const coreProjectTargetSchema = z.object({
   bundleIdentifier: z.string().min(1),
   name: z.string().min(1),
   sourcePath: z.string().optional(),
+  platform: z.enum(['ios', 'tvos']).optional(),
   live: projectFrameworkAdapterSchema.optional()
 });
 export type CoreProjectTarget = z.infer<typeof coreProjectTargetSchema>;
@@ -125,7 +133,8 @@ export const projectTargetCandidateSchema = z.object({
   bundleIdentifier: z.string(),
   name: z.string(),
   source: z.enum(['project-config', 'expo', 'xcode']),
-  sourcePath: z.string()
+  sourcePath: z.string(),
+  platform: z.enum(['ios', 'tvos'])
 });
 export const projectTargetDetectionSchema = z.object({
   candidates: z.array(projectTargetCandidateSchema),

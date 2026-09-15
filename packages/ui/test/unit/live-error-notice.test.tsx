@@ -31,4 +31,11 @@ describe('live error notice', () => {
     expect(markup).toContain('Connection timed out.');
     expect(markup).toContain('Internal stack trace');
   });
+
+  test('explains a missing Apple TV build', () => {
+    const explanation = explainLiveError(
+      'Could not select a unique Debug tvOS Simulator scheme for test.tvtest (0 matches).'
+    );
+    expect(explanation.title).toBe('No Apple TV Simulator app found');
+  });
 });

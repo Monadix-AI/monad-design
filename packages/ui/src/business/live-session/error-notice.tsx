@@ -5,26 +5,33 @@ interface ErrorExplanation {
 }
 
 export const explainLiveError = (message: string): ErrorExplanation => {
+  if (/Could not select a unique Debug tvOS Simulator scheme.*\(0 matches\)/s.test(message)) {
+    return {
+      title: 'No Apple TV Simulator app found',
+      summary: 'The selected target does not have a matching Debug app for Apple TV Simulator.',
+      nextStep: 'In Xcode, check the tvOS app target, Debug scheme, and selected bundle ID.'
+    };
+  }
   if (/Could not select a unique Debug Simulator scheme.*\(0 matches\)/s.test(message)) {
     return {
       title: 'No iOS Simulator app found',
       summary: 'The selected target does not have a matching Debug app for iPhone Simulator.',
       nextStep:
-        'In Xcode, check that this is an iOS app target, its scheme builds that app, and its bundle ID matches the selected target. Apple TV apps require a tvOS workflow.'
+        'In Xcode, check that this is an iOS app target, its scheme builds that app, and its bundle ID matches the selected target. Apple TV apps require a tvOS target and Apple TV Simulator.'
     };
   }
-  if (/Could not select a unique Debug Simulator scheme/.test(message)) {
+  if (/Could not select a unique Debug (?:tvOS Simulator|Simulator) scheme/.test(message)) {
     return {
       title: 'More than one Simulator build matches',
       summary: 'Monad Design cannot tell which Debug app to build.',
       nextStep: 'Set live.build.containerPath and live.build.scheme for the app you want to run.'
     };
   }
-  if (/The built app must be an iOS Simulator app/.test(message)) {
+  if (/The built app must be (?:an iOS|a tvOS) Simulator app/.test(message)) {
     return {
-      title: 'Built app is not for iPhone Simulator',
+      title: 'Built app is for the wrong Simulator',
       summary: 'The build output has the wrong platform or bundle ID.',
-      nextStep: 'Choose an iOS Simulator app artifact with the selected target’s bundle ID.'
+      nextStep: 'Choose a Simulator app artifact for the selected target’s platform and bundle ID.'
     };
   }
   if (/is not installed on the selected Simulator/.test(message)) {

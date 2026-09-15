@@ -88,6 +88,14 @@ export function useDesktopController() {
     () => sortSimulatorsForProject(simulators, usedSimulatorUdids),
     [simulators, usedSimulatorUdids]
   );
+  const selectedTargetPlatform = activeProject?.targetApps.find(
+    ({ bundleIdentifier }) => bundleIdentifier === selectedTargetBundleIdentifier
+  )?.platform;
+  const expectedRuntime = selectedTargetPlatform === 'tvos' ? 'tvOS' : 'iOS';
+  const targetSimulators = useMemo(
+    () => orderedSimulators.filter(({ runtime }) => runtime.startsWith(expectedRuntime)),
+    [orderedSimulators, expectedRuntime]
+  );
   const connected = orderedSimulators.find(({ udid }) => udid === connection?.udid);
   const openedAgentSessionId = useRef<string | null>(null);
   const captureStableScreen = useCallback(
@@ -187,9 +195,9 @@ export function useDesktopController() {
 
   useEffect(() => {
     setSelectedUdid((current) =>
-      orderedSimulators.some(({ udid }) => udid === current) ? current : (orderedSimulators[0]?.udid ?? '')
+      targetSimulators.some(({ udid }) => udid === current) ? current : (targetSimulators[0]?.udid ?? '')
     );
-  }, [orderedSimulators]);
+  }, [targetSimulators]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -329,6 +337,7 @@ export function useDesktopController() {
 
   const connect = async (rebuild = false) => {
     if (!selectedUdid || !activeProject || !selectedTargetBundleIdentifier || !runtimeClient) return;
+    if (!targetSimulators.some(({ udid }) => udid === selectedUdid)) return;
     setIsConnecting(true);
     setIsStreamReady(false);
     setError(null);

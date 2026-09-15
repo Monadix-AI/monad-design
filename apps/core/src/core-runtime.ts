@@ -46,6 +46,7 @@ export const createCoreRuntime = async ({
       await launchSimulatorApp(connection.udid, connection.bundleIdentifier);
     }
   });
+  await agentSessions.refreshActiveProject();
   const server = new CoreServer(projectStore, {
     host,
     port,

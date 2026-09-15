@@ -106,15 +106,17 @@ export function SimulatorsRoute() {
     try {
       const targets =
         detectedCandidates.length > 0
-          ? detectedCandidates.map(({ bundleIdentifier, name, sourcePath }) => ({
+          ? detectedCandidates.map(({ bundleIdentifier, name, sourcePath, platform }) => ({
               bundleIdentifier,
               name,
-              sourcePath
+              sourcePath,
+              platform
             }))
           : [
               {
                 bundleIdentifier: manualBundleIdentifier.trim(),
-                name: manualBundleIdentifier.trim()
+                name: manualBundleIdentifier.trim(),
+                platform: 'ios' as const
               }
             ];
       if (targetSetup.kind === 'new') {

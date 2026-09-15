@@ -14,6 +14,7 @@ export interface ProjectTargetCandidate {
   name: string;
   source: ProjectTargetSource;
   sourcePath: string;
+  platform: 'ios' | 'tvos';
 }
 
 export interface ProjectTargetDetection {
@@ -52,7 +53,8 @@ export const expoTargetCandidate = (value: string, sourcePath: string): ProjectT
             ? parentName
             : 'Expo app',
       source: 'expo',
-      sourcePath
+      sourcePath,
+      platform: 'ios'
     };
   } catch {
     return null;
@@ -60,6 +62,8 @@ export const expoTargetCandidate = (value: string, sourcePath: string): ProjectT
 };
 
 export const xcodeTargetCandidates = (value: string, sourcePath: string): ProjectTargetCandidate[] => {
+  const defaultPlatform: ProjectTargetCandidate['platform'] =
+    /SDKROOT\s*=\s*appletvos\s*;/.test(value) && !/SDKROOT\s*=\s*iphoneos\s*;/.test(value) ? 'tvos' : 'ios';
   const objectBody = (uuid: string) => {
     const assignment = new RegExp(`${uuid}[^=\\n]*=\\s*\\{`).exec(value);
     if (!assignment) return null;
@@ -98,11 +102,17 @@ export const xcodeTargetCandidates = (value: string, sourcePath: string): Projec
       const identifierMatch = /PRODUCT_BUNDLE_IDENTIFIER\s*=\s*(?:"([^"]+)"|([^;\n]+))\s*;/.exec(configuration ?? '');
       const bundleIdentifier = validBundleIdentifier((identifierMatch?.[1] ?? identifierMatch?.[2] ?? '').trim());
       if (bundleIdentifier) {
+        const platform: ProjectTargetCandidate['platform'] =
+          /SDKROOT\s*=\s*appletvos\s*;/.test(configuration ?? '') ||
+          /TARGETED_DEVICE_FAMILY\s*=\s*3\s*;/.test(configuration ?? '')
+            ? 'tvos'
+            : defaultPlatform;
         candidates.push({
           bundleIdentifier,
           name: targetName,
           source: 'xcode',
-          sourcePath
+          sourcePath,
+          platform
         });
       }
     }
@@ -118,10 +128,12 @@ const projectConfigCandidates = (value: string, sourcePath: string): ProjectTarg
     const parsed = JSON.parse(value) as {
       name?: unknown;
       simulator?: {
+        platform?: unknown;
         targetApps?: Array<{
           bundleIdentifier?: unknown;
           name?: unknown;
           sourcePath?: unknown;
+          platform?: unknown;
         }>;
       };
     };
@@ -133,7 +145,11 @@ const projectConfigCandidates = (value: string, sourcePath: string): ProjectTarg
           bundleIdentifier,
           name: typeof app.name === 'string' && app.name.trim() ? app.name.trim() : bundleIdentifier,
           source: 'project-config' as const,
-          sourcePath: typeof app.sourcePath === 'string' && app.sourcePath.trim() ? app.sourcePath : sourcePath
+          sourcePath: typeof app.sourcePath === 'string' && app.sourcePath.trim() ? app.sourcePath : sourcePath,
+          platform:
+            app.platform === 'tvos' || (!app.platform && parsed.simulator?.platform === 'tvos')
+              ? ('tvos' as const)
+              : ('ios' as const)
         }
       ];
     });
@@ -215,6 +231,11 @@ const scanProjectTargets = createSharedOperation(
       }
     }
 
+    const xcodePlatforms = new Map(
+      detected
+        .filter((candidate) => candidate.source === 'xcode')
+        .map((candidate) => [candidate.bundleIdentifier, candidate.platform])
+    );
     const candidates = [...detected]
       .sort(
         (left, right) =>
@@ -224,7 +245,11 @@ const scanProjectTargets = createSharedOperation(
       .filter(
         (candidate, index, items) =>
           items.findIndex((item) => item.bundleIdentifier === candidate.bundleIdentifier) === index
-      );
+      )
+      .map((candidate) => ({
+        ...candidate,
+        platform: xcodePlatforms.get(candidate.bundleIdentifier) ?? candidate.platform
+      }));
 
     return {
       candidates,

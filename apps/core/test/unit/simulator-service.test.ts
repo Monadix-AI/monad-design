@@ -42,7 +42,7 @@ const fixture = (installed = false) => {
   };
   const store: Pick<ProjectStore, 'open'> = { open: async () => project };
   const service = createSimulatorService(store, dependencies);
-  return { service, dependencies, events };
+  return { service, dependencies, events, project };
 };
 
 test('builds missing app, verifies installation, then launches and connects', async () => {
@@ -67,6 +67,29 @@ test('inspection failure does not trigger a build', async () => {
   };
   await expect(f.service.connect('project', 'device', 'com.example.app')).rejects.toThrow('Simulator unavailable');
   expect(f.events).toEqual(['boot']);
+});
+
+test('rejects a tvOS device before checking or building an iOS app', async () => {
+  const f = fixture();
+  f.dependencies.ensureSimulatorBooted = async (udid) => {
+    f.events.push('boot');
+    return { udid, name: 'Apple TV', runtime: 'tvOS 26.5', state: 'Booted', connected: false };
+  };
+  await expect(f.service.connect('project', 'tv-device', 'com.example.app')).rejects.toThrow(
+    'requires an iOS Simulator'
+  );
+  expect(f.events).toEqual(['boot']);
+});
+
+test('accepts a tvOS device for a tvOS target', async () => {
+  const f = fixture();
+  f.project.targetApps = f.project.targetApps.map((target) => ({ ...target, platform: 'tvos' as const }));
+  f.dependencies.ensureSimulatorBooted = async (udid) => {
+    f.events.push('boot');
+    return { udid, name: 'Apple TV', runtime: 'tvOS 26.5', state: 'Booted', connected: false };
+  };
+  await f.service.connect('project', 'tv-device', 'com.example.app');
+  expect(f.events).toEqual(['boot', 'check', 'build', 'check', 'launch', 'bridge']);
 });
 
 test('failed build stops connection and permits retry', async () => {

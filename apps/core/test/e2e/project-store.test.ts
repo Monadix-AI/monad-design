@@ -47,6 +47,38 @@ afterEach(async () => {
 });
 
 describe('project initialization', () => {
+  test('corrects a legacy iOS label for an existing Apple TV Xcode target', async () => {
+    const root = await temporaryDirectory();
+    initializeGit(root);
+    const xcodePath = join(root, 'tvtest.xcodeproj', 'project.pbxproj');
+    await mkdir(join(root, 'tvtest.xcodeproj'));
+    await writeFile(
+      xcodePath,
+      `111111111111111111111111 = {
+      isa = PBXNativeTarget;
+      buildConfigurationList = 222222222222222222222222;
+      name = tvtest;
+      productType = "com.apple.product-type.application";
+    };
+    222222222222222222222222 = { buildConfigurations = (333333333333333333333333); };
+    333333333333333333333333 = { buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = test.tvtest; }; };
+    444444444444444444444444 = { buildSettings = { SDKROOT = appletvos; }; };`,
+      'utf8'
+    );
+    const store = new ProjectStore(join(root, 'state', 'projects.json'));
+    const added = await store.add(root, [
+      { ...target('test.tvtest', 'tvtest'), sourcePath: 'tvtest.xcodeproj/project.pbxproj' }
+    ]);
+    const config = JSON.parse(await readFile(added.configPath, 'utf8'));
+    config.simulator.platform = 'ios';
+    delete config.simulator.targetApps[0].platform;
+    await writeFile(added.configPath, JSON.stringify(config), 'utf8');
+    expect((await store.open(added.id)).targetApps[0]?.platform).toBe('tvos');
+    const migrated = JSON.parse(await readFile(added.configPath, 'utf8'));
+    expect(migrated.simulator.platform).toBe('tvos');
+    expect(migrated.simulator.targetApps[0].platform).toBe('tvos');
+  });
+
   test('writes a durable project configuration without replacing it', async () => {
     const path = await temporaryDirectory();
     initializeGit(path);
@@ -69,7 +101,10 @@ describe('project initialization', () => {
       createdAt: '2026-08-27T08:00:00.000Z',
       simulator: {
         platform: 'ios',
-        targetApps: [target('com.example.sample', 'Sample'), target('com.example.admin', 'Admin')],
+        targetApps: [
+          { ...target('com.example.sample', 'Sample'), platform: 'ios' },
+          { ...target('com.example.admin', 'Admin'), platform: 'ios' }
+        ],
         launchOnConnect: true
       }
     });

@@ -43,6 +43,22 @@ const projectStore = {
 };
 
 describe('agent session store', () => {
+  test('refreshes a persisted session when target platform metadata changes', async () => {
+    const updatedProject = {
+      ...project,
+      targetApps: project.targetApps.map((target) => ({ ...target, platform: 'tvos' as const }))
+    };
+    const sessions = new AgentSessionStore({
+      ...projectStore,
+      list: async () => [updatedProject]
+    });
+    const created = await sessions.create('/tmp/example');
+    expect(created.project.targetApps[0]?.platform).toBeUndefined();
+    await sessions.refreshActiveProject();
+    expect(sessions.active()?.project.targetApps[0]?.platform).toBe('tvos');
+    expect(sessions.active()?.revision).toBe(created.revision + 1);
+  });
+
   test('publishes the requested variants, returns the confirmed selection, and completes after cleanup', async () => {
     const changes: AgentSessionSnapshot[] = [];
     const restarts: AgentSessionSnapshot[] = [];

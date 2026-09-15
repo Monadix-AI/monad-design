@@ -84,12 +84,20 @@ export function SimulatorPicker({
   const [connectSimulator, connectState] = useConnectSimulatorMutation();
   const availableSimulators = data ? simulatorSelectors.selectAll(data.simulators) : [];
   const [usedSimulatorUdids, setUsedSimulatorUdids] = useState<string[]>([]);
-  const simulators = useMemo(
-    () => sortSimulatorsForProject(availableSimulators, usedSimulatorUdids),
-    [availableSimulators, usedSimulatorUdids]
-  );
   const [selected, setSelected] = useState('');
   const [selectedTarget, setSelectedTarget] = useState(project.targetApps[0]?.bundleIdentifier ?? '');
+  const targetPlatform = project.targetApps.find(
+    ({ bundleIdentifier }) => bundleIdentifier === selectedTarget
+  )?.platform;
+  const expectedRuntime = targetPlatform === 'tvos' ? 'tvOS' : 'iOS';
+  const simulators = useMemo(
+    () =>
+      sortSimulatorsForProject(
+        availableSimulators.filter(({ runtime }) => runtime.startsWith(expectedRuntime)),
+        usedSimulatorUdids
+      ),
+    [availableSimulators, expectedRuntime, usedSimulatorUdids]
+  );
   const [actionError, setActionError] = useState<string | null>(null);
   const { currentData: connectStatus } = useGetSimulatorConnectStatusQuery(
     { projectId: project.id, udid: selected, bundleIdentifier: selectedTarget },

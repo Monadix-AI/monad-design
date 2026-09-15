@@ -36,6 +36,7 @@ export interface LiveSimulatorWorkspaceCanvasProps
   canvasScale: number;
   deviceName: string;
   isAppearanceChanging?: boolean;
+  isTelevision?: boolean;
   mode: LiveWorkspaceMode;
   onChangeAppearance: () => void;
   onHome: () => void;
@@ -76,6 +77,7 @@ export function LiveSimulatorWorkspaceCanvas({
   canvasScale,
   deviceName,
   isAppearanceChanging = false,
+  isTelevision = false,
   mode,
   onChangeAppearance,
   onHome,
@@ -173,6 +175,8 @@ export function LiveSimulatorWorkspaceCanvas({
                 onRotateLeft={onRotateLeft}
                 onRotateRight={onRotateRight}
                 scale={canvasScale}
+                supportsAppearance={!isTelevision}
+                supportsRotation={!isTelevision}
               />
             }
             overlay={

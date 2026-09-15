@@ -26,7 +26,7 @@ const fixture = async () => {
           buildSettings: {
             PRODUCT_BUNDLE_IDENTIFIER: target.bundleIdentifier,
             WRAPPER_EXTENSION: 'app',
-            PLATFORM_NAME: 'iphonesimulator',
+            PLATFORM_NAME: target.platform === 'tvos' ? 'appletvsimulator' : 'iphonesimulator',
             TARGET_BUILD_DIR: '/tmp/products',
             FULL_PRODUCT_NAME: 'Example.app'
           }
@@ -35,7 +35,7 @@ const fixture = async () => {
     if (command === '/usr/bin/plutil')
       return JSON.stringify({
         CFBundleIdentifier: target.bundleIdentifier,
-        CFBundleSupportedPlatforms: ['iPhoneSimulator']
+        CFBundleSupportedPlatforms: [target.platform === 'tvos' ? 'AppleTVSimulator' : 'iPhoneSimulator']
       });
     return '';
   };
@@ -51,6 +51,16 @@ test('discovers a scheme, builds Debug for the selected Simulator, validates and
   expect(build?.args).toContain('Debug');
   expect(build?.args).toContain('platform=iOS Simulator,id=device-123');
   expect(f.calls.at(-1)?.args).toEqual(['simctl', 'install', 'device-123', '/tmp/products/Example.app']);
+});
+
+test('builds and installs a tvOS target with the Apple TV Simulator SDK and destination', async () => {
+  const f = await fixture();
+  f.target.platform = 'tvos';
+  await buildAndInstallSimulatorApp(f, f.target, 'tv-device', undefined, f.runner);
+  const build = f.calls.find(({ args }) => args.includes('build'));
+  expect(build?.args).toContain('appletvsimulator');
+  expect(build?.args).toContain('platform=tvOS Simulator,id=tv-device');
+  expect(f.calls.at(-1)?.args).toEqual(['simctl', 'install', 'tv-device', '/tmp/products/Example.app']);
 });
 
 test('never installs an app with the wrong bundle ID or device platform', async () => {

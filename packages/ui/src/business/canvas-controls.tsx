@@ -119,6 +119,8 @@ export function SimulatorDeviceControls({
   appearanceIcon,
   homeIcon,
   isAppearanceChanging = false,
+  supportsAppearance = true,
+  supportsRotation = true,
   disabled = false,
   onChangeAppearance,
   onHome,
@@ -132,6 +134,8 @@ export function SimulatorDeviceControls({
   appearanceIcon?: ReactNode;
   homeIcon?: ReactNode;
   isAppearanceChanging?: boolean;
+  supportsAppearance?: boolean;
+  supportsRotation?: boolean;
   disabled?: boolean;
   onChangeAppearance: () => void;
   onHome: () => void;
@@ -147,16 +151,18 @@ export function SimulatorDeviceControls({
       style={{ top: `calc(100% + ${canvasFitGap / scale}px)`, transform: `translateX(-50%) scale(${1 / scale})` }}
     >
       <legend className="sr-only">Simulator controls</legend>
-      <Button
-        aria-label="Rotate Simulator left"
-        disabled={disabled}
-        onClick={onRotateLeft}
-        type="button"
-        variant="ghost"
-      >
-        {rotateLeftIcon ?? <ActionIcon icon={RotateCcwIcon} />}
-        <span>Rotate</span>
-      </Button>
+      {supportsRotation ? (
+        <Button
+          aria-label="Rotate Simulator left"
+          disabled={disabled}
+          onClick={onRotateLeft}
+          type="button"
+          variant="ghost"
+        >
+          {rotateLeftIcon ?? <ActionIcon icon={RotateCcwIcon} />}
+          <span>Rotate</span>
+        </Button>
+      ) : null}
       <Button
         disabled={disabled}
         onClick={onHome}
@@ -166,25 +172,29 @@ export function SimulatorDeviceControls({
         {homeIcon ?? <ActionIcon icon={Home01Icon} />}
         <span>Home</span>
       </Button>
-      <Button
-        disabled={disabled || isAppearanceChanging}
-        onClick={onChangeAppearance}
-        type="button"
-        variant="ghost"
-      >
-        {appearanceIcon ?? <ActionIcon icon={appearance === 'dark' ? Moon02Icon : Sun03Icon} />}
-        <span>{appearance === 'dark' ? 'Dark' : 'Light'}</span>
-      </Button>
-      <Button
-        aria-label="Rotate Simulator right"
-        disabled={disabled}
-        onClick={onRotateRight}
-        type="button"
-        variant="ghost"
-      >
-        {rotateRightIcon ?? <ActionIcon icon={RotateCwIcon} />}
-        <span>Rotate</span>
-      </Button>
+      {supportsAppearance ? (
+        <Button
+          disabled={disabled || isAppearanceChanging}
+          onClick={onChangeAppearance}
+          type="button"
+          variant="ghost"
+        >
+          {appearanceIcon ?? <ActionIcon icon={appearance === 'dark' ? Moon02Icon : Sun03Icon} />}
+          <span>{appearance === 'dark' ? 'Dark' : 'Light'}</span>
+        </Button>
+      ) : null}
+      {supportsRotation ? (
+        <Button
+          aria-label="Rotate Simulator right"
+          disabled={disabled}
+          onClick={onRotateRight}
+          type="button"
+          variant="ghost"
+        >
+          {rotateRightIcon ?? <ActionIcon icon={RotateCwIcon} />}
+          <span>Rotate</span>
+        </Button>
+      ) : null}
     </fieldset>
   );
 }

@@ -6,6 +6,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 
 import { assertGitProjectRoot } from './git-project-root';
 import { resolveProjectTargetIcons } from './project-app-icons';
+import { xcodeTargetCandidates } from './project-target-detection';
 import { createSharedOperation } from './shared-operation';
 import { assertBundleIdentifier } from './simulator-variants';
 
@@ -31,6 +32,7 @@ export interface ProjectTargetApp {
   bundleIdentifier: string;
   name: string;
   sourcePath?: string;
+  platform?: 'ios' | 'tvos';
   live?: ProjectFrameworkAdapter;
 }
 
@@ -67,7 +69,7 @@ interface ProjectConfigFile {
   name: string;
   createdAt: string;
   simulator: {
-    platform: 'ios';
+    platform: 'ios' | 'tvos';
     targetApps: ProjectTargetApp[];
     launchOnConnect: true;
   };
@@ -248,7 +250,7 @@ const parseConfig = (value: string, path: string): ProjectConfig => {
   }
   const simulator = config.simulator as Partial<ProjectConfigFile['simulator']>;
   if (
-    simulator?.platform !== 'ios' ||
+    (simulator?.platform !== 'ios' && simulator?.platform !== 'tvos') ||
     simulator.launchOnConnect !== true ||
     !Array.isArray(simulator.targetApps) ||
     simulator.targetApps.length === 0
@@ -259,7 +261,8 @@ const parseConfig = (value: string, path: string): ProjectConfig => {
     if (
       typeof app?.name !== 'string' ||
       !app.name.trim() ||
-      (app.sourcePath !== undefined && typeof app.sourcePath !== 'string')
+      (app.sourcePath !== undefined && typeof app.sourcePath !== 'string') ||
+      (app.platform !== undefined && app.platform !== 'ios' && app.platform !== 'tvos')
     ) {
       throw new Error(`Invalid Monad Design project configuration at ${path}.`);
     }
@@ -274,11 +277,31 @@ const parseConfig = (value: string, path: string): ProjectConfig => {
       ...parsed.simulator,
       targetApps: parsed.simulator.targetApps.map((app) => ({
         ...app,
+        platform: app.platform ?? parsed.simulator.platform,
         ...(app.live ? { live: assertFrameworkAdapter(app.live, path) } : {})
       }))
     }
   };
 };
+
+const resolveXcodeTargetPlatform = async (root: string, target: ProjectTargetApp) => {
+  if (!target.sourcePath?.endsWith('/project.pbxproj')) return target.platform;
+  try {
+    const source = resolve(root, target.sourcePath);
+    const candidates = xcodeTargetCandidates(await readFile(source, 'utf8'), target.sourcePath);
+    return (
+      candidates.find(({ bundleIdentifier }) => bundleIdentifier === target.bundleIdentifier)?.platform ??
+      target.platform
+    );
+  } catch {
+    return target.platform;
+  }
+};
+
+const withTargetPlatform = async (root: string, targets: ProjectTargetApp[]) =>
+  Promise.all(
+    targets.map(async (target) => ({ ...target, platform: (await resolveXcodeTargetPlatform(root, target)) ?? 'ios' }))
+  );
 
 const writeProjectConfig = async (path: string, config: ProjectConfigFile) => {
   await mkdir(dirname(path), { recursive: true });
@@ -347,7 +370,7 @@ export const initializeProject = async (
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
   if (targets.length === 0) throw new Error('At least one target app is required.');
-  const apps = targets
+  const apps = (await withTargetPlatform(path, targets))
     .map((target) => {
       const existingTarget = existingConfig?.simulator.targetApps.find(
         ({ bundleIdentifier }) => bundleIdentifier === target.bundleIdentifier
@@ -356,6 +379,7 @@ export const initializeProject = async (
         bundleIdentifier: assertBundleIdentifier(target.bundleIdentifier),
         name: target.name.trim() || target.bundleIdentifier,
         ...(target.sourcePath ? { sourcePath: target.sourcePath } : {}),
+        platform: target.platform,
         ...((target.live ?? existingTarget?.live) ? { live: target.live ?? existingTarget?.live } : {})
       };
     })
@@ -367,7 +391,7 @@ export const initializeProject = async (
     name: existingConfig?.name ?? basename(path),
     createdAt: existingConfig?.createdAt ?? now.toISOString(),
     simulator: {
-      platform: 'ios',
+      platform: apps.every(({ platform }) => platform === 'tvos') ? 'tvos' : 'ios',
       targetApps: apps,
       launchOnConnect: true
     }
@@ -400,13 +424,24 @@ export class ProjectStore {
           await access(item.path);
           const configPath = projectConfigPath(item.path);
           const config = parseConfig(await readFile(configPath, 'utf8'), configPath);
+          const targetApps = await withTargetPlatform(item.path, config.simulator.targetApps);
+          const platform = targetApps.every(({ platform }) => platform === 'tvos') ? 'tvos' : 'ios';
+          if (
+            config.simulator.platform !== platform ||
+            JSON.stringify(config.simulator.targetApps) !== JSON.stringify(targetApps)
+          ) {
+            await writeProjectConfig(configPath, {
+              ...config,
+              simulator: { ...config.simulator, platform, targetApps }
+            });
+          }
           return {
             id: projectId(item.path),
             name: config.name,
             path: item.path,
             configPath,
             lastOpenedAt: item.lastOpenedAt,
-            targetApps: config.simulator.targetApps
+            targetApps
           };
         } catch {
           return null;
@@ -414,7 +449,7 @@ export class ProjectStore {
       })
     );
     return projects
-      .filter((project): project is MonadDesignProject => project !== null)
+      .filter((project): project is NonNullable<typeof project> => project !== null)
       .sort((left, right) => right.lastOpenedAt.localeCompare(left.lastOpenedAt));
   }
 

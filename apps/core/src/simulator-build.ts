@@ -26,12 +26,12 @@ const run: BuildRunner = async (command, args, cwd) => {
 };
 
 type BuildSettings = { buildSettings: Record<string, string> };
-const applicationSettings = (output: string, bundleIdentifier: string) =>
+const applicationSettings = (output: string, bundleIdentifier: string, platform: string) =>
   (JSON.parse(output) as BuildSettings[]).filter(
     ({ buildSettings: settings }) =>
       settings.PRODUCT_BUNDLE_IDENTIFIER === bundleIdentifier &&
       settings.WRAPPER_EXTENSION === 'app' &&
-      settings.PLATFORM_NAME === 'iphonesimulator'
+      settings.PLATFORM_NAME === platform
   );
 
 // Search only project sources, never dependency trees or generated build products.
@@ -64,6 +64,9 @@ export const buildAndInstallSimulatorApp = async (
   runner: BuildRunner = run
 ) => {
   const build = target.live?.build;
+  const tvos = target.platform === 'tvos';
+  const sdk = tvos ? 'appletvsimulator' : 'iphonesimulator';
+  const destination = tvos ? 'tvOS Simulator' : 'iOS Simulator';
   const cwd = resolve(project.path, build?.workingDirectory ?? '.');
   const buildPath = async (path: string) => {
     const local = resolve(cwd, path);
@@ -126,9 +129,9 @@ export const buildAndInstallSimulatorApp = async (
             '-configuration',
             'Debug',
             '-sdk',
-            'iphonesimulator',
+            sdk,
             '-destination',
-            `platform=iOS Simulator,id=${udid}`,
+            `platform=${destination},id=${udid}`,
             '-derivedDataPath',
             temporaryDirectory,
             'CODE_SIGNING_ALLOWED=NO'
@@ -136,7 +139,8 @@ export const buildAndInstallSimulatorApp = async (
           try {
             const settings = applicationSettings(
               await runner('xcodebuild', [...args, '-showBuildSettings', '-json'], cwd),
-              target.bundleIdentifier
+              target.bundleIdentifier,
+              sdk
             );
             for (const item of settings) matches.push({ args, settings: item.buildSettings });
           } catch (error) {
@@ -146,7 +150,7 @@ export const buildAndInstallSimulatorApp = async (
       }
       if (matches.length !== 1) {
         throw new Error(
-          `Could not select a unique Debug Simulator scheme for ${target.bundleIdentifier} (${matches.length} matches). Configure live.build.containerPath and live.build.scheme.\n${diagnostics.join('\n').slice(-8_000)}`
+          `Could not select a unique Debug ${destination} scheme for ${target.bundleIdentifier} (${matches.length} matches). Configure live.build.containerPath and live.build.scheme.\n${diagnostics.join('\n').slice(-8_000)}`
         );
       }
       const match = matches[0];
@@ -164,9 +168,11 @@ export const buildAndInstallSimulatorApp = async (
     };
     if (
       info.CFBundleIdentifier !== target.bundleIdentifier ||
-      !info.CFBundleSupportedPlatforms?.includes('iPhoneSimulator')
+      !info.CFBundleSupportedPlatforms?.includes(tvos ? 'AppleTVSimulator' : 'iPhoneSimulator')
     ) {
-      throw new Error(`The built app must be an iOS Simulator app with bundle identifier ${target.bundleIdentifier}.`);
+      throw new Error(
+        `The built app must be ${tvos ? 'a' : 'an'} ${destination} app with bundle identifier ${target.bundleIdentifier}.`
+      );
     }
     onPhase('installing');
     await runner('xcrun', ['simctl', 'install', udid, artifact], cwd);

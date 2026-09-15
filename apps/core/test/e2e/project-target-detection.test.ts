@@ -38,7 +38,8 @@ describe('project target detection', () => {
       bundleIdentifier: 'com.example.mobile',
       name: 'Example',
       source: 'expo',
-      sourcePath: 'apps/mobile/app.json'
+      sourcePath: 'apps/mobile/app.json',
+      platform: 'ios'
     });
   });
 
@@ -79,9 +80,29 @@ describe('project target detection', () => {
         bundleIdentifier: 'com.example.native',
         name: 'Example',
         source: 'xcode',
-        sourcePath: 'ios/Example.xcodeproj/project.pbxproj'
+        sourcePath: 'ios/Example.xcodeproj/project.pbxproj',
+        platform: 'ios'
       }
     ]);
+  });
+
+  test('detects an Apple TV app from its Xcode SDK', () => {
+    const project = `111111111111111111111111 = {
+      isa = PBXNativeTarget;
+      buildConfigurationList = 222222222222222222222222;
+      name = tvtest;
+      productType = "com.apple.product-type.application";
+    };
+    222222222222222222222222 = {
+      buildConfigurations = (333333333333333333333333);
+    };
+    333333333333333333333333 = {
+      buildSettings = { PRODUCT_BUNDLE_IDENTIFIER = test.tvtest; };
+    };
+    444444444444444444444444 = {
+      buildSettings = { SDKROOT = appletvos; };
+    };`;
+    expect(xcodeTargetCandidates(project, 'tvtest.xcodeproj/project.pbxproj')[0]?.platform).toBe('tvos');
   });
 
   test('scans nested Expo and Xcode projects and keeps one candidate per app', async () => {
@@ -125,7 +146,8 @@ describe('project target detection', () => {
         bundleIdentifier: 'com.example.mobile',
         name: 'Example',
         source: 'expo',
-        sourcePath: 'apps/mobile/app.json'
+        sourcePath: 'apps/mobile/app.json',
+        platform: 'ios'
       }
     ]);
     expect(result.warnings).toEqual([]);
@@ -178,7 +200,8 @@ describe('project target detection', () => {
         bundleIdentifier: 'com.example.configured',
         name: 'Configured Example',
         source: 'project-config',
-        sourcePath: '.monaddesign/project.json'
+        sourcePath: '.monaddesign/project.json',
+        platform: 'ios'
       }
     ]);
   });

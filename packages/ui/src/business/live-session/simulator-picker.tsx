@@ -13,6 +13,7 @@ import { SimulatorDeviceGlyph } from './simulator-device-glyph';
 export interface SimulatorPickerTarget {
   bundleIdentifier: string;
   name: string;
+  platform?: 'ios' | 'tvos';
 }
 
 export interface SimulatorPickerDevice {
@@ -65,8 +66,11 @@ export function LiveSessionSimulatorPicker({
   targetIcon?: (target: SimulatorPickerTarget) => ReactNode;
   targets: SimulatorPickerTarget[];
 }) {
-  const selectedSimulator = simulators.find(({ udid }) => udid === selectedSimulatorUdid);
-  const showSkeleton = isScanning && simulators.length === 0;
+  const selectedTarget = targets.find(({ bundleIdentifier }) => bundleIdentifier === selectedTargetBundleIdentifier);
+  const expectedRuntime = selectedTarget?.platform === 'tvos' ? 'tvOS' : 'iOS';
+  const matchingSimulators = simulators.filter(({ runtime }) => runtime.startsWith(expectedRuntime));
+  const selectedSimulator = matchingSimulators.find(({ udid }) => udid === selectedSimulatorUdid);
+  const showSkeleton = isScanning && matchingSimulators.length === 0;
   return (
     <section
       className={`simulator-list-page simulator-list-panel simulator-picker-layout-rail ${className ?? ''}`.trim()}
@@ -136,7 +140,7 @@ export function LiveSessionSimulatorPicker({
           <span className="picker-count">
             {showSkeleton
               ? 'Loading simulators…'
-              : `${simulators.length} ${simulators.length === 1 ? 'device' : 'devices'}`}
+              : `${matchingSimulators.length} ${matchingSimulators.length === 1 ? 'device' : 'devices'}`}
           </span>
         </div>
         <RadioGroup.Root
@@ -164,7 +168,7 @@ export function LiveSessionSimulatorPicker({
                 </div>
               ))
             : null}
-          {simulators.map((simulator) => (
+          {matchingSimulators.map((simulator) => (
             <RadioGroup.Item
               className="device-card"
               disabled={isConnecting}
@@ -187,11 +191,11 @@ export function LiveSessionSimulatorPicker({
               </AnimatedBadge>
             </RadioGroup.Item>
           ))}
-          {!isScanning && simulators.length === 0 ? (
+          {!isScanning && matchingSimulators.length === 0 ? (
             <div className="empty-list">
               <div className="empty-device" />
               <strong>No available simulators</strong>
-              <span>Install an iOS Simulator runtime in Xcode.</span>
+              <span>Install a {expectedRuntime} Simulator runtime in Xcode.</span>
             </div>
           ) : null}
         </RadioGroup.Root>
@@ -201,7 +205,7 @@ export function LiveSessionSimulatorPicker({
         <div className="flex flex-col gap-2">
           <StatefulButton
             className="connect-button"
-            disabled={!selectedSimulatorUdid || !selectedTargetBundleIdentifier || isConnecting}
+            disabled={!selectedSimulator || !selectedTargetBundleIdentifier || isConnecting}
             loadingText={
               connectLabel ?? (selectedSimulator?.state === 'Shutdown' ? 'Starting Simulator…' : 'Connecting…')
             }

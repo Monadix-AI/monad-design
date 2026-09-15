@@ -16,9 +16,10 @@ const publicSession = (session: AgentSessionSnapshot): typeof agentSessionSnapsh
     id: session.project.id,
     name: session.project.name,
     lastOpenedAt: session.project.lastOpenedAt,
-    targetApps: session.project.targetApps.map(({ bundleIdentifier, name, sourcePath }) => ({
+    targetApps: session.project.targetApps.map(({ bundleIdentifier, name, sourcePath, platform }) => ({
       bundleIdentifier,
       name,
+      ...(platform ? { platform } : {}),
       ...(sourcePath ? { sourcePath } : {})
     }))
   }

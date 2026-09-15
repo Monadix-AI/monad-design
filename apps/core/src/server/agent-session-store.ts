@@ -92,6 +92,16 @@ export class AgentSessionStore {
     return this.#activeId ? this.get(this.#activeId) : null;
   }
 
+  async refreshActiveProject() {
+    const session = this.#activeId ? this.#sessions.get(this.#activeId) : null;
+    if (!session) return;
+    const project = (await this.projectStore.list()).find(({ id }) => id === session.project.id);
+    if (!project) return;
+    if (JSON.stringify(project.targetApps) !== JSON.stringify(session.project.targetApps)) {
+      this.#update(session, { project });
+    }
+  }
+
   get(id: string) {
     const session = this.#sessions.get(id);
     if (!session) throw new CoreApiError(404, 'NOT_FOUND', 'Agent session not found.');

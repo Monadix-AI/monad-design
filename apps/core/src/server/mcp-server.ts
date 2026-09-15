@@ -159,12 +159,17 @@ const ensureProjectBinding = async (projects: ProjectResolver, workspacePath: st
     throw new CoreApiError(
       409,
       'CONFLICT',
-      `Monad Design could not bind ${root}: no explicit iOS Bundle ID was detected in Expo or Xcode project metadata.`
+      `Monad Design could not bind ${root}: no explicit iOS or tvOS Bundle ID was detected in Expo or Xcode project metadata.`
     );
   }
   await projects.add(
     root,
-    detection.candidates.map(({ bundleIdentifier, name, sourcePath }) => ({ bundleIdentifier, name, sourcePath }))
+    detection.candidates.map(({ bundleIdentifier, name, sourcePath, platform }) => ({
+      bundleIdentifier,
+      name,
+      sourcePath,
+      platform
+    }))
   );
 };
 

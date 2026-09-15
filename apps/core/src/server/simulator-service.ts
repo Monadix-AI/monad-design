@@ -50,7 +50,15 @@ export const createSimulatorService = (
         if (!target) {
           throw new CoreApiError(404, 'NOT_FOUND', 'The requested project target app is not available.');
         }
-        await dependencies.ensureSimulatorBooted(udid);
+        const simulator = await dependencies.ensureSimulatorBooted(udid);
+        const expectedRuntime = target.platform === 'tvos' ? 'tvOS' : 'iOS';
+        if (!simulator.runtime.startsWith(expectedRuntime)) {
+          throw new CoreApiError(
+            400,
+            'BAD_REQUEST',
+            `The selected target requires ${expectedRuntime === 'iOS' ? 'an' : 'a'} ${expectedRuntime} Simulator, but ${simulator.name} runs ${simulator.runtime}.`
+          );
+        }
         operation.phase = 'checking';
         let needsBuild = rebuild;
         if (!needsBuild) {
