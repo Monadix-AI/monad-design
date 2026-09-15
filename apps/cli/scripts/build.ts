@@ -6,6 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = resolve(root, '..', '..');
 const output = join(root, 'dist');
 const skillSource = join(repositoryRoot, '.agents', 'skills', 'monad-design');
+const licenseSource = join(repositoryRoot, 'apps', 'desktop', 'licenses');
 const releaseTargets = ['arm64', 'x64'].map((arch) => ({
   platform: 'darwin' as const,
   arch,
@@ -51,6 +52,10 @@ for (const target of releaseTargets) {
 await cp(coreNativeAddonPath, join(output, 'assets', 'core', 'native', 'serve-sim-native.node'));
 await chmod(join(output, 'assets', 'core', 'native', 'serve-sim-native.node'), 0o755);
 await cp(skillSource, join(output, 'assets', 'skill'), { recursive: true });
+await mkdir(join(output, 'assets', 'licenses'), { recursive: true });
+for (const filename of ['beUI-LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+  await cp(join(licenseSource, filename), join(output, 'assets', 'licenses', filename));
+}
 await writeFile(
   join(output, 'assets', 'release.json'),
   `${JSON.stringify(

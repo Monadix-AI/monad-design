@@ -9,6 +9,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.beui-loader {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  color: var(--primary);
+}
+.beui-loader > span {
+  flex: none;
+  background: currentColor;
+  border-radius: 999px;
+}
+
 :root {
   --background: #191b1f;
   --foreground: #e7e9ed;
@@ -1220,10 +1234,9 @@ button:focus-visible {
 .project-target-candidate:where([data-state="checked"]) .project-target-radio {
   border-color: var(--primary);
 }
-.project-target-candidate[data-state="checked"] .project-target-radio::after {
+.animated-radio-dot {
   width: 6px;
   height: 6px;
-  content: "";
   background: var(--primary);
   border-radius: 999px;
 }
@@ -1669,13 +1682,6 @@ h1 {
 }
 .device-card[data-state="checked"] .device-selection-indicator {
   border-color: var(--primary);
-}
-.device-card[data-state="checked"] .device-selection-indicator::after {
-  width: 6px;
-  height: 6px;
-  content: "";
-  background: var(--primary);
-  border-radius: 999px;
 }
 .device-icon {
   display: grid;
@@ -5135,4 +5141,22 @@ body :is(input, textarea, [contenteditable="true"]) {
 }
 .workspace-reset-actions button[data-variant="destructive"]:hover:not(:disabled) {
   background: #a12b3a;
+}
+.beui-accordion[open] > :not(summary) {
+  animation: beui-accordion-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes beui-accordion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scaleY(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beui-accordion[open] > :not(summary) {
+    animation: none;
+  }
 }

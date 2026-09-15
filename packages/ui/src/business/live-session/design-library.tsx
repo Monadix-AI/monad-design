@@ -4,8 +4,10 @@ import { isAdjustmentGoal } from '@monaddesign/client-contract';
 import { Bookmark, Check, ChevronDown, FileText, Image, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 
+import { AnimatedSelect } from '../../primitives/animated-select';
 import { Button } from '../../primitives/button';
 import { Input } from '../../primitives/input';
+import { InstrumentButton } from '../../primitives/instrument-button';
 
 export interface DesignLibraryController {
   clearDraft?: () => void;
@@ -73,7 +75,10 @@ export function DesignGuidanceReview({ guidance }: { guidance: DesignGuidance })
       </small>
       {guidance.preserve && <small>Preserve: {guidance.preserve}</small>}
       {guidance.references.map((entry) => (
-        <details key={entry.id}>
+        <details
+          className="beui-accordion"
+          key={entry.id}
+        >
           <summary>
             {entry.title} <span>{entry.kind}</span>
           </summary>
@@ -146,29 +151,33 @@ export function DesignLibraryPicker({
               value={query}
             />
             {query && (
-              <button
+              <InstrumentButton
                 aria-label="Clear search"
                 onClick={() => setQuery('')}
                 type="button"
               >
                 <X size={14} />
-              </button>
+              </InstrumentButton>
             )}
           </div>
-          <select
-            aria-label="Filter design library"
-            onChange={(event) => setFilter(event.target.value)}
+          <AnimatedSelect
+            ariaLabel="Filter design library"
+            contentClassName="design-library-select-menu"
+            onValueChange={setFilter}
+            optionClassName="design-library-select-option"
+            options={[
+              { value: 'all', label: 'All types' },
+              { value: 'style', label: 'Styles' },
+              { value: 'skill', label: 'Skills' },
+              { value: 'reference', label: 'Images' },
+              { value: 'favorites', label: 'Favorites' },
+              { value: 'recent', label: 'Recent' }
+            ]}
+            triggerClassName="design-library-select-trigger"
             value={filter}
-          >
-            <option value="all">All types</option>
-            <option value="style">Styles</option>
-            <option value="skill">Skills</option>
-            <option value="reference">Images</option>
-            <option value="favorites">Favorites</option>
-            <option value="recent">Recent</option>
-          </select>
+          />
         </div>
-        <details className="design-library-import-disclosure">
+        <details className="design-library-import-disclosure beui-accordion">
           <summary>
             <Upload size={14} /> Import reference
           </summary>
@@ -203,16 +212,20 @@ export function DesignLibraryPicker({
               <Upload size={14} />
               {importing ? 'Importing…' : 'Import skill or image'}
             </Button>
-            <select
-              aria-label="Imported skill platform"
-              onChange={(event) => setPlatform(event.target.value as DesignReference['platform'])}
+            <AnimatedSelect
+              ariaLabel="Imported skill platform"
+              contentClassName="design-library-select-menu"
+              onValueChange={(value) => setPlatform(value as DesignReference['platform'])}
+              optionClassName="design-library-select-option"
+              options={[
+                { value: 'unknown', label: 'Skill platform: unspecified' },
+                { value: 'native', label: 'Native' },
+                { value: 'web', label: 'Web' },
+                { value: 'any', label: 'Any platform' }
+              ]}
+              triggerClassName="design-library-select-trigger"
               value={platform}
-            >
-              <option value="unknown">Skill platform: unspecified</option>
-              <option value="native">Native</option>
-              <option value="web">Web</option>
-              <option value="any">Any platform</option>
-            </select>
+            />
           </div>
           <small>
             Markdown up to 30 KB · PNG/JPEG up to 250 KB. Saved in this browser. Skill scripts and linked files are not
@@ -236,7 +249,7 @@ export function DesignLibraryPicker({
                 data-selected={selected}
                 key={entry.id}
               >
-                <button
+                <InstrumentButton
                   aria-label={`${selected ? 'Remove' : 'Use'} ${entry.title}`}
                   aria-pressed={selected}
                   className="design-library-select"
@@ -254,7 +267,7 @@ export function DesignLibraryPicker({
                     <strong>{entry.title}</strong>
                     {selected ? <Check size={16} /> : <Plus size={16} />}
                   </span>
-                </button>
+                </InstrumentButton>
                 <div className="design-library-entry-meta">
                   <span>
                     {entry.kind === 'style'
@@ -276,7 +289,7 @@ export function DesignLibraryPicker({
                     />
                   </Button>
                 </div>
-                <details>
+                <details className="beui-accordion">
                   <summary>Guidance & source</summary>
                   <small>
                     {entry.source} · {entry.version.slice(0, 12)}
@@ -346,28 +359,28 @@ export function DesignLibraryPicker({
                   </Button>
                 ))}
               </div>
-              <details className="design-library-settings">
+              <details className="design-library-settings beui-accordion">
                 <summary>
                   How to apply{' '}
                   <span>{library.scope === 'selected_element' ? 'Selected element' : 'Current screen'}</span>
                   <ChevronDown aria-hidden="true" />
                 </summary>
-                <label>
+                <div className="design-library-scope-field">
                   Apply to
-                  <select
+                  <AnimatedSelect
+                    ariaLabel="Apply to"
+                    contentClassName="design-library-select-menu"
                     disabled={disabled}
-                    onChange={(event) => library.setScope(event.target.value as DesignGuidance['scope'])}
+                    onValueChange={(value) => library.setScope(value as DesignGuidance['scope'])}
+                    optionClassName="design-library-select-option"
+                    options={[
+                      { disabled: !hasSelection, value: 'selected_element', label: 'Selected element' },
+                      { value: 'screen', label: 'Current screen' }
+                    ]}
+                    triggerClassName="design-library-select-trigger"
                     value={library.scope}
-                  >
-                    <option
-                      disabled={!hasSelection}
-                      value="selected_element"
-                    >
-                      Selected element
-                    </option>
-                    <option value="screen">Current screen</option>
-                  </select>
-                </label>
+                  />
+                </div>
                 <label htmlFor={`${id}-focus`}>
                   Borrow
                   <Input

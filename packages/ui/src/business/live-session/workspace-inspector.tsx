@@ -8,11 +8,13 @@ import {
   CursorRectangleSelection02Icon
 } from '@hugeicons/core-free-icons';
 import { isAdjustmentGoal, resolveAdjustmentRequest } from '@monaddesign/client-contract';
-import { ChevronDown } from 'lucide-react';
-import { RadioGroup, Select } from 'radix-ui';
+import { RadioGroup } from 'radix-ui';
 import { type ReactNode, type Ref } from 'react';
 
+import { AnimatedBadge } from '../../primitives/animated-badge';
+import { AnimatedSelect } from '../../primitives/animated-select';
 import { Button } from '../../primitives/button';
+import { InstrumentButton } from '../../primitives/instrument-button';
 import { Label } from '../../primitives/label';
 import { Textarea } from '../../primitives/textarea';
 import { ActionIcon } from '../action-icon';
@@ -176,21 +178,21 @@ export function LiveWorkspaceInspector({
       data-canvas-ui
     >
       {onOpenReferences && Boolean(designLibrary?.selected.length) && !isAgentWorking && !isReviewingVariants && (
-        <button
+        <InstrumentButton
           className="sidebar-reference-summary"
           onClick={onOpenReferences}
           type="button"
         >
           {designLibrary?.selected.length} design {designLibrary?.selected.length === 1 ? 'reference' : 'references'}{' '}
           attached · View
-        </button>
+        </InstrumentButton>
       )}
       <section className="inspector-section prompt-workbench prompt-workbench-polished prompt-workbench-delight-trace prompt-workbench-animated-cascade">
         <div className="inspector-section-heading">
           <strong>{isReviewingVariants ? 'Review request' : 'Change request'}</strong>
         </div>
         {(isAgentWorking || isReviewingVariants) && designGuidanceInFlight?.references.some(isAdjustmentGoal) && (
-          <details className="adjustment-goal-guidance">
+          <details className="adjustment-goal-guidance beui-accordion">
             <summary>
               Requested goals · {designGuidanceInFlight.scope === 'screen' ? 'Current screen' : 'Selected element'}
             </summary>
@@ -243,13 +245,16 @@ export function LiveWorkspaceInspector({
             >
               {variants.map((variant) => (
                 <RadioGroup.Item
+                  asChild
                   className="agent-variant-option"
                   disabled={!variant.ready || selectionConfirmed}
                   key={variant.id}
                   value={variant.id}
                 >
-                  <span>{variant.label}</span>
-                  <small>{variant.ready ? (selectedVariant === variant.id ? 'Selected' : 'Ready') : 'Waiting'}</small>
+                  <InstrumentButton type="button">
+                    <span>{variant.label}</span>
+                    <small>{variant.ready ? (selectedVariant === variant.id ? 'Selected' : 'Ready') : 'Waiting'}</small>
+                  </InstrumentButton>
                 </RadioGroup.Item>
               ))}
             </RadioGroup.Root>
@@ -385,41 +390,18 @@ export function LiveWorkspaceInspector({
                   ))}
                 </select>
               ) : (
-                <Select.Root
+                <AnimatedSelect
+                  ariaDescribedBy={!agentConnected ? 'agent-live-required' : undefined}
+                  className="variant-count-options"
+                  contentClassName="variant-count-menu"
                   disabled={!canRequestAgent}
+                  id="canvas-agent-variant-count"
                   onValueChange={(value) => onVariantCountChange(Number(value))}
+                  optionClassName="variant-count-option"
+                  options={[1, 2, 3, 4, 5].map((count) => ({ label: String(count), value: String(count) }))}
+                  triggerClassName="variant-count-trigger"
                   value={String(variantCount)}
-                >
-                  <Select.Trigger
-                    aria-describedby={!agentConnected ? 'agent-live-required' : undefined}
-                    className="variant-count-trigger"
-                    id="canvas-agent-variant-count"
-                  >
-                    <Select.Value />
-                    <Select.Icon asChild>
-                      <ChevronDown aria-hidden="true" />
-                    </Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Content
-                      className="variant-count-menu"
-                      position="popper"
-                      sideOffset={4}
-                    >
-                      <Select.Viewport className="variant-count-options">
-                        {[1, 2, 3, 4, 5].map((count) => (
-                          <Select.Item
-                            className="variant-count-option"
-                            key={count}
-                            value={String(count)}
-                          >
-                            <Select.ItemText>{count}</Select.ItemText>
-                          </Select.Item>
-                        ))}
-                      </Select.Viewport>
-                    </Select.Content>
-                  </Select.Portal>
-                </Select.Root>
+                />
               )}
               <small>Generate 1–5 alternatives. Default: 1.</small>
             </Label>
@@ -457,14 +439,17 @@ export function LiveWorkspaceInspector({
         )}
       </section>
       <footer className="live-session-footer">
-        <span
+        <AnimatedBadge
           className={`agent-connection-status ${agentConnected ? 'connected' : 'offline'} ${isAgentWorking || selectionConfirmed ? 'working' : ''}`}
+          contentKey={agentIndicator}
+          icon={<i />}
+          pulse={isAgentWorking || selectionConfirmed}
           role="status"
+          status={isAgentWorking || selectionConfirmed ? 'loading' : agentConnected ? 'success' : 'neutral'}
           title={agentStatusLabel(agentStatus)}
         >
-          <i aria-hidden="true" />
           {agentIndicator}
-        </span>
+        </AnimatedBadge>
         {onEndLive && (
           <Button
             className="end-live-action"

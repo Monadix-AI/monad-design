@@ -4,6 +4,9 @@ import type { CSSProperties } from 'react';
 import { RadioGroup } from 'radix-ui';
 import { useLayoutEffect, useRef, useState } from 'react';
 
+import { InstrumentButton } from '../primitives/instrument-button';
+import { Loader } from '../primitives/loader';
+
 export interface VariantComparisonCapture {
   id: string;
   image: string;
@@ -140,6 +143,7 @@ export function VariantComparison({
         return (
           <RadioGroup.Item
             aria-label={labels[variant] ?? variant}
+            asChild
             className="canvas-variant-device"
             data-canvas-ui
             data-capturing={isCapturing ? 'true' : undefined}
@@ -149,100 +153,99 @@ export function VariantComparison({
             style={frameStyle}
             value={variant}
           >
-            <span className="canvas-variant-label">
-              <strong>{labels[variant] ?? variant}</strong>
-              <small>{variant === 'original' ? 'BASE' : variant.replace(/^v/u, '').padStart(2, '0')}</small>
-            </span>
-            <span
-              aria-hidden="true"
-              className="canvas-variant-device-scale"
-            >
+            <InstrumentButton type="button">
+              <span className="canvas-variant-label">
+                <strong>{labels[variant] ?? variant}</strong>
+                <small>{variant === 'original' ? 'BASE' : variant.replace(/^v/u, '').padStart(2, '0')}</small>
+              </span>
               <span
-                className={`phone-frame canvas-phone device-${deviceFrame.kind} ${deviceChrome ? 'native-device-chrome' : ''}`}
-                style={{
-                  paddingTop: deviceFrame.insets.top,
-                  paddingRight: deviceFrame.insets.right,
-                  paddingBottom: deviceFrame.insets.bottom,
-                  paddingLeft: deviceFrame.insets.left,
-                  borderRadius: deviceChrome ? 0 : deviceFrame.outerRadius
-                }}
+                aria-hidden="true"
+                className="canvas-variant-device-scale"
               >
-                {deviceChrome && (
-                  <img
-                    alt=""
-                    className="native-device-chrome-image"
-                    draggable={false}
-                    src={deviceChrome.image}
-                    style={{
-                      left: (chromeBodyCenter?.x ?? 0) * chromeScale,
-                      top: (chromeBodyCenter?.y ?? 0) * chromeScale,
-                      width: deviceChrome.body.width * chromeScale,
-                      height: deviceChrome.body.height * chromeScale,
-                      transform: chromeTransform
-                    }}
-                  />
-                )}
                 <span
-                  className={`screen-stage ${captureIsLandscape ? 'landscape' : 'portrait'}`}
+                  className={`phone-frame canvas-phone device-${deviceFrame.kind} ${deviceChrome ? 'native-device-chrome' : ''}`}
                   style={{
-                    width: stageWidth,
-                    height: stageHeight,
-                    borderRadius: framebufferMask ? 0 : deviceFrame.screenRadius,
-                    background: deviceChrome && !framebufferMask ? '#000' : undefined
+                    paddingTop: deviceFrame.insets.top,
+                    paddingRight: deviceFrame.insets.right,
+                    paddingBottom: deviceFrame.insets.bottom,
+                    paddingLeft: deviceFrame.insets.left,
+                    borderRadius: deviceChrome ? 0 : deviceFrame.outerRadius
                   }}
                 >
-                  {capture && (
+                  {deviceChrome && (
                     <img
                       alt=""
-                      className="variant-screenshot"
+                      className="native-device-chrome-image"
                       draggable={false}
-                      src={capture.image}
+                      src={deviceChrome.image}
                       style={{
-                        WebkitMaskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
-                        WebkitMaskSize: '100% 100%',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
-                        maskSize: '100% 100%',
-                        maskRepeat: 'no-repeat'
+                        left: (chromeBodyCenter?.x ?? 0) * chromeScale,
+                        top: (chromeBodyCenter?.y ?? 0) * chromeScale,
+                        width: deviceChrome.body.width * chromeScale,
+                        height: deviceChrome.body.height * chromeScale,
+                        transform: chromeTransform
                       }}
                     />
                   )}
-                  {isCapturing && (
-                    <span
-                      aria-label={`Capturing ${labels[variant] ?? variant}`}
-                      className="variant-capture-loading"
-                      role="status"
-                      style={{
-                        WebkitMaskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
-                        WebkitMaskSize: '100% 100%',
-                        WebkitMaskRepeat: 'no-repeat',
-                        maskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
-                        maskSize: '100% 100%',
-                        maskRepeat: 'no-repeat'
-                      }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="variant-capture-spinner spin"
+                  <span
+                    className={`screen-stage ${captureIsLandscape ? 'landscape' : 'portrait'}`}
+                    style={{
+                      width: stageWidth,
+                      height: stageHeight,
+                      borderRadius: framebufferMask ? 0 : deviceFrame.screenRadius,
+                      background: deviceChrome && !framebufferMask ? '#000' : undefined
+                    }}
+                  >
+                    {capture && (
+                      <img
+                        alt=""
+                        className="variant-screenshot"
+                        draggable={false}
+                        src={capture.image}
+                        style={{
+                          WebkitMaskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                          WebkitMaskSize: '100% 100%',
+                          WebkitMaskRepeat: 'no-repeat',
+                          maskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                          maskSize: '100% 100%',
+                          maskRepeat: 'no-repeat'
+                        }}
                       />
-                      <strong>Capturing…</strong>
-                    </span>
+                    )}
+                    {isCapturing && (
+                      <span
+                        aria-label={`Capturing ${labels[variant] ?? variant}`}
+                        className="variant-capture-loading"
+                        role="status"
+                        style={{
+                          WebkitMaskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                          WebkitMaskSize: '100% 100%',
+                          WebkitMaskRepeat: 'no-repeat',
+                          maskImage: framebufferMask ? `url(${framebufferMask})` : undefined,
+                          maskSize: '100% 100%',
+                          maskRepeat: 'no-repeat'
+                        }}
+                      >
+                        <Loader label="Capturing variant" />
+                        <strong>Capturing…</strong>
+                      </span>
+                    )}
+                  </span>
+                  {!framebufferMask && deviceFrame.hardware && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute z-20 bg-black"
+                      style={{
+                        left: deviceFrame.hardware.x,
+                        top: deviceFrame.hardware.y,
+                        width: deviceFrame.hardware.width,
+                        height: deviceFrame.hardware.height
+                      }}
+                    />
                   )}
                 </span>
-                {!framebufferMask && deviceFrame.hardware && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute z-20 bg-black"
-                    style={{
-                      left: deviceFrame.hardware.x,
-                      top: deviceFrame.hardware.y,
-                      width: deviceFrame.hardware.width,
-                      height: deviceFrame.hardware.height
-                    }}
-                  />
-                )}
               </span>
-            </span>
+            </InstrumentButton>
           </RadioGroup.Item>
         );
       })}

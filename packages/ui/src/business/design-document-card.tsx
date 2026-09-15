@@ -1,9 +1,12 @@
 // biome-ignore-all lint/security/noDangerouslySetInnerHtml: Markdown is sanitized in an inert DOM before rendering.
 import type { ProjectDesignDocument } from '@monaddesign/client-contract';
 
-import { FileText, RefreshCw, X } from 'lucide-react';
+import { FileText, X } from 'lucide-react';
 import { marked } from 'marked';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+
+import { InstrumentButton } from '../primitives/instrument-button';
+import { Loader } from '../primitives/loader';
 
 type DesignRecord = Record<string, unknown>;
 
@@ -261,7 +264,7 @@ export function DesignDocumentCard({
 
   if (!expanded && !embedded)
     return (
-      <button
+      <InstrumentButton
         aria-label="Open DESIGN.md preview"
         className="design-document-launcher"
         data-canvas-ui
@@ -271,7 +274,7 @@ export function DesignDocumentCard({
       >
         <FileText aria-hidden="true" />
         DESIGN.md
-      </button>
+      </InstrumentButton>
     );
 
   return (
@@ -287,19 +290,19 @@ export function DesignDocumentCard({
           <div>
             <strong>DESIGN.md</strong>
           </div>
-          <button
+          <InstrumentButton
             aria-label="Close DESIGN.md preview"
             onClick={() => setExpanded(false)}
             type="button"
           >
             <X />
-          </button>
+          </InstrumentButton>
         </div>
       )}
       <div className="design-document-content">
         {!document && !error ? (
           <p className="design-document-state">
-            <RefreshCw className="spinning" /> Loading design document…
+            <Loader label="Loading design document" /> Loading design document…
           </p>
         ) : null}
         {document && !document.exists && !lastSuccessful ? (
@@ -319,23 +322,23 @@ export function DesignDocumentCard({
             >
               <strong>Contents</strong>
               {Object.keys(rendered.design).length ? (
-                <button
+                <InstrumentButton
                   className="level-1 preview"
                   onClick={() => documentScroll.current?.querySelector('#design-preview')?.scrollIntoView()}
                   type="button"
                 >
                   Preview
-                </button>
+                </InstrumentButton>
               ) : null}
               {rendered.headings.map((heading) => (
-                <button
+                <InstrumentButton
                   className={`level-${heading.level}`}
                   key={heading.id}
                   onClick={() => documentScroll.current?.querySelector(`#${CSS.escape(heading.id)}`)?.scrollIntoView()}
                   type="button"
                 >
                   {heading.title}
-                </button>
+                </InstrumentButton>
               ))}
             </nav>
             <div

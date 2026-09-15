@@ -1,6 +1,8 @@
 import { cva, type VariantProps } from 'class-variance-authority';
+import { type HTMLMotionProps, motion, useReducedMotion } from 'motion/react';
 import { Slot } from 'radix-ui';
 
+import { springPress } from './motion';
 import { cn } from './utils';
 
 const buttonVariants = cva(
@@ -30,20 +32,44 @@ const buttonVariants = cva(
   }
 );
 
+export type ButtonProps = HTMLMotionProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+    pressScale?: number;
+  };
+
 function Button({
   className,
   variant = 'default',
   size = 'default',
   asChild = false,
+  pressScale = 0.96,
   ...props
-}: React.ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
-  const Component = asChild ? Slot.Root : 'button';
+}: ButtonProps) {
+  const reduceMotion = useReducedMotion();
+  const classes = cn(buttonVariants({ variant, size, className }));
+
+  if (asChild) {
+    return (
+      <Slot.Root
+        className={classes}
+        data-size={size}
+        data-slot="button"
+        data-variant={variant}
+        {...(props as React.ComponentProps<'button'>)}
+      />
+    );
+  }
+
   return (
-    <Component
-      className={cn(buttonVariants({ variant, size, className }))}
+    <motion.button
+      className={classes}
       data-size={size}
       data-slot="button"
       data-variant={variant}
+      transition={springPress}
+      whileHover={reduceMotion || props.disabled ? undefined : { scale: 1.015 }}
+      whileTap={reduceMotion || props.disabled ? undefined : { scale: pressScale }}
       {...props}
     />
   );

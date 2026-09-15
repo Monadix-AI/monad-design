@@ -3,7 +3,10 @@ import type { ReactNode } from 'react';
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 import { RadioGroup } from 'radix-ui';
 
-import { Button } from '../../primitives/button';
+import { AnimatedBadge } from '../../primitives/animated-badge';
+import { AnimatedRadioDot } from '../../primitives/animated-radio-dot';
+import { InstrumentButton } from '../../primitives/instrument-button';
+import { StatefulButton } from '../../primitives/stateful-button';
 import { ActionIcon } from '../action-icon';
 import { SimulatorDeviceGlyph } from './simulator-device-glyph';
 
@@ -62,14 +65,14 @@ export function LiveSessionSimulatorPicker({
       className={`simulator-list-page simulator-list-panel simulator-picker-layout-rail ${className ?? ''}`.trim()}
     >
       {onBack ? (
-        <button
+        <InstrumentButton
           className="page-back"
           onClick={onBack}
           type="button"
         >
           <ActionIcon icon={ArrowLeft01Icon} />
           All projects
-        </button>
+        </InstrumentButton>
       ) : null}
       <div className="active-project-heading">
         <strong>{project.name}</strong>
@@ -110,7 +113,7 @@ export function LiveSessionSimulatorPicker({
                 <strong>{target.name}</strong>
                 <code>{target.bundleIdentifier}</code>
               </span>
-              <span className="project-target-radio" />
+              <AnimatedRadioDot className="project-target-radio" />
             </RadioGroup.Item>
           ))}
         </RadioGroup.Root>
@@ -161,21 +164,20 @@ export function LiveSessionSimulatorPicker({
               key={simulator.udid}
               value={simulator.udid}
             >
-              <span
-                aria-hidden="true"
-                className="device-selection-indicator"
-              />
+              <AnimatedRadioDot className="device-selection-indicator" />
               <SimulatorDeviceGlyph simulator={simulator} />
               <span className="device-details">
                 <strong>{simulator.name}</strong>
                 <small>{simulator.runtime}</small>
               </span>
-              <span
+              <AnimatedBadge
                 className={`device-status ${simulator.connected ? 'connected' : simulator.state === 'Booted' ? 'booted' : 'shutdown'}`}
+                contentKey={`${simulator.udid}-${simulator.connected ? 'connected' : simulator.state}`}
+                icon={<span className="status-dot" />}
+                status={simulator.connected || simulator.state === 'Booted' ? 'success' : 'neutral'}
               >
-                <span className="status-dot" />
                 {simulator.connected ? 'Connected' : simulator.state}
-              </span>
+              </AnimatedBadge>
             </RadioGroup.Item>
           ))}
           {!isScanning && simulators.length === 0 ? (
@@ -190,21 +192,18 @@ export function LiveSessionSimulatorPicker({
       {error}
       <footer className="simulator-action-bar">
         <div className="flex flex-col gap-2">
-          <Button
+          <StatefulButton
             className="connect-button"
             disabled={!selectedSimulatorUdid || !selectedTargetBundleIdentifier || isConnecting}
+            loadingText={
+              connectLabel ?? (selectedSimulator?.state === 'Shutdown' ? 'Starting Simulator…' : 'Connecting…')
+            }
             onClick={onConnect}
+            state={isConnecting ? 'loading' : 'idle'}
             type="button"
           >
-            {connectLabel ??
-              (isConnecting
-                ? selectedSimulator?.state === 'Shutdown'
-                  ? 'Starting Simulator…'
-                  : 'Connecting…'
-                : selectedSimulator?.state === 'Shutdown'
-                  ? 'Start & connect'
-                  : 'Connect')}
-          </Button>
+            {selectedSimulator?.state === 'Shutdown' ? 'Start & connect' : 'Connect'}
+          </StatefulButton>
         </div>
       </footer>
     </section>

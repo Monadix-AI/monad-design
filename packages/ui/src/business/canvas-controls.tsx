@@ -13,6 +13,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { deviceFrameMetrics } from '@monaddesign/device-frame';
 
+import { Button } from '../primitives/button';
 import { ActionIcon } from './action-icon';
 
 export type CanvasMode = 'annotate' | 'interact' | 'variants';
@@ -146,40 +147,44 @@ export function SimulatorDeviceControls({
       style={{ top: `calc(100% + ${canvasFitGap / scale}px)`, transform: `translateX(-50%) scale(${1 / scale})` }}
     >
       <legend className="sr-only">Simulator controls</legend>
-      <button
+      <Button
         aria-label="Rotate Simulator left"
         disabled={disabled}
         onClick={onRotateLeft}
         type="button"
+        variant="ghost"
       >
         {rotateLeftIcon ?? <ActionIcon icon={RotateCcwIcon} />}
         <span>Rotate</span>
-      </button>
-      <button
+      </Button>
+      <Button
         disabled={disabled}
         onClick={onHome}
         type="button"
+        variant="ghost"
       >
         {homeIcon ?? <ActionIcon icon={Home01Icon} />}
         <span>Home</span>
-      </button>
-      <button
+      </Button>
+      <Button
         disabled={disabled || isAppearanceChanging}
         onClick={onChangeAppearance}
         type="button"
+        variant="ghost"
       >
         {appearanceIcon ?? <ActionIcon icon={appearance === 'dark' ? Moon02Icon : Sun03Icon} />}
         <span>{appearance === 'dark' ? 'Dark' : 'Light'}</span>
-      </button>
-      <button
+      </Button>
+      <Button
         aria-label="Rotate Simulator right"
         disabled={disabled}
         onClick={onRotateRight}
         type="button"
+        variant="ghost"
       >
         {rotateRightIcon ?? <ActionIcon icon={RotateCwIcon} />}
         <span>Rotate</span>
-      </button>
+      </Button>
     </fieldset>
   );
 }
@@ -214,31 +219,37 @@ export function CanvasZoomControls({
       className={`zoom-controls canvas-mode-${mode}`}
       data-canvas-ui
     >
-      <button
+      <Button
         aria-label="Zoom out"
         disabled={scale <= minimumScale}
         onClick={onZoomOut}
+        size="icon"
         type="button"
+        variant="ghost"
       >
         {zoomOutIcon ?? <ActionIcon icon={ZoomOutIcon} />}
-      </button>
+      </Button>
       <output aria-live="polite">{Math.round(scale * 100)}%</output>
-      <button
+      <Button
         aria-label="Zoom in"
         disabled={scale >= maximumScale}
         onClick={onZoomIn}
+        size="icon"
         type="button"
+        variant="ghost"
       >
         {zoomInIcon ?? <ActionIcon icon={ZoomInIcon} />}
-      </button>
-      <button
+      </Button>
+      <Button
         aria-label="Fit Simulator to view"
         className="fit-control"
         onClick={onFit}
+        size="icon"
         type="button"
+        variant="ghost"
       >
         {fitIcon ?? <ActionIcon icon={FitToScreenIcon} />}
-      </button>
+      </Button>
     </div>
   );
 }

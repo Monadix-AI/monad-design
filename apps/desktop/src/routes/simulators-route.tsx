@@ -10,6 +10,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { Button } from '@monaddesign/ui/primitives/button';
 import { Input } from '@monaddesign/ui/primitives/input';
+import { InstrumentButton } from '@monaddesign/ui/primitives/instrument-button';
 import { Label } from '@monaddesign/ui/primitives/label';
 import { Navigate } from '@tanstack/react-router';
 import { Dialog } from 'radix-ui';
@@ -209,7 +210,7 @@ export function SimulatorsRoute() {
                 className="project-row"
                 key={project.id}
               >
-                <button
+                <InstrumentButton
                   className="project-row-open"
                   disabled={isOpeningProject || removingProjectId !== null}
                   onClick={() => void activateProject(project)}
@@ -235,8 +236,8 @@ export function SimulatorsRoute() {
                   >
                     ›
                   </span>
-                </button>
-                <button
+                </InstrumentButton>
+                <InstrumentButton
                   aria-label={`Remove ${project.name} from projects`}
                   className="project-row-remove"
                   disabled={isOpeningProject || removingProjectId !== null}
@@ -256,7 +257,7 @@ export function SimulatorsRoute() {
                     icon={Delete02Icon}
                     spinning={removingProjectId === project.id}
                   />
-                </button>
+                </InstrumentButton>
               </div>
             ))}
 

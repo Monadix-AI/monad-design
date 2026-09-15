@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useId } from 'react';
 
+import { InstrumentButton } from '../../primitives/instrument-button';
+
 const goalIcons = [ALargeSmall, AlignStartVertical, MessageSquareText, Palette, TextCursorInput, Waves];
 
 export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryController; disabled: boolean }) {
@@ -35,7 +37,7 @@ export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryC
           if (!reference || !Icon) return null;
           const active = selected?.id === reference.id;
           return (
-            <button
+            <InstrumentButton
               aria-pressed={active}
               className="adjustment-goal-option"
               disabled={!active && full}
@@ -56,7 +58,7 @@ export function AdjustmentGoals({ library, disabled }: { library: DesignLibraryC
                   size={12}
                 />
               )}
-            </button>
+            </InstrumentButton>
           );
         })}
       </div>

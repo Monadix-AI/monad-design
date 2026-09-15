@@ -1,8 +1,11 @@
 import { ChevronDown, FileText, Images, MousePointer2, SquareDashedMousePointer } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { AlertDialog, Collapsible } from 'radix-ui';
 import { type HTMLAttributes, type ReactNode, type Ref, useRef, useState } from 'react';
 
 import { Button } from '../../primitives/button';
+import { InstrumentButton } from '../../primitives/instrument-button';
+import { springPress, springSwap } from '../../primitives/motion';
 import { CanvasZoomControls, type CanvasZoomControlsProps } from '../canvas-controls';
 import { VariantComparison, type VariantComparisonProps } from '../variant-comparison';
 import { LiveWorkspaceFrame } from './app-frame';
@@ -57,6 +60,7 @@ export function LiveWorkspace({
   variantComparison,
   zoomControls
 }: LiveWorkspaceProps) {
+  const reduceMotion = useReducedMotion();
   const [confirmInteraction, setConfirmInteraction] = useState(false);
   const [annotationResetKey, setAnnotationResetKey] = useState(0);
   const annotationSubmit = useRef<(() => Promise<void>) | null>(null);
@@ -146,7 +150,7 @@ export function LiveWorkspace({
                     ['select', 'Select', SquareDashedMousePointer]
                   ] as const
                 ).map(([tool, label, Icon]) => (
-                  <button
+                  <motion.button
                     aria-label={label}
                     aria-pressed={mode === tool}
                     className="workspace-tool-button"
@@ -158,10 +162,13 @@ export function LiveWorkspace({
                         ? 'Return to Interact and clear the draft before selecting again'
                         : label
                     }
+                    transition={springPress}
                     type="button"
+                    whileHover={reduceMotion ? undefined : { scale: 1.045 }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   >
                     <Icon className="workspace-tool-icon" />
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               <div ref={setAnnotationToolsHost} />
@@ -277,22 +284,34 @@ function WorkspaceSupportPanel({
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <Collapsible.Root
       className="workspace-support-panel"
       onOpenChange={onOpenChange}
       open={open}
     >
-      <Collapsible.Trigger className="workspace-support-trigger">
-        {icon}
-        <span>{title}</span>
-        <ChevronDown className="workspace-support-chevron" />
+      <Collapsible.Trigger asChild>
+        <InstrumentButton
+          className="workspace-support-trigger"
+          type="button"
+        >
+          {icon}
+          <span>{title}</span>
+          <ChevronDown className="workspace-support-chevron" />
+        </InstrumentButton>
       </Collapsible.Trigger>
       <Collapsible.Content
         className="workspace-support-content"
         forceMount
       >
-        {children}
+        <motion.div
+          animate={open ? { opacity: 1, y: 0 } : { opacity: 0, y: -5 }}
+          initial={false}
+          transition={reduceMotion ? { duration: 0 } : springSwap}
+        >
+          {children}
+        </motion.div>
       </Collapsible.Content>
     </Collapsible.Root>
   );

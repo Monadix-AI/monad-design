@@ -1,6 +1,20 @@
+// beUI Input error shake adapted to the workbench's existing field geometry (MIT).
+// Source: https://beui.dev/r/input/raw
+import { animate, useReducedMotion } from 'motion/react';
+import { useEffect, useRef } from 'react';
+
 import { cn } from './utils';
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+function Input({ className, ref, type, ...props }: React.ComponentProps<'input'>) {
+  const field = useRef<HTMLInputElement>(null);
+  const reduceMotion = useReducedMotion();
+  const invalid = props['aria-invalid'] === true || props['aria-invalid'] === 'true';
+
+  useEffect(() => {
+    if (!invalid || reduceMotion || !field.current) return;
+    animate(field.current, { x: [0, -4, 4, -3, 3, 0] }, { duration: 0.38 });
+  }, [invalid, reduceMotion]);
+
   return (
     <input
       className={cn(
@@ -8,6 +22,11 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         className
       )}
       data-slot="input"
+      ref={(node) => {
+        field.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref && typeof ref === 'object') (ref as { current: HTMLInputElement | null }).current = node;
+      }}
       type={type}
       {...props}
     />

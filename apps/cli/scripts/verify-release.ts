@@ -32,6 +32,7 @@ interface AdjustmentGuide {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceSkillRoot = resolve(root, '..', '..', '.agents', 'skills', 'monad-design');
+const sourceLicenseRoot = resolve(root, '..', 'desktop', 'licenses');
 const packageManifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as PackageManifest;
 const releaseManifest = JSON.parse(
   await readFile(join(root, 'dist', 'assets', 'release.json'), 'utf8')
@@ -98,11 +99,18 @@ const requiredFiles = [
   cliPath,
   ...corePaths,
   ...nativeAddonPaths,
+  join(root, 'dist', 'assets', 'licenses', 'beUI-LICENSE'),
+  join(root, 'dist', 'assets', 'licenses', 'THIRD_PARTY_NOTICES.md'),
   join(skillRoot, 'SKILL.md'),
   join(skillRoot, 'adjustments.json'),
   ...adjustmentGuides.map(({ relativePath }) => join(skillRoot, relativePath))
 ];
 for (const path of requiredFiles) await access(path, constants.R_OK);
+for (const filename of ['beUI-LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+  const built = await readFile(join(root, 'dist', 'assets', 'licenses', filename), 'utf8');
+  const source = await readFile(join(sourceLicenseRoot, filename), 'utf8');
+  if (built !== source) fail(`bundled license file ${filename} is stale`);
+}
 for (const path of [
   'SKILL.md',
   'agents/openai.yaml',

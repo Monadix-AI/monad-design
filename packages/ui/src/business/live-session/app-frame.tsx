@@ -2,6 +2,8 @@ import type { HTMLAttributes, ReactNode, Ref } from 'react';
 
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
+import { AnimatedBadge } from '../../primitives/animated-badge';
+import { InstrumentButton } from '../../primitives/instrument-button';
 import { ActionIcon } from '../action-icon';
 
 export function AppHeaderFrame({ actions, center }: { actions?: ReactNode; center?: ReactNode }) {
@@ -38,23 +40,25 @@ export function LiveWorkspaceHeading({
       className="canvas-page-heading"
       data-canvas-ui
     >
-      <button
+      <InstrumentButton
         className="page-back"
         onClick={onBack}
         type="button"
       >
         <ActionIcon icon={ArrowLeft01Icon} />
         {backLabel}
-      </button>
+      </InstrumentButton>
       <h1>{name}</h1>
-      <div
+      <AnimatedBadge
         className="live-device-status"
+        contentKey={previewLabel ? `preview-${previewLabel}` : isLive ? 'live' : 'starting'}
+        icon={<span className={`connection-light ${isLive ? 'online' : ''}`} />}
         role="status"
+        status={isLive ? 'success' : 'loading'}
       >
-        <span className={`connection-light ${isLive ? 'online' : ''}`} />
         <span>{isLive ? 'Live' : 'Starting stream…'}</span>
         {previewLabel ? <em>{previewLabel} · preview only</em> : null}
-      </div>
+      </AnimatedBadge>
     </div>
   );
 }
