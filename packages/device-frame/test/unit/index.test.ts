@@ -68,4 +68,26 @@ describe('device frame profiles', () => {
     expect(tablet.height).toBeCloseTo(24.18, 2);
     expect(tablet.width).toBeCloseTo(18.135, 3);
   });
+
+  test('gives watchOS and tvOS their own list silhouettes', () => {
+    const watch = simulatorDeviceGlyphMetrics({
+      deviceName: 'Apple Watch Series 11 (46mm)',
+      runtime: 'watchOS 26.0',
+      productFamily: 'Apple Watch',
+      screen: { width: 416, height: 496 }
+    });
+    const tv = simulatorDeviceGlyphMetrics({
+      deviceName: 'Apple TV 4K (3rd generation)',
+      runtime: 'tvOS 26.0',
+      productFamily: 'Apple TV',
+      screen: { width: 3840, height: 2160 }
+    });
+
+    expect(watch.kind).toBe('watch');
+    expect(watch.width).toBe(22);
+    expect(watch.height).toBe(26);
+    expect(tv.kind).toBe('tv');
+    expect(tv.width).toBe(26);
+    expect(tv.height).toBe(20);
+  });
 });

@@ -1708,6 +1708,60 @@ h1 {
 .device-icon-tablet .device-icon-shell {
   border-radius: 12% / 8%;
 }
+.device-icon-watch .device-icon-shell {
+  border-radius: 34% / 27%;
+}
+.device-icon-watch-crown {
+  position: absolute;
+  top: 30%;
+  right: -2px;
+  width: 2px;
+  height: 5px;
+  background: #7b8088;
+  border-radius: 0 2px 2px 0;
+}
+.device-icon-watch-native {
+  position: relative;
+}
+.device-icon-watch-native-chrome {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.device-icon-tv {
+  position: relative;
+  display: block;
+}
+.device-icon-tv-panel {
+  position: absolute;
+  inset: 0 0 3px;
+  padding: 1px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #858a92, #343940 55%, #747982);
+  border-radius: 2px;
+}
+.device-icon-tv-screen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    145deg,
+    var(--device-screen-base),
+    var(--device-screen-middle) 43%,
+    var(--device-screen-end)
+  );
+  border-radius: 1px;
+}
+.device-icon-tv-stand {
+  position: absolute;
+  bottom: 0;
+  left: 23%;
+  width: 54%;
+  height: 3px;
+  background: linear-gradient(90deg, #4b5057, #a1a5aa, #4b5057);
+  border-radius: 0 0 2px 2px;
+}
 .device-icon-mask .device-icon-shell {
   mask-repeat: no-repeat;
   mask-position: center;
@@ -1731,6 +1785,16 @@ h1 {
   border: 0;
   border-radius: 22% / 10%;
   box-shadow: inset 0 0 0 0.5px rgb(2 4 10 / 72%);
+}
+.device-icon-watch .device-icon-screen {
+  border-radius: 33% / 26%;
+}
+.device-icon-watch-native-screen {
+  inset: auto;
+  border-radius: 33% / 26%;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 100% 100%;
 }
 .device-icon-tablet .device-icon-screen {
   border-radius: 8% / 6%;

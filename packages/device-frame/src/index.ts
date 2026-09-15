@@ -34,7 +34,7 @@ export interface DeviceFrameMetrics {
 }
 
 export interface SimulatorDeviceGlyphMetrics {
-  kind: DeviceFrameKind;
+  kind: DeviceFrameKind | 'watch' | 'tv';
   width: number;
   height: number;
   outerRadius: number;
@@ -140,18 +140,27 @@ const simulatorScreenArtwork = (iosMajorVersion: string): SimulatorDeviceGlyphMe
 export const simulatorDeviceGlyphMetrics = ({
   deviceName,
   runtime,
+  productFamily,
   screen = deviceName.toLowerCase().includes('ipad') ? { width: 820, height: 1180 } : { width: 390, height: 844 }
 }: {
   deviceName: string;
   runtime: string;
+  productFamily?: string;
   screen?: { width: number; height: number };
 }): SimulatorDeviceGlyphMetrics => {
   const shortEdge = Math.min(screen.width, screen.height);
   const longEdge = Math.max(screen.width, screen.height);
-  const kind = deviceFrameKind(deviceName, screen);
+  const family = (productFamily ?? '').toLowerCase();
+  const platform = `${deviceName} ${runtime}`.toLowerCase();
+  const kind =
+    family.includes('watch') || /apple watch|watchos/.test(platform)
+      ? 'watch'
+      : family.includes('tv') || /apple tv|tvos/.test(platform)
+        ? 'tv'
+        : deviceFrameKind(deviceName, screen);
   const modelScale = /\b(max|plus)\b/i.test(deviceName) ? 1 : /\b(mini|se)\b/i.test(deviceName) ? 0.86 : 0.93;
-  const height = (kind === 'tablet' ? 26 : 30) * modelScale;
-  const width = height * (shortEdge / longEdge);
+  const height = kind === 'tv' ? 20 : kind === 'watch' ? 26 : (kind === 'tablet' ? 26 : 30) * modelScale;
+  const width = kind === 'tv' ? 26 : kind === 'watch' ? 22 : height * (shortEdge / longEdge);
   const iosMajorVersion = runtime.match(/iOS\s+(\d+)/i)?.[1] ?? 'current';
 
   return {

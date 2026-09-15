@@ -138,7 +138,7 @@ function DeviceSurface({ metrics }: { metrics: SimulatorDeviceGlyphMetrics }) {
         {
           width,
           height,
-          borderRadius: outerRadius
+          borderRadius: metrics.kind === 'watch' ? width * 0.34 : outerRadius
         }
       ]}
     >
@@ -147,7 +147,7 @@ function DeviceSurface({ metrics }: { metrics: SimulatorDeviceGlyphMetrics }) {
         style={[
           styles.screen,
           {
-            borderRadius: screenRadius
+            borderRadius: metrics.kind === 'watch' ? width * 0.33 : screenRadius
           }
         ]}
       >
@@ -157,10 +157,66 @@ function DeviceSurface({ metrics }: { metrics: SimulatorDeviceGlyphMetrics }) {
   );
 }
 
+function TelevisionSurface({ metrics }: { metrics: SimulatorDeviceGlyphMetrics }) {
+  return (
+    <View style={{ width: metrics.width, height: metrics.height }}>
+      <View style={[styles.tvPanel, { width: metrics.width, height: metrics.height - 3 }]}>
+        <ShellArtwork palette={metrics.artwork.shell} />
+        <View style={styles.tvScreen}>
+          <ScreenArtwork palette={metrics.artwork.screen} />
+        </View>
+      </View>
+      <View style={styles.tvStand} />
+    </View>
+  );
+}
+
+function WatchSurface({ simulator, metrics }: { simulator: IOSSimulator; metrics: SimulatorDeviceGlyphMetrics }) {
+  const chrome = simulator.deviceChrome;
+  if (!chrome) {
+    return (
+      <View style={{ width: metrics.width + 2, height: metrics.height }}>
+        <DeviceSurface metrics={metrics} />
+        <View style={styles.watchCrown} />
+      </View>
+    );
+  }
+
+  const height = metrics.height;
+  const width = (height * chrome.frame.width) / chrome.frame.height;
+  const screenWidth = simulator.screen?.width ?? chrome.screen.width;
+  const screenHeight = simulator.screen?.height ?? chrome.screen.height;
+  const screenX = chrome.body.x + (chrome.body.width - screenWidth) / 2;
+  const screenY = chrome.body.y + (chrome.body.height - screenHeight) / 2;
+  return (
+    <View style={{ width, height }}>
+      <View
+        style={[
+          styles.nativeWatchScreen,
+          {
+            left: (width * screenX) / chrome.frame.width,
+            top: (height * screenY) / chrome.frame.height,
+            width: (width * screenWidth) / chrome.frame.width,
+            height: (height * screenHeight) / chrome.frame.height
+          }
+        ]}
+      >
+        <ScreenArtwork palette={metrics.artwork.screen} />
+      </View>
+      <Image
+        resizeMode="stretch"
+        source={{ uri: chrome.image }}
+        style={{ width, height }}
+      />
+    </View>
+  );
+}
+
 export function SimulatorDeviceGlyph({ simulator }: { simulator: IOSSimulator }) {
   const metrics = simulatorDeviceGlyphMetrics({
     deviceName: simulator.name,
     runtime: simulator.runtime,
+    productFamily: simulator.productFamily,
     screen: simulator.screen
   });
   const { height, width } = metrics;
@@ -171,7 +227,14 @@ export function SimulatorDeviceGlyph({ simulator }: { simulator: IOSSimulator })
       accessible={false}
       style={styles.container}
     >
-      {simulator.framebufferMask ? (
+      {metrics.kind === 'tv' ? (
+        <TelevisionSurface metrics={metrics} />
+      ) : metrics.kind === 'watch' ? (
+        <WatchSurface
+          metrics={metrics}
+          simulator={simulator}
+        />
+      ) : simulator.framebufferMask ? (
         <MaskedView
           maskElement={
             <Image
@@ -211,5 +274,41 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: '#081852'
+  },
+  tvPanel: {
+    overflow: 'hidden',
+    borderRadius: 2,
+    padding: 1,
+    backgroundColor: '#777c84'
+  },
+  tvScreen: {
+    flex: 1,
+    overflow: 'hidden',
+    borderRadius: 1
+  },
+  tvStand: {
+    position: 'absolute',
+    bottom: 0,
+    left: '23%',
+    width: '54%',
+    height: 3,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    backgroundColor: '#82878e'
+  },
+  watchCrown: {
+    position: 'absolute',
+    right: 0,
+    top: '30%',
+    width: 2,
+    height: 5,
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
+    backgroundColor: '#7b8088'
+  },
+  nativeWatchScreen: {
+    position: 'absolute',
+    overflow: 'hidden',
+    borderRadius: 5
   }
 });

@@ -7,10 +7,11 @@ export function SimulatorDeviceGlyph({ simulator }: { simulator: SimulatorPicker
   const { artwork, height, iosMajorVersion, kind, width } = simulatorDeviceGlyphMetrics({
     deviceName: simulator.name,
     runtime: simulator.runtime,
+    productFamily: simulator.productFamily,
     screen: simulator.screen
   });
   const shellStyle = {
-    ...(simulator.framebufferMask
+    ...(kind !== 'watch' && simulator.framebufferMask
       ? { WebkitMaskImage: `url(${simulator.framebufferMask})`, maskImage: `url(${simulator.framebufferMask})` }
       : {}),
     '--device-shell-start': artwork.shell.start,
@@ -26,10 +27,61 @@ export function SimulatorDeviceGlyph({ simulator }: { simulator: SimulatorPicker
     '--device-screen-bloom': artwork.screen.bloom
   } as CSSProperties;
 
+  if (kind === 'tv') {
+    return (
+      <span
+        aria-hidden="true"
+        className="device-icon device-icon-tv"
+        style={{ height, width }}
+      >
+        <span className="device-icon-tv-panel">
+          <span
+            className="device-icon-tv-screen"
+            style={screenStyle}
+          />
+        </span>
+        <span className="device-icon-tv-stand" />
+      </span>
+    );
+  }
+
+  if (kind === 'watch' && simulator.deviceChrome) {
+    const { body, frame, screen } = simulator.deviceChrome;
+    const screenWidth = simulator.screen?.width ?? screen.width;
+    const screenHeight = simulator.screen?.height ?? screen.height;
+    const nativeScreenStyle = {
+      ...screenStyle,
+      left: `${((body.x + (body.width - screenWidth) / 2) / frame.width) * 100}%`,
+      top: `${((body.y + (body.height - screenHeight) / 2) / frame.height) * 100}%`,
+      width: `${(screenWidth / frame.width) * 100}%`,
+      height: `${(screenHeight / frame.height) * 100}%`,
+      ...(simulator.framebufferMask
+        ? { WebkitMaskImage: `url(${simulator.framebufferMask})`, maskImage: `url(${simulator.framebufferMask})` }
+        : {})
+    } as CSSProperties;
+    return (
+      <span
+        aria-hidden="true"
+        className="device-icon device-icon-watch device-icon-watch-native"
+        style={{ height, width: (height * frame.width) / frame.height }}
+      >
+        <span
+          className="device-icon-screen device-icon-watch-native-screen"
+          style={nativeScreenStyle}
+        />
+        <img
+          alt=""
+          className="device-icon-watch-native-chrome"
+          src={simulator.deviceChrome.image}
+        />
+      </span>
+    );
+  }
+
   return (
     <span
       aria-hidden="true"
-      className={`device-icon device-icon-${kind} ${simulator.framebufferMask ? 'device-icon-mask' : 'device-icon-fallback'}`}
+      className={`device-icon device-icon-${kind} ${kind !== 'watch' && simulator.framebufferMask ? 'device-icon-mask' : 'device-icon-fallback'}`}
       style={{ height, width }}
     >
       <span
@@ -42,6 +94,7 @@ export function SimulatorDeviceGlyph({ simulator }: { simulator: SimulatorPicker
           style={screenStyle}
         />
       </span>
+      {kind === 'watch' && <span className="device-icon-watch-crown" />}
     </span>
   );
 }

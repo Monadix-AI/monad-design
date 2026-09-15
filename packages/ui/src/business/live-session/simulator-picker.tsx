@@ -17,8 +17,15 @@ export interface SimulatorPickerTarget {
 
 export interface SimulatorPickerDevice {
   connected: boolean;
+  deviceChrome?: {
+    image: string;
+    frame: { width: number; height: number };
+    body: { x: number; y: number; width: number; height: number };
+    screen: { x: number; y: number; width: number; height: number };
+  };
   framebufferMask?: string;
   name: string;
+  productFamily?: string;
   runtime: string;
   screen?: { width: number; height: number; scale: number };
   state: 'Booted' | 'Shutdown';
