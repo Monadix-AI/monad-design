@@ -64,10 +64,12 @@ interface PendingCanvasView extends Pick<CanvasViewportSnapshot, 'offset' | 'sca
 export function useCanvasViewport({
   deviceFrame,
   mode,
+  sidecarWidth = 0,
   resetKey
 }: {
   deviceFrame: { frameHeight: number; frameWidth: number };
   mode: CanvasMode;
+  sidecarWidth?: number;
   resetKey?: string | null;
 }) {
   const [scale, setScale] = useState(1);
@@ -156,12 +158,12 @@ export function useCanvasViewport({
         mode === 'variants'
           ? { width: viewport.clientWidth * nextScale, height: viewport.clientHeight * nextScale }
           : {
-              width: deviceFrame.frameWidth * nextScale,
-              height: deviceFrame.frameHeight * nextScale + webDeviceControlsReservedHeight
+              width: deviceFrame.frameWidth * nextScale + sidecarWidth,
+              height: deviceFrame.frameHeight * nextScale + (sidecarWidth ? 0 : webDeviceControlsReservedHeight)
             };
       return clampCanvasOffset(nextOffset, { width: viewport.clientWidth, height: viewport.clientHeight }, content);
     },
-    [deviceFrame.frameHeight, deviceFrame.frameWidth, mode]
+    [deviceFrame.frameHeight, deviceFrame.frameWidth, mode, sidecarWidth]
   );
 
   const fitCanvas = useCallback(() => {
@@ -174,10 +176,11 @@ export function useCanvasViewport({
     const nextView = fitLiveWorkspaceCanvas(
       { width: viewport.clientWidth, height: viewport.clientHeight },
       { width: deviceFrame.frameWidth, height: deviceFrame.frameHeight },
-      measureCanvasFitInsets(viewport)
+      measureCanvasFitInsets(viewport),
+      sidecarWidth
     );
     commitView(nextView.scale, nextView.offset);
-  }, [commitView, deviceFrame.frameHeight, deviceFrame.frameWidth, mode]);
+  }, [commitView, deviceFrame.frameHeight, deviceFrame.frameWidth, mode, sidecarWidth]);
   fitRef.current = fitCanvas;
   constrainOffsetRef.current = constrainOffset;
 
@@ -268,6 +271,7 @@ export function useCanvasViewport({
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (!canvasModeAllowsViewportNavigation(mode) || canvasEventTargetsUi(event.target)) return;
+    if ((event.target as Element | null)?.closest?.('[data-slot="simulator-canvas"]')) return;
     viewChanged.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {

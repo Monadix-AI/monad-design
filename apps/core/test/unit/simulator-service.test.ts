@@ -60,6 +60,14 @@ test('installed app connects directly; explicit rebuild builds again', async () 
   expect(f.events).toEqual(['boot', 'build', 'check', 'launch', 'bridge']);
 });
 
+test('relaunches an installed app when reconnecting the same Simulator', async () => {
+  const f = fixture(true);
+  await f.service.connect('project', 'device', 'com.example.app');
+  f.events.length = 0;
+  await f.service.connect('project', 'device', 'com.example.app');
+  expect(f.events).toEqual(['boot', 'check', 'launch', 'bridge']);
+});
+
 test('inspection failure does not trigger a build', async () => {
   const f = fixture();
   f.dependencies.ensureSimulatorAppInstalled = async () => {

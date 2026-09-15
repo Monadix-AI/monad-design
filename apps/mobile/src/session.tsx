@@ -3,7 +3,16 @@ import type { ClientApi } from '@monaddesign/client-rtk/client-api';
 import type { ClientConnection } from './types';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { Provider } from 'react-redux';
 
 export const savedClientKey = 'monaddesign.remote-client.v1';
@@ -11,6 +20,7 @@ export const savedClientKey = 'monaddesign.remote-client.v1';
 interface SimulatorSession {
   simulator: IOSSimulator;
   connection: SimulatorConnectionResponse;
+  revision: number;
 }
 
 interface SessionContextValue {
@@ -23,8 +33,8 @@ interface SessionContextValue {
   forgetClient: () => Promise<void>;
   openProject: (project: RemoteProject) => void;
   closeProject: () => void;
-  openSession: (session: SimulatorSession) => void;
-  closeSession: () => void;
+  openSession: (session: Omit<SimulatorSession, 'revision'>) => void;
+  closeSession: (expectedSession?: SimulatorSession | null) => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -35,12 +45,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [api, setApi] = useState<ClientApi<ClientConnection> | null>(null);
   const [project, setProject] = useState<RemoteProject | null>(null);
   const [session, setSession] = useState<SimulatorSession | null>(null);
+  const sessionRevision = useRef(0);
   // Route cleanup effects must not rerun when another session field changes.
   const closeProject = useCallback(() => {
     setSession(null);
     setProject(null);
   }, []);
-  const closeSession = useCallback(() => setSession(null), []);
+  const closeSession = useCallback((expectedSession?: SimulatorSession | null) => {
+    setSession((current) => (expectedSession === undefined || current === expectedSession ? null : current));
+  }, []);
+  const openSession = useCallback((next: Omit<SimulatorSession, 'revision'>) => {
+    setSession({ ...next, revision: ++sessionRevision.current });
+  }, []);
 
   useEffect(() => {
     void AsyncStorage.getItem(savedClientKey)
@@ -75,10 +91,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
       },
       openProject: setProject,
       closeProject,
-      openSession: setSession,
+      openSession,
       closeSession
     }),
-    [api, closeProject, closeSession, hydrated, project, savedClient, session]
+    [api, closeProject, closeSession, hydrated, openSession, project, savedClient, session]
   );
 
   return (

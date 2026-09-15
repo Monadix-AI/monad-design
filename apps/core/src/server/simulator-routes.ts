@@ -21,6 +21,7 @@ import { Elysia } from 'elysia';
 
 import { simulatorBridge } from '../simulator-bridge';
 import { captureSimulatorScreen, listAvailableSimulators } from '../simulators';
+import { isTelevisionRemoteAsset, televisionRemoteAsset } from '../television-remote-assets';
 import { CoreApiError } from './api-error';
 import { latestMjpegStream } from './latest-mjpeg-stream';
 import { createSimulatorService } from './simulator-service';
@@ -45,6 +46,13 @@ export const createSimulatorRoutes = (projectStore: ProjectResolver, adapter = n
       async () => ({ simulators: await listAvailableSimulators(simulatorBridge.connection?.udid ?? null) }),
       { response: { 200: listSimulatorsResponseSchema } }
     )
+    .get('/simulator/remote/asset/:name', async ({ params: { name } }) => {
+      if (!isTelevisionRemoteAsset(name)) throw new CoreApiError(404, 'NOT_FOUND', 'Remote asset not found.');
+      const image = await televisionRemoteAsset(name);
+      return new Response(new Uint8Array(image), {
+        headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=3600' }
+      });
+    })
     .get(
       '/simulators/connect-status',
       ({ query }) => simulatorService.status(query.projectId, query.udid, query.bundleIdentifier),

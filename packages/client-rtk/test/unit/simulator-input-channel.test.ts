@@ -27,6 +27,29 @@ const callbacks = {
 };
 
 describe('simulator input channel', () => {
+  test('intentional close does not report a disconnection or schedule a retry', async () => {
+    const sockets: FakeSocket[] = [];
+    let disconnects = 0;
+    const channel = connectSimulatorInputChannel({
+      ...callbacks,
+      url: 'ws://example/input',
+      retryDelaysMs: [1],
+      createSocket: () => {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket as unknown as WebSocket;
+      },
+      onDisconnected: () => {
+        disconnects += 1;
+      }
+    });
+    sockets[0]?.open();
+    channel.close();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(disconnects).toBe(0);
+    expect(sockets).toHaveLength(1);
+  });
+
   test('reconnects after close and ignores late events from the previous socket', async () => {
     const sockets: FakeSocket[] = [];
     const replacement = Promise.withResolvers<void>();

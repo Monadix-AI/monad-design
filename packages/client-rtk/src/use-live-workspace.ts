@@ -67,6 +67,7 @@ export function useLiveWorkspaceController({
   variantTarget
 }: LiveWorkspaceControllerOptions) {
   const [annotationMode, setAnnotationMode] = useState(false);
+  const isTelevision = connected?.runtime.startsWith('tvOS') ?? false;
   const accessibility = useAccessibility({
     client,
     connectionKey,
@@ -80,6 +81,7 @@ export function useLiveWorkspaceController({
     // Discovery metadata can predate Connect; the active connection owns input readiness.
     hasConnectedSimulator: connection !== null,
     isSelectionMode: selectionMode,
+    isTelevision,
     onError,
     onHoveredPathChange: accessibility.setHoveredPath,
     onSelectedPathChange: setSelectedPath,
@@ -214,6 +216,14 @@ export function useLiveWorkspaceController({
         ? 'select'
         : 'interact';
   const isSimulatorInputDisabled = annotationMode || selectionMode;
+  const remoteKeyUsage = {
+    up: 82,
+    down: 81,
+    left: 80,
+    right: 79,
+    select: 40,
+    menu: 41
+  } as const;
   const inspector = {
     designLibrary,
     designGuidanceInFlight: session?.changeRequest?.context.designGuidance,
@@ -262,16 +272,24 @@ export function useLiveWorkspaceController({
       }
     },
     appearance: runtime.appearance ?? ('light' as const),
-    deviceChrome: connected?.deviceChrome,
+    deviceChrome: isTelevision ? undefined : connected?.deviceChrome,
     deviceHeight: runtime.deviceHeight,
     deviceName: connected?.name ?? 'iOS Simulator',
-    isTelevision: connected?.runtime.startsWith('tvOS') ?? false,
+    isTelevision,
     deviceWidth: runtime.deviceWidth,
-    framebufferMask: connected?.framebufferMask,
+    framebufferMask: isTelevision ? undefined : connected?.framebufferMask,
     isAppearanceChanging: runtime.isAppearanceChanging,
     mode: workspaceMode,
     onChangeAppearance: () => void runtime.changeAppearance(runtime.appearance === 'dark' ? 'light' : 'dark'),
     onHome: () => runtime.sendFrame(0x04, { button: 'home' }),
+    onRemotePress: (button: keyof typeof remoteKeyUsage | 'home' | 'playPause') => {
+      if (button === 'home') return runtime.sendFrame(0x04, { button: 'home' });
+      if (button === 'playPause') return runtime.sendFrame(0x04, { page: 12, usage: 205, phase: 'press' });
+      const usage = remoteKeyUsage[button];
+      runtime.sendFrame(0x06, { type: 'down', usage });
+      runtime.sendFrame(0x06, { type: 'up', usage });
+    },
+    remoteAssetUrl: client ? (name: string) => client.streamUrl(`/v1/simulator/remote/asset/${name}`) : undefined,
     onKeyDown: isSimulatorInputDisabled
       ? undefined
       : (event: Parameters<typeof runtime.handleKey>[0]) => runtime.handleKey(event, 'down'),
@@ -279,11 +297,11 @@ export function useLiveWorkspaceController({
       ? undefined
       : (event: Parameters<typeof runtime.handleKey>[0]) => runtime.handleKey(event, 'up'),
     onPaste: isSimulatorInputDisabled ? undefined : runtime.handlePaste,
-    onPointerCancel: annotationMode ? undefined : runtime.finishPointer,
-    onPointerDown: annotationMode || connected?.runtime.startsWith('tvOS') ? undefined : runtime.handlePointerDown,
-    onPointerLeave: annotationMode ? undefined : runtime.leavePointer,
-    onPointerMove: annotationMode || connected?.runtime.startsWith('tvOS') ? undefined : runtime.handlePointerMove,
-    onPointerUp: annotationMode ? undefined : runtime.finishPointer,
+    onPointerCancel: annotationMode || (isTelevision && !selectionMode) ? undefined : runtime.finishPointer,
+    onPointerDown: annotationMode || (isTelevision && !selectionMode) ? undefined : runtime.handlePointerDown,
+    onPointerLeave: annotationMode || (isTelevision && !selectionMode) ? undefined : runtime.leavePointer,
+    onPointerMove: annotationMode || (isTelevision && !selectionMode) ? undefined : runtime.handlePointerMove,
+    onPointerUp: annotationMode || (isTelevision && !selectionMode) ? undefined : runtime.finishPointer,
     onRotateLeft: () => runtime.rotate('left'),
     onRotateRight: () => runtime.rotate('right'),
     onStreamError: () => {
@@ -292,7 +310,7 @@ export function useLiveWorkspaceController({
     },
     onStreamLoad: () => runtime.setIsStreamReady(true),
     orientation: runtime.orientation,
-    pointer: annotationMode ? null : runtime.pointer,
+    pointer: annotationMode || isTelevision ? null : runtime.pointer,
     screenImageRef: runtime.screenImage,
     selection: {
       elements: accessibility.snapshot?.elements,
@@ -301,15 +319,18 @@ export function useLiveWorkspaceController({
       screen: accessibility.snapshot?.screen,
       selectedPath
     },
-    streamUrl: connection?.streamUrl ?? ''
+    streamUrl:
+      connection?.streamUrl && connectionKey
+        ? `${connection.streamUrl}${connection.streamUrl.includes('?') ? '&' : '?'}connection=${encodeURIComponent(connectionKey)}`
+        : (connection?.streamUrl ?? '')
   } as const;
   const variantComparison = {
     captures: variants.variantCaptures,
     capturingVariant: variants.capturingVariant,
-    deviceChrome: connected?.deviceChrome,
+    deviceChrome: isTelevision ? undefined : connected?.deviceChrome,
     deviceHeight: runtime.deviceHeight,
     deviceWidth: runtime.deviceWidth,
-    framebufferMask: connected?.framebufferMask,
+    framebufferMask: isTelevision ? undefined : connected?.framebufferMask,
     labels: simulatorVariantLabels,
     onSelect: (variant: string) => variants.setSelectedVariant(variant as (typeof simulatorVariantIds)[number]),
     orientation: runtime.orientation,

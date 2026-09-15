@@ -142,11 +142,13 @@ export function Workspace({
   api,
   simulator,
   connection,
+  revision,
   onExit
 }: {
   api: ClientApi;
   simulator: IOSSimulator;
   connection: SimulatorConnection;
+  revision: number;
   onExit: () => void;
 }) {
   const colors = useColors();
@@ -154,6 +156,7 @@ export function Workspace({
   const parityStyles = useParityStyles();
   const styles = useStyles();
   const { width, height } = useWindowDimensions();
+  const isTelevision = simulator.runtime.startsWith('tvOS');
   const [workspaceSize, setWorkspaceSize] = useState({ width, height });
   const dockInspector = workspaceSize.width >= 760 && workspaceSize.height >= 560;
   const [isLeaving, setIsLeaving] = useState(false);
@@ -294,7 +297,7 @@ export function Workspace({
           };
           if (selectionMode) {
             setSelectedPath(
-              snapshot && accessibilityScreenMatchesOrientation(snapshot.screen, orientation)
+              snapshot && accessibilityScreenMatchesOrientation(snapshot.screen, orientation, isTelevision)
                 ? (axElementAtPoint(snapshot, point)?.path ?? null)
                 : null
             );
@@ -330,7 +333,7 @@ export function Workspace({
           lastSimulatorTouch.current = null;
         }
       }),
-    [onTouch, orientation, selectionMode, snapshot, setSelectedPath]
+    [isTelevision, onTouch, orientation, selectionMode, snapshot, setSelectedPath]
   );
   const rotate = (direction: 'left' | 'right') => {
     const next = rotatedOrientation(orientation, direction);
@@ -554,8 +557,8 @@ export function Workspace({
       setAgentVariantTransition(null);
     }
   };
-  const stream = api.streamUrl(connection.streamPath);
-  const isTelevision = simulator.runtime.startsWith('tvOS');
+  const streamUrl = api.streamUrl(connection.streamPath);
+  const stream = `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}connection=${encodeURIComponent(`${connection.projectId}:${connection.udid}:${connection.bundleIdentifier}:${revision}`)}`;
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   const frameSize = simulatorFrameSize({
     screen: screenSize,
@@ -948,7 +951,7 @@ export function Workspace({
                           <WebView
                             bounces={false}
                             javaScriptEnabled
-                            key={`${simulatorLifecycle.revision}:${streamRevision}`}
+                            key={`${revision}:${simulatorLifecycle.revision}:${streamRevision}`}
                             onContentProcessDidTerminate={() => setStreamRevision((revision) => revision + 1)}
                             onMessage={() => setStreamReady(true)}
                             onRenderProcessGone={() => setStreamRevision((revision) => revision + 1)}
@@ -962,7 +965,7 @@ export function Workspace({
                         {selectionMode &&
                           !annotationImage &&
                           snapshot &&
-                          accessibilityScreenMatchesOrientation(snapshot.screen, orientation) && (
+                          accessibilityScreenMatchesOrientation(snapshot.screen, orientation, isTelevision) && (
                             <View
                               pointerEvents="none"
                               style={StyleSheet.absoluteFill}

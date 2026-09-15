@@ -1,4 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
+import type { TelevisionRemoteButton } from './television-remote';
 import type { LiveWorkspaceMode } from './workspace-inspector';
 
 import { accessibilityScreenMatchesOrientation } from '@monaddesign/simulator';
@@ -40,6 +41,8 @@ export interface LiveSimulatorWorkspaceCanvasProps
   mode: LiveWorkspaceMode;
   onChangeAppearance: () => void;
   onHome: () => void;
+  onRemotePress?: (button: TelevisionRemoteButton) => void;
+  remoteAssetUrl?: (name: string) => string;
   onRotateLeft: () => void;
   onRotateRight: () => void;
   selection?: {
@@ -81,6 +84,8 @@ export function LiveSimulatorWorkspaceCanvas({
   mode,
   onChangeAppearance,
   onHome,
+  onRemotePress,
+  remoteAssetUrl,
   onRotateLeft,
   onRotateRight,
   selection,
@@ -91,7 +96,7 @@ export function LiveSimulatorWorkspaceCanvas({
   const canvasPlacement = liveWorkspaceCanvasPlacement(canvasMode);
   const annotationImageSize = orientedSimulatorImageSize(simulator.orientation, simulator);
   const selectionScreen = selection?.screen ?? annotationImageSize;
-  const selectionElements = accessibilityScreenMatchesOrientation(selectionScreen, simulator.orientation)
+  const selectionElements = accessibilityScreenMatchesOrientation(selectionScreen, simulator.orientation, isTelevision)
     ? selection?.elements
     : undefined;
   const selectionOverlay =
@@ -108,7 +113,7 @@ export function LiveSimulatorWorkspaceCanvas({
                 <span
                   className={cn(
                     'ax-element-box',
-                    element.isContainer && 'container',
+                    element.isContainer && 'ax-container',
                     element.path === selection?.hoveredPath && 'hovered',
                     element.path === selection?.selectedPath && 'selected'
                   )}
@@ -155,7 +160,6 @@ export function LiveSimulatorWorkspaceCanvas({
       {(annotationOverlay) => (
         <div
           className={`device-cluster canvas-mode-${canvasMode}`}
-          data-canvas-ui
           style={{
             left: canvasPlacement.left,
             top: '50%',
@@ -166,26 +170,27 @@ export function LiveSimulatorWorkspaceCanvas({
             {...simulator}
             ariaLabel={`${deviceName} ${isAnnotationMode ? 'annotation surface' : 'interactive screen'}`}
             controls={
-              <SimulatorDeviceControls
-                appearance={appearance}
-                disabled={mode !== 'interact' || toolsDisabled}
-                isAppearanceChanging={isAppearanceChanging}
-                onChangeAppearance={onChangeAppearance}
-                onHome={onHome}
-                onRotateLeft={onRotateLeft}
-                onRotateRight={onRotateRight}
-                scale={canvasScale}
-                supportsAppearance={!isTelevision}
-                supportsRotation={!isTelevision}
-              />
+              !isTelevision ? (
+                <SimulatorDeviceControls
+                  appearance={appearance}
+                  disabled={mode !== 'interact' || toolsDisabled}
+                  isAppearanceChanging={isAppearanceChanging}
+                  onChangeAppearance={onChangeAppearance}
+                  onHome={onHome}
+                  onRotateLeft={onRotateLeft}
+                  onRotateRight={onRotateRight}
+                  scale={canvasScale}
+                />
+              ) : null
             }
+            deviceChrome={isTelevision ? undefined : simulator.deviceChrome}
             overlay={
               <>
                 {selectionOverlay}
                 {annotationOverlay}
               </>
             }
-            screenClassName={`phone-frame interactive canvas-phone device-${simulator.deviceFrame.kind} ${simulator.deviceChrome ? 'native-device-chrome' : ''}`}
+            screenClassName={`phone-frame interactive canvas-phone ${isTelevision ? 'television-frame' : `device-${simulator.deviceFrame.kind}`} ${simulator.deviceChrome && !isTelevision ? 'native-device-chrome' : ''}`}
           />
         </div>
       )}

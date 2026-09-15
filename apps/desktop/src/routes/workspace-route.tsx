@@ -44,6 +44,7 @@ function WorkspaceContent() {
     deviceHeight: workspaceSimulator.deviceHeight,
     deviceName: workspaceSimulator.deviceName,
     deviceWidth: workspaceSimulator.deviceWidth,
+    isTelevision: workspaceSimulator.isTelevision,
     mode: workspaceMode,
     orientation: workspaceSimulator.orientation,
     resetKey: connection?.udid

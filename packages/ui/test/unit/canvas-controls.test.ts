@@ -54,6 +54,21 @@ describe('shared live Simulator geometry', () => {
     expect(frame.frameHeight).toBeGreaterThan(400);
     expect(frame.frameWidth).toBeGreaterThan(frame.frameHeight);
   });
+
+  test('uses a square screen and shell for Apple TV even when chrome metadata exists', () => {
+    const frame = liveSimulatorDeviceFrame({
+      deviceChrome,
+      deviceHeight: 400,
+      deviceName: 'Apple TV 4K',
+      deviceWidth: 700,
+      isTelevision: true,
+      orientation: 'portrait'
+    });
+    expect(frame.outerRadius).toBe(0);
+    expect(frame.screenRadius).toBe(0);
+    expect(frame.hardware).toBeNull();
+    expect(frame.insets).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
+  });
 });
 
 describe('live Simulator selection overlay', () => {

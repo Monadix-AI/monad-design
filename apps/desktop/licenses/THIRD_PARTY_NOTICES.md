@@ -9,6 +9,9 @@ version `0.1.46` (git commit `39958d059f39fa0080e910b8326a95cf159de33e`).
 Copyright Evan Bacon and serve-sim contributors. Licensed under Apache-2.0.
 The complete license text is included in `serve-sim-LICENSE`.
 
+The bundled native addon includes a local tvOS accessibility grid sampling
+change. Its source patch and rebuild instructions are in `apps/core/native/`.
+
 ## beUI
 
 Monad Design includes adapted motion patterns and components from

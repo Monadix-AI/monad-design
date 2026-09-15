@@ -1,0 +1,13 @@
+--- a/Sources/SimNative/AccessibilityBridge.swift
++++ b/Sources/SimNative/AccessibilityBridge.swift
+@@ -310,7 +310,9 @@
+         guard let macIMP = translator.method(for: macSel) else { return [] }
+         let toMacElement = unsafeBitCast(macIMP, to: MacFunc.self)
+-
++
+-        let step: CGFloat = 32
++        // Cover large tvOS displays before the fixed query budget is exhausted.
++        let adaptiveStep = sqrt(bounds.width * bounds.height / 600)
++        let step: CGFloat = max(32, ceil(adaptiveStep / 16) * 16)
+         var pointBudget = 600  // safety cap for misbehaving sims
+         var discovered: [[String: Any]] = []

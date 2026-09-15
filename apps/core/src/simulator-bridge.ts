@@ -27,7 +27,7 @@ const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(reso
 const { simMiddleware } = require('../node_modules/serve-sim/dist/middleware.cjs') as {
   simMiddleware: SimMiddlewareFactory;
 };
-const native = require('../node_modules/serve-sim/dist/native/serve-sim-native.node') as {
+const native = require('../native/serve-sim-native.node') as {
   axDescribe(udid: string): Promise<string>;
 };
 

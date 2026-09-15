@@ -186,9 +186,15 @@ export const accessibilityElementName = (element: AccessibilityElement) =>
 
 // AX already reports oriented screen coordinates. During rotation an older
 // snapshot can arrive before the next poll; never stretch it onto the new screen.
-export const accessibilityScreenMatchesOrientation = (screen: CanvasSize, orientation: SimulatorOrientation) => {
+export const accessibilityScreenMatchesOrientation = (
+  screen: CanvasSize,
+  orientation: SimulatorOrientation,
+  isTelevision = false
+) => {
   if (screen.width <= 0 || screen.height <= 0) return false;
   if (screen.width === screen.height) return true;
+  // tvOS uses portrait to mean "do not rotate" even though its framebuffer is landscape.
+  if (isTelevision) return screen.width > screen.height;
   const landscape = orientation === 'landscape_left' || orientation === 'landscape_right';
   return screen.width > screen.height === landscape;
 };

@@ -3,7 +3,11 @@ import type { LiveWorkspaceMode } from './workspace-inspector';
 
 import { useLayoutEffect, useRef } from 'react';
 
-import { type LiveSimulatorDeviceChrome, liveSimulatorDeviceFrame } from '../canvas-controls';
+import {
+  type LiveSimulatorDeviceChrome,
+  liveSimulatorDeviceFrame,
+  televisionRemoteReservedWidth
+} from '../canvas-controls';
 import { useCanvasViewport } from '../canvas-viewport';
 
 export function useLiveWorkspaceViewport({
@@ -11,6 +15,7 @@ export function useLiveWorkspaceViewport({
   deviceHeight,
   deviceName,
   deviceWidth,
+  isTelevision,
   mode,
   orientation,
   resetKey
@@ -19,14 +24,23 @@ export function useLiveWorkspaceViewport({
   deviceHeight: number;
   deviceName: string;
   deviceWidth: number;
+  isTelevision?: boolean;
   mode: LiveWorkspaceMode;
   orientation: SimulatorOrientation;
   resetKey?: string | null;
 }) {
-  const deviceFrame = liveSimulatorDeviceFrame({ deviceChrome, deviceHeight, deviceName, deviceWidth, orientation });
+  const deviceFrame = liveSimulatorDeviceFrame({
+    deviceChrome,
+    deviceHeight,
+    deviceName,
+    deviceWidth,
+    isTelevision,
+    orientation
+  });
   const viewport = useCanvasViewport({
     deviceFrame,
     mode: mode === 'select' ? 'interact' : mode,
+    sidecarWidth: isTelevision ? televisionRemoteReservedWidth : 0,
     resetKey
   });
   const viewportRef = useRef(viewport);

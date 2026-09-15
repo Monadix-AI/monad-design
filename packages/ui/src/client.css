@@ -2443,7 +2443,7 @@ h1 {
   background: rgb(var(--primary-rgb) / 2%);
   border: 1px solid rgb(var(--primary-rgb) / 20%);
 }
-.ax-element-box.container {
+.ax-element-box.ax-container {
   z-index: 1;
   background: rgb(125 211 252 / 3%);
   border: 1px dashed rgb(125 211 252 / 78%);
@@ -2460,13 +2460,13 @@ h1 {
   border-color: transparent;
   box-shadow: none;
 }
-.ax-element-box.container.hovered {
+.ax-element-box.ax-container.hovered {
   z-index: 2;
   background: rgb(125 211 252 / 10%);
   border: 2px solid #a5e6ff;
   box-shadow: inset 0 0 0 1px rgb(8 17 22 / 50%);
 }
-.ax-element-box.container.selected {
+.ax-element-box.ax-container.selected {
   z-index: 3;
   background: rgb(125 211 252 / 13%);
   border-color: transparent;
@@ -3691,6 +3691,7 @@ h1 {
   color: var(--success-emphasis);
 }
 .free-canvas {
+  --workspace-inspector-width: 344px;
   position: relative;
   height: 100vh;
   overflow: hidden;
@@ -3740,6 +3741,9 @@ h1 {
   box-shadow:
     0 34px 90px rgb(0 0 0 / 62%),
     0 4px 14px rgb(0 0 0 / 46%);
+}
+.canvas-phone.television-frame {
+  border-radius: 0;
 }
 .canvas-phone.native-device-chrome {
   appearance: none;
@@ -3837,6 +3841,124 @@ h1 {
 .device-controls button:disabled {
   cursor: wait;
   opacity: 0.5;
+}
+.television-remote {
+  position: absolute;
+  right: calc(18px + var(--workspace-inspector-width, 344px) + 12px);
+  bottom: 18px;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 110px;
+  height: 290px;
+  padding: 0;
+  margin: 0;
+  background: #1b1b1b;
+  border: 1px solid #313131;
+  border-radius: 23px;
+  box-shadow:
+    0 20px 44px rgb(0 0 0 / 42%),
+    inset 0 1px 2px rgb(255 255 255 / 10%);
+}
+.television-remote-chrome {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.television-remote-clickpad {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+}
+.television-remote-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.television-remote button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+.television-remote button:hover:not(:disabled),
+.television-remote button:focus-visible {
+  outline: none;
+  background: rgb(255 255 255 / 12%);
+}
+.television-remote-direction {
+  z-index: 1;
+}
+.television-remote-up,
+.television-remote-down {
+  left: 25px;
+  width: 38px;
+  height: 24px;
+}
+.television-remote-up {
+  top: 1px;
+}
+.television-remote-down {
+  bottom: 1px;
+}
+.television-remote-left,
+.television-remote-right {
+  top: 25px;
+  width: 24px;
+  height: 38px;
+}
+.television-remote-left {
+  left: 1px;
+}
+.television-remote-right {
+  right: 1px;
+}
+.television-remote button.television-remote-select {
+  top: 24px;
+  left: 24px;
+  width: 40px;
+  height: 40px;
+  background: #262626;
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 8%);
+}
+.television-remote button.television-remote-select:hover:not(:disabled),
+.television-remote button.television-remote-select:focus-visible {
+  background: #414141;
+}
+.television-remote-action {
+  width: 40px;
+  height: 40px;
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 10%);
+}
+.television-remote-menu {
+  top: 132px;
+  left: 10px;
+}
+.television-remote-home {
+  top: 132px;
+  right: 10px;
+}
+.television-remote-play {
+  top: 190px;
+  left: 34px;
+}
+.television-remote-glyph {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+.television-remote:disabled {
+  opacity: 0.55;
 }
 .canvas-mode-annotate .device-controls,
 .canvas-mode-variants .device-controls,
@@ -5047,6 +5169,9 @@ h1 {
   }
 }
 @media (max-width: 900px) {
+  .free-canvas {
+    --workspace-inspector-width: 310px;
+  }
   .simulator-picker-layout-rail .device-list {
     grid-template-columns: 1fr;
   }

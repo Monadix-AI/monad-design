@@ -11,6 +11,7 @@ import { VariantComparison, type VariantComparisonProps } from '../variant-compa
 import { LiveWorkspaceFrame } from './app-frame';
 import { DesignGuidanceReview, DesignLibraryPicker } from './design-library';
 import { LiveSimulatorWorkspaceCanvas, type LiveSimulatorWorkspaceCanvasProps } from './simulator-workspace-canvas';
+import { TelevisionRemote } from './television-remote';
 import {
   LiveWorkspaceInspector,
   type LiveWorkspaceInspectorProps,
@@ -226,6 +227,13 @@ export function LiveWorkspace({
             }}
             selectionLocked={selectionLocked}
           />
+          {simulator?.isTelevision && simulator.onRemotePress && mode !== 'variants' && mode !== 'annotate' ? (
+            <TelevisionRemote
+              assetUrl={simulator.remoteAssetUrl}
+              disabled={mode !== 'interact' || toolsDisabled}
+              onPress={simulator.onRemotePress}
+            />
+          ) : null}
           <AlertDialog.Root
             onOpenChange={setConfirmInteraction}
             open={confirmInteraction}

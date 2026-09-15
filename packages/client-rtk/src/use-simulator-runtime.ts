@@ -45,6 +45,7 @@ interface SimulatorRuntimeOptions {
   connection: SimulatorRuntimeConnection | null;
   hasConnectedSimulator: boolean;
   isSelectionMode: boolean;
+  isTelevision: boolean;
   onError: (message: string | null) => void;
   onHoveredPathChange: (path: string | null) => void;
   onSelectedPathChange: Dispatch<SetStateAction<string | null>>;
@@ -58,6 +59,7 @@ export const useSimulatorRuntime = ({
   connection,
   hasConnectedSimulator,
   isSelectionMode,
+  isTelevision,
   onError,
   onHoveredPathChange,
   onSelectedPathChange,
@@ -179,7 +181,7 @@ export const useSimulatorRuntime = ({
     if (
       isSelectionMode &&
       axSnapshot &&
-      accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation) &&
+      accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation, isTelevision) &&
       point
     ) {
       onHoveredPathChange(accessibilityElementAtPoint(axSnapshot, point)?.path ?? null);
@@ -196,7 +198,7 @@ export const useSimulatorRuntime = ({
     setPointer(point ? { ...point, pressed: !isSelectionMode } : null);
     if (isSelectionMode) {
       onSelectedPathChange(
-        point && axSnapshot && accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation)
+        point && axSnapshot && accessibilityScreenMatchesOrientation(axSnapshot.screen, orientation, isTelevision)
           ? (accessibilityElementAtPoint(axSnapshot, point)?.path ?? null)
           : null
       );

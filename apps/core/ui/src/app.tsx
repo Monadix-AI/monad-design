@@ -53,16 +53,31 @@ export function App() {
   );
   const [agentRequest, setAgentRequest] = useState('');
   const [isRestoringConnection, setIsRestoringConnection] = useState(false);
+  const [activeConnectionKey, setActiveConnectionKey] = useState<string | null>(null);
+  const [streamRevision, setStreamRevision] = useState(0);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedAXPath, setSelectedAXPath] = useState<string | null>(null);
   const loadDesignDocument = useCallback((projectId: string) => coreClient.projectDesignDocument(projectId), []);
   const restoredConnection = useRef<string | null>(null);
   const connectingSimulator = useRef(false);
+  const disconnectingSimulator = useRef(false);
   const selectedSimulator = useMemo(
     () => simulators.find((simulator) => simulator.udid === selectedUdid),
     [selectedUdid, simulators]
   );
   const connectionUdid = session?.connection?.udid;
+  const connectionBundleIdentifier = session?.connection?.bundleIdentifier;
+  const sessionConnectionKey = session?.connection
+    ? `${session.project.id}:${session.connection.udid}:${session.connection.bundleIdentifier}`
+    : null;
+  const hasActiveWorkspaceConnection = Boolean(
+    sessionConnectionKey &&
+      !isChoosingSimulator &&
+      !isRestoringConnection &&
+      session?.status !== 'selecting_simulator' &&
+      (activeConnectionKey === sessionConnectionKey ||
+        simulators.some(({ connected, udid }) => connected && udid === session?.connection?.udid))
+  );
   const captureStableSimulatorImage = useCallback(
     (variant: SimulatorVariantId, target?: AccessibilityElement) =>
       captureStableSimulatorScreen(coreClient, variant, target, {
@@ -72,30 +87,28 @@ export function App() {
       }),
     []
   );
-  const handleWorkspaceError = useCallback((message: string | null) => setErrorMessage(message ?? ''), []);
+  const handleWorkspaceError = useCallback((message: string | null) => {
+    if (!disconnectingSimulator.current) setErrorMessage(message ?? '');
+  }, []);
   const workspaceConnection = useMemo(
     () =>
-      session?.connection
+      hasActiveWorkspaceConnection && connectionBundleIdentifier
         ? {
-            bundleIdentifier: session.connection.bundleIdentifier,
-            streamUrl: '/v1/simulator/stream',
+            bundleIdentifier: connectionBundleIdentifier,
+            streamUrl: `/v1/simulator/stream?streamInstance=${streamRevision}`,
             wsUrl: `${window.location.origin.replace(/^http/, 'ws')}/v1/simulator/input`
           }
         : null,
-    [session?.connection]
+    [connectionBundleIdentifier, hasActiveWorkspaceConnection, streamRevision]
   );
   const workspace = useLiveWorkspaceController({
     agentRequest,
-    canAutoCapture:
-      !isRestoringConnection &&
-      Boolean(simulators.some(({ connected, udid }) => connected && udid === session?.connection?.udid)),
+    canAutoCapture: hasActiveWorkspaceConnection,
     captureStableScreen: captureStableSimulatorImage,
     client: coreClient,
     connected: selectedSimulator,
     connection: workspaceConnection,
-    connectionKey: session?.connection
-      ? `${session.project.id}:${session.connection.udid}:${session.connection.bundleIdentifier}`
-      : null,
+    connectionKey: hasActiveWorkspaceConnection ? sessionConnectionKey : null,
     onError: handleWorkspaceError,
     onRequestChanged: setAgentRequest,
     onSessionChanged: setSession,
@@ -119,6 +132,7 @@ export function App() {
     deviceHeight: workspace.deviceHeight,
     deviceName: selectedSimulator?.name ?? 'iPhone',
     deviceWidth: workspace.deviceWidth,
+    isTelevision: workspace.simulator.isTelevision,
     mode: workspace.workspaceMode,
     orientation: workspace.orientation,
     resetKey: connectionUdid
@@ -159,6 +173,7 @@ export function App() {
     if (
       !session?.connection ||
       isChoosingSimulator ||
+      activeConnectionKey === sessionConnectionKey ||
       simulators.some(({ connected, udid }) => connected && udid === session.connection?.udid)
     ) {
       return;
@@ -171,22 +186,32 @@ export function App() {
     setSelectedBundleIdentifier(session.connection.bundleIdentifier);
     void coreClient
       .connect(session.project.id, session.connection.udid, session.connection.bundleIdentifier)
-      .then(() => {
+      .then((connection) => {
+        setActiveConnectionKey(`${connection.projectId}:${connection.udid}:${connection.bundleIdentifier}`);
+        setStreamRevision((revision) => revision + 1);
         setIsStreamReady(false);
         setErrorMessage('');
         return refreshSession();
       })
       .catch((error) => setErrorMessage(formatErrorMessage(error)))
       .finally(() => setIsRestoringConnection(false));
-  }, [isChoosingSimulator, refreshSession, session, setIsStreamReady, simulators]);
+  }, [
+    activeConnectionKey,
+    isChoosingSimulator,
+    refreshSession,
+    session,
+    sessionConnectionKey,
+    setIsStreamReady,
+    simulators
+  ]);
 
   const connectSimulator = async (rebuild = false) => {
-    if (!session || connectingSimulator.current) return;
+    if (!session || connectingSimulator.current || disconnectingSimulator.current) return;
     connectingSimulator.current = true;
     setIsConnecting(true);
     try {
       setErrorMessage('');
-      await coreClient.connect(session.project.id, selectedUdid, selectedBundleIdentifier, {
+      const connection = await coreClient.connect(session.project.id, selectedUdid, selectedBundleIdentifier, {
         rebuild,
         onProgress: setConnectLabel
       });
@@ -195,6 +220,8 @@ export function App() {
         bundleIdentifier: selectedBundleIdentifier
       });
       setSession(nextSession);
+      setActiveConnectionKey(`${connection.projectId}:${connection.udid}:${connection.bundleIdentifier}`);
+      setStreamRevision((revision) => revision + 1);
       setIsChoosingSimulator(false);
       setIsStreamReady(false);
     } catch (error) {
@@ -206,13 +233,22 @@ export function App() {
   };
 
   const disconnectSimulator = async () => {
+    if (disconnectingSimulator.current) return;
+    disconnectingSimulator.current = true;
     try {
-      await coreClient.disconnect();
       resetSimulatorRuntime();
+      await coreClient.disconnect();
       setIsChoosingSimulator(true);
+      setActiveConnectionKey(null);
+      setIsSelectionMode(false);
       setErrorMessage('');
     } catch (error) {
+      setIsChoosingSimulator(true);
+      setActiveConnectionKey(null);
+      setIsSelectionMode(false);
       setErrorMessage(formatErrorMessage(error));
+    } finally {
+      disconnectingSimulator.current = false;
     }
   };
 

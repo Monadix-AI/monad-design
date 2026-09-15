@@ -185,6 +185,7 @@ export function SimulatorCanvas({
               alt="Live Simulator screen"
               className="block h-full w-full object-fill"
               draggable={false}
+              key={streamUrl}
               onError={onStreamError}
               onLoad={onStreamLoad}
               ref={screenImageRef}

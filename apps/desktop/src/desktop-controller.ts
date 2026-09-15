@@ -97,6 +97,11 @@ export function useDesktopController() {
     [orderedSimulators, expectedRuntime]
   );
   const connected = orderedSimulators.find(({ udid }) => udid === connection?.udid);
+  const connectionRevision = useRef(0);
+  const disconnecting = useRef(false);
+  const handleWorkspaceError = useCallback((message: string | null) => {
+    if (!disconnecting.current) setError(message);
+  }, []);
   const openedAgentSessionId = useRef<string | null>(null);
   const captureStableScreen = useCallback(
     (
@@ -116,7 +121,7 @@ export function useDesktopController() {
     connection,
     connectionKey: connection ? `${connection.projectId}:${connection.udid}:${connection.bundleIdentifier}` : null,
     onCopyStatusChanged: setCopyStatus,
-    onError: setError,
+    onError: handleWorkspaceError,
     onRequestChanged: setAgentRequest,
     onSessionChanged: setActiveAgentSession,
     selectedPath: selectedAXPath,
@@ -336,6 +341,7 @@ export function useDesktopController() {
   };
 
   const connect = async (rebuild = false) => {
+    if (disconnecting.current) return;
     if (!selectedUdid || !activeProject || !selectedTargetBundleIdentifier || !runtimeClient) return;
     if (!targetSimulators.some(({ udid }) => udid === selectedUdid)) return;
     setIsConnecting(true);
@@ -361,11 +367,12 @@ export function useDesktopController() {
       const nextHistory = recordUsedSimulator(readSimulatorHistory(), activeProject.id, selectedUdid);
       setUsedSimulatorUdids(nextHistory[activeProject.id] ?? []);
       writeSimulatorHistory(nextHistory);
+      const streamUrl = runtimeClient.streamUrl(connectedRuntime.streamPath);
       const nextConnection: ActiveConnection = {
         udid: connectedRuntime.udid,
         projectId: connectedRuntime.projectId,
         bundleIdentifier: connectedRuntime.bundleIdentifier,
-        streamUrl: runtimeClient.streamUrl(connectedRuntime.streamPath),
+        streamUrl: `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}streamInstance=${++connectionRevision.current}`,
         wsUrl: runtimeClient.inputUrl(connectedRuntime.inputPath),
         orientation: connectedRuntime.orientation ?? 'portrait'
       };
@@ -403,14 +410,23 @@ export function useDesktopController() {
     }
   };
 
-  const disconnect = () => {
-    setConnection(null);
-    void navigate({ to: '/' });
-    setIsAXTreeOpen(false);
-    resetVariantPreview();
-    closeAnnotation();
-    resetSimulatorRuntime();
-    if (runtimeClient) void runtimeClient.disconnect().catch(() => undefined);
+  const disconnect = async () => {
+    if (disconnecting.current) return;
+    disconnecting.current = true;
+    try {
+      resetSimulatorRuntime();
+      await runtimeClient?.disconnect();
+      setConnection(null);
+      setIsAXTreeOpen(false);
+      resetVariantPreview();
+      closeAnnotation();
+      setError(null);
+      await navigate({ to: '/' });
+    } catch (disconnectError) {
+      setError(errorMessage(disconnectError));
+    } finally {
+      disconnecting.current = false;
+    }
   };
 
   return {

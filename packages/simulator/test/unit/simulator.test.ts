@@ -42,6 +42,12 @@ describe('accessibility screen coordinates', () => {
     expect(accessibilityScreenMatchesOrientation({ width: 874, height: 402 }, orientation)).toBe(false);
     expect(accessibilityScreenMatchesOrientation({ width: 402, height: 874 }, orientation)).toBe(true);
   });
+
+  test('accepts a landscape tvOS snapshot without rotating its portrait canvas', () => {
+    expect(accessibilityScreenMatchesOrientation({ width: 1920, height: 1080 }, 'portrait', true)).toBe(true);
+    expect(accessibilityScreenMatchesOrientation({ width: 1080, height: 1920 }, 'portrait', true)).toBe(false);
+    expect(accessibilityScreenMatchesOrientation({ width: 1920, height: 1080 }, 'portrait')).toBe(false);
+  });
 });
 
 describe('shared canvas positioning', () => {
