@@ -200,7 +200,7 @@ export function LiveSessionSimulatorPicker({
           ) : null}
         </RadioGroup.Root>
       </section>
-      {error}
+      {error ? <div className="simulator-picker-error-float">{error}</div> : null}
       <footer className="simulator-action-bar">
         <div className="flex flex-col gap-2">
           <StatefulButton

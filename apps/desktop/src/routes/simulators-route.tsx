@@ -60,6 +60,7 @@ export function SimulatorsRoute() {
     removingProjectId,
     selectedTargetBundleIdentifier,
     selectedUdid,
+    setError,
     setSelectedTargetBundleIdentifier,
     setSelectedUdid,
     simulators
@@ -286,7 +287,12 @@ export function SimulatorsRoute() {
               </div>
             )}
           </div>
-          {error && <LiveErrorNotice message={error} />}
+          {error && (
+            <LiveErrorNotice
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
           <Dialog.Root
             onOpenChange={(open) => {
               if (open) return;
@@ -463,7 +469,14 @@ export function SimulatorsRoute() {
     <LiveSessionSimulatorPicker
       className={previewClassName}
       connectLabel={isConnecting ? connectLabel : undefined}
-      error={error ? <LiveErrorNotice message={error} /> : null}
+      error={
+        error ? (
+          <LiveErrorNotice
+            message={error}
+            onClose={() => setError(null)}
+          />
+        ) : null
+      }
       isConnecting={isConnecting}
       isScanning={isScanning}
       onBack={closeProject}

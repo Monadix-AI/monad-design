@@ -1,3 +1,6 @@
+import { Check, Copy, X } from 'lucide-react';
+import { useState } from 'react';
+
 interface ErrorExplanation {
   title: string;
   summary: string;
@@ -55,16 +58,61 @@ export const explainLiveError = (message: string): ErrorExplanation => {
   };
 };
 
-export function LiveErrorNotice({ message }: { message: string }) {
+export const liveErrorCopyText = (message: string) => {
+  const explanation = explainLiveError(message);
+  const visibleText = [explanation.title, explanation.summary, explanation.nextStep].filter(Boolean).join('\n\n');
+  return message.trim() === explanation.summary ? visibleText : `${visibleText}\n\nTechnical details:\n${message}`;
+};
+
+export function LiveErrorNotice({ message, onClose }: { message: string; onClose?: () => void }) {
+  const [dismissedMessage, setDismissedMessage] = useState<string | null>(null);
+  const [copyResult, setCopyResult] = useState<{ message: string; status: 'copied' | 'failed' } | null>(null);
   const explanation = explainLiveError(message);
   const hasDetails = message.trim() !== explanation.summary;
+  if (dismissedMessage === message) return null;
+
+  const copyError = async () => {
+    try {
+      await navigator.clipboard.writeText(liveErrorCopyText(message));
+      setCopyResult({ message, status: 'copied' });
+    } catch {
+      setCopyResult({ message, status: 'failed' });
+    }
+  };
+  const copyStatus = copyResult?.message === message ? copyResult.status : null;
   return (
     <section
       className="live-error-notice"
       role="alert"
     >
-      <div className="live-error-copy">
+      <div className="live-error-header">
         <strong>{explanation.title}</strong>
+        <div className="live-error-actions">
+          <button
+            aria-label="Copy error details"
+            className="live-error-action"
+            onClick={() => void copyError()}
+            title="Copy error details"
+            type="button"
+          >
+            {copyStatus === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          </button>
+          <button
+            aria-label="Close error notice"
+            className="live-error-action"
+            onClick={() => {
+              setDismissedMessage(message);
+              onClose?.();
+            }}
+            title="Close error notice"
+            type="button"
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      {copyStatus === 'failed' ? <p className="live-error-copy-status">Could not copy error details.</p> : null}
+      <div className="live-error-copy">
         <p>{explanation.summary}</p>
         {explanation.nextStep ? <p className="live-error-next-step">{explanation.nextStep}</p> : null}
       </div>

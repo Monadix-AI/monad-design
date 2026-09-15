@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { explainLiveError, LiveErrorNotice } from '../../src/business/live-session/error-notice';
+import { explainLiveError, LiveErrorNotice, liveErrorCopyText } from '../../src/business/live-session/error-notice';
 
 const simulatorMismatch =
   'Could not select a unique Debug Simulator scheme for test.tvtest (0 matches). Configure live.build.containerPath and live.build.scheme.\n' +
@@ -23,6 +23,16 @@ describe('live error notice', () => {
     expect(markup).toContain('<details');
     expect(markup).toContain('Supported platforms for the buildables');
     expect(markup).not.toContain('<details open');
+  });
+
+  test('provides copy and close controls and copies the explanation with technical details', () => {
+    const markup = renderToStaticMarkup(<LiveErrorNotice message={simulatorMismatch} />);
+    expect(markup).toContain('aria-label="Copy error details"');
+    expect(markup).toContain('aria-label="Close error notice"');
+    const text = liveErrorCopyText(simulatorMismatch);
+    expect(text).toContain('No iOS Simulator app found');
+    expect(text).toContain('Apple TV apps require a tvOS target and Apple TV Simulator.');
+    expect(text).toContain(`Technical details:\n${simulatorMismatch}`);
   });
 
   test('summarizes unknown multiline errors without discarding detail', () => {

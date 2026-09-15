@@ -217,7 +217,12 @@ export function App() {
   };
 
   const visibleError = errorMessage || axError;
-  const error = visibleError ? <LiveErrorNotice message={visibleError} /> : null;
+  const error = visibleError ? (
+    <LiveErrorNotice
+      message={visibleError}
+      onClose={() => setErrorMessage('')}
+    />
+  ) : null;
   const showEdgeAtmosphere = Boolean(
     session &&
       session.status !== 'configuring_project' &&

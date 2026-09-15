@@ -1926,11 +1926,50 @@ h1 {
   border: 1px solid color-mix(in srgb, var(--destructive) 25%, var(--border));
   border-radius: 12px;
 }
-.live-error-copy strong {
-  display: block;
+.live-error-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 5px;
+}
+.live-error-header strong {
+  display: block;
   font-size: 13px;
   line-height: 1.4;
+}
+.live-error-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+.live-error-action {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.live-error-action:hover {
+  color: var(--foreground);
+  background: var(--control-fill);
+}
+.live-error-action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.live-error-action svg {
+  width: 15px;
+  height: 15px;
+}
+.live-error-copy-status {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--destructive);
 }
 .live-error-copy p {
   margin: 0;
@@ -2109,9 +2148,21 @@ h1 {
 .simulator-picker-layout-rail .page-back,
 .simulator-picker-layout-rail .active-project-heading,
 .simulator-picker-layout-rail .error-message,
-.simulator-picker-layout-rail .live-error-notice,
 .simulator-picker-layout-rail .simulator-action-bar {
   grid-column: 1 / -1;
+}
+.simulator-list-page > .simulator-picker-error-float {
+  position: absolute;
+  top: 72px;
+  right: 16px;
+  z-index: 20;
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+}
+.simulator-picker-error-float .live-error-notice {
+  margin: 0;
+  box-shadow: var(--shadow-floating);
 }
 .simulator-picker-layout-rail .page-back {
   margin-bottom: 7px;
