@@ -40,7 +40,7 @@ describe('live workspace', () => {
     expect(markup).not.toContain('Start Live in your coding agent');
     expect(markup).toContain('Agent ready');
     expect(markup).toContain('class="variant-count-trigger"');
-    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('aria-haspopup="listbox"');
     expect(markup).toContain('aria-expanded="false"');
   });
 

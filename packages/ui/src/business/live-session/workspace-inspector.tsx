@@ -12,7 +12,7 @@ import { RadioGroup } from 'radix-ui';
 import { type ReactNode, type Ref } from 'react';
 
 import { AnimatedBadge } from '../../primitives/animated-badge';
-import { AnimatedSelect } from '../../primitives/animated-select';
+import { BeuiSelect } from '../../primitives/beui-select';
 import { Button } from '../../primitives/button';
 import { InstrumentButton } from '../../primitives/instrument-button';
 import { Label } from '../../primitives/label';
@@ -390,7 +390,7 @@ export function LiveWorkspaceInspector({
                   ))}
                 </select>
               ) : (
-                <AnimatedSelect
+                <BeuiSelect
                   ariaDescribedBy={!agentConnected ? 'agent-live-required' : undefined}
                   className="variant-count-options"
                   contentClassName="variant-count-menu"
@@ -443,12 +443,14 @@ export function LiveWorkspaceInspector({
           className={`agent-connection-status ${agentConnected ? 'connected' : 'offline'} ${isAgentWorking || selectionConfirmed ? 'working' : ''}`}
           contentKey={agentIndicator}
           icon={<i />}
-          pulse={isAgentWorking || selectionConfirmed}
+          pulse={false}
           role="status"
           status={isAgentWorking || selectionConfirmed ? 'loading' : agentConnected ? 'success' : 'neutral'}
           title={agentStatusLabel(agentStatus)}
         >
-          {agentIndicator}
+          <span className={isAgentWorking || selectionConfirmed ? 'agent-status-shimmer-text' : undefined}>
+            {agentIndicator}
+          </span>
         </AnimatedBadge>
         {onEndLive && (
           <Button

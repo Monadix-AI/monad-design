@@ -25,20 +25,27 @@ export const assertSimulatorVariantId = (variant: unknown): SimulatorVariantId =
   return variant as SimulatorVariantId;
 };
 
-export const simulatorVariantLaunchArguments = (udid: string, bundleId: string, variant: SimulatorVariantId) => [
+export const simulatorTerminateArguments = (udid: string, bundleId: string) => ['simctl', 'terminate', udid, bundleId];
+
+export const simulatorVariantLaunchArguments = (
+  udid: string,
+  bundleId: string,
+  variant: SimulatorVariantId,
+  terminateRunningProcess = true
+) => [
   'simctl',
   'launch',
-  '--terminate-running-process',
+  ...(terminateRunningProcess ? ['--terminate-running-process'] : []),
   udid,
   bundleId,
   '-MonadDesignVariant',
   variant
 ];
 
-export const simulatorAppLaunchArguments = (udid: string, bundleId: string) => [
+export const simulatorAppLaunchArguments = (udid: string, bundleId: string, terminateRunningProcess = true) => [
   'simctl',
   'launch',
-  '--terminate-running-process',
+  ...(terminateRunningProcess ? ['--terminate-running-process'] : []),
   udid,
   bundleId
 ];

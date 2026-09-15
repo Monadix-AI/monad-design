@@ -16,6 +16,7 @@ import {
   assertSimulatorVariantId,
   simulatorAppContainerArguments,
   simulatorAppLaunchArguments,
+  simulatorTerminateArguments,
   simulatorVariantLaunchArguments
 } from './simulator-variants';
 
@@ -404,18 +405,36 @@ const captureScreen = createSharedOperation(
 
 export const captureSimulatorScreen = (udid: string) => captureScreen(udid);
 
+const terminateTelevisionApp = async (udid: string, bundleId: string) => {
+  try {
+    await execFileAsync('xcrun', simulatorTerminateArguments(udid, bundleId), { timeout: 20_000 });
+  } catch (error) {
+    const commandError = error as Error & { stderr?: string };
+    if (!/found nothing to terminate/iu.test(commandError.stderr ?? commandError.message)) throw error;
+  }
+};
+
 export const launchSimulatorVariant = async (udid: string, bundleId: unknown, variant: unknown) => {
   const simulators = await listAvailableSimulators();
-  if (!simulators.some((simulator) => simulator.udid === udid)) {
+  const simulator = simulators.find((item) => item.udid === udid);
+  if (!simulator) {
     throw new Error('The selected simulator is no longer running.');
   }
 
   const validBundleId = assertBundleIdentifier(bundleId);
   const validVariant = assertSimulatorVariantId(variant);
-  const { stdout } = await execFileAsync('xcrun', simulatorVariantLaunchArguments(udid, validBundleId, validVariant), {
-    encoding: 'utf8',
-    timeout: 20_000
-  });
+  const isTelevision = simulator.runtime.startsWith('tvOS');
+  // tvOS can leave a successfully relaunched process behind HeadBoard when
+  // simctl's combined terminate-and-launch option is used.
+  if (isTelevision) await terminateTelevisionApp(udid, validBundleId);
+  const { stdout } = await execFileAsync(
+    'xcrun',
+    simulatorVariantLaunchArguments(udid, validBundleId, validVariant, !isTelevision),
+    {
+      encoding: 'utf8',
+      timeout: 20_000
+    }
+  );
 
   return {
     bundleId: validBundleId,
@@ -426,12 +445,15 @@ export const launchSimulatorVariant = async (udid: string, bundleId: unknown, va
 
 export const launchSimulatorApp = async (udid: string, bundleId: unknown) => {
   const simulators = await listAvailableSimulators();
-  if (!simulators.some((simulator) => simulator.udid === udid)) {
+  const simulator = simulators.find((item) => item.udid === udid);
+  if (!simulator) {
     throw new Error('The selected simulator is no longer running.');
   }
 
   const validBundleId = assertBundleIdentifier(bundleId);
-  const { stdout } = await execFileAsync('xcrun', simulatorAppLaunchArguments(udid, validBundleId), {
+  const isTelevision = simulator.runtime.startsWith('tvOS');
+  if (isTelevision) await terminateTelevisionApp(udid, validBundleId);
+  const { stdout } = await execFileAsync('xcrun', simulatorAppLaunchArguments(udid, validBundleId, !isTelevision), {
     encoding: 'utf8',
     timeout: 20_000
   });

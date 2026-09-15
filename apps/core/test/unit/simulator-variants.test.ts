@@ -5,6 +5,7 @@ import {
   assertSimulatorVariantId,
   simulatorAppContainerArguments,
   simulatorAppLaunchArguments,
+  simulatorTerminateArguments,
   simulatorVariantLaunchArguments
 } from '../../src/simulator-variants';
 
@@ -28,6 +29,29 @@ describe('simulator variant protocol', () => {
       '--terminate-running-process',
       'SIMULATOR-UDID',
       'design.mona.example'
+    ]);
+  });
+
+  test('builds separate termination and foreground launch commands for tvOS', () => {
+    expect(simulatorTerminateArguments('TV-UDID', 'design.mona.tv')).toEqual([
+      'simctl',
+      'terminate',
+      'TV-UDID',
+      'design.mona.tv'
+    ]);
+    expect(simulatorVariantLaunchArguments('TV-UDID', 'design.mona.tv', 'v1', false)).toEqual([
+      'simctl',
+      'launch',
+      'TV-UDID',
+      'design.mona.tv',
+      '-MonadDesignVariant',
+      'v1'
+    ]);
+    expect(simulatorAppLaunchArguments('TV-UDID', 'design.mona.tv', false)).toEqual([
+      'simctl',
+      'launch',
+      'TV-UDID',
+      'design.mona.tv'
     ]);
   });
 

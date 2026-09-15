@@ -3077,9 +3077,12 @@ h1 {
   display: inline-flex;
   justify-content: space-between;
 }
-.variant-count-trigger > svg {
+.variant-count-trigger .beui-select-chevron {
   position: absolute;
   right: 10px;
+  display: inline-flex;
+}
+.beui-select-chevron svg {
   width: 12px;
   height: 12px;
   color: var(--muted-foreground);
@@ -3097,7 +3100,6 @@ h1 {
 }
 .variant-count-menu {
   z-index: 80;
-  width: var(--radix-select-trigger-width);
   overflow: hidden;
   color: var(--popover-foreground);
   background: var(--popover);
@@ -3111,17 +3113,28 @@ h1 {
 .variant-count-option {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   height: 30px;
   padding: 0 8px;
+  font-family: inherit;
   font-size: 12px;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
   color: var(--popover-foreground);
+  text-align: left;
   cursor: pointer;
   outline: none;
+  background: transparent;
+  border: 0;
   border-radius: 5px;
 }
 .variant-count-option[data-highlighted] {
+  color: var(--primary-emphasis);
+  background: var(--primary-soft-hover);
+}
+.variant-count-option:hover:not(:disabled),
+.variant-count-option:focus-visible {
   color: var(--primary-emphasis);
   background: var(--primary-soft-hover);
 }
@@ -4055,11 +4068,52 @@ h1 {
 .agent-connection-status.connected {
   color: var(--success-emphasis);
 }
+.agent-connection-status.offline {
+  color: var(--muted-foreground);
+}
 .agent-connection-status.working {
   color: var(--primary-emphasis);
 }
-.agent-connection-status.offline {
-  color: var(--muted-foreground);
+.agent-connection-status.working i {
+  animation: agent-status-breathe 1.8s ease-in-out infinite;
+}
+.agent-status-shimmer-text {
+  color: transparent;
+  background: linear-gradient(
+    100deg,
+    var(--primary-emphasis) 0%,
+    var(--primary-emphasis) 42%,
+    #d9ecff 50%,
+    var(--primary-emphasis) 58%,
+    var(--primary-emphasis) 100%
+  );
+  background-clip: text;
+  background-size: 250% 100%;
+  animation: agent-status-shimmer 2.8s linear infinite;
+}
+@keyframes agent-status-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes agent-status-breathe {
+  50% {
+    box-shadow: 0 0 8px var(--primary-emphasis);
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-connection-status.working i,
+  .agent-status-shimmer-text {
+    animation: none;
+  }
+  .agent-status-shimmer-text {
+    color: var(--primary-emphasis);
+    background: none;
+  }
 }
 .inspector-section-heading {
   display: flex;

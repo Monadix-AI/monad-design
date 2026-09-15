@@ -66,6 +66,8 @@ export function LiveWorkspace({
   const [annotationResetKey, setAnnotationResetKey] = useState(0);
   const annotationSubmit = useRef<(() => Promise<void>) | null>(null);
   const [annotationCount, setAnnotationCount] = useState(0);
+  const [isPreparingAnnotation, setIsPreparingAnnotation] = useState(false);
+  const preparingAnnotationRef = useRef(false);
   const [annotationToolsHost, setAnnotationToolsHost] = useState<HTMLDivElement | null>(null);
   const [annotationNotesHost, setAnnotationNotesHost] = useState<HTMLDivElement | null>(null);
   const [designOpen, setDesignOpen] = useState(false);
@@ -217,13 +219,23 @@ export function LiveWorkspace({
             annotationNotesHostRef={setAnnotationNotesHost}
             hasAnnotations={annotationCount > 0}
             isEndingLive={activeSession?.isEnding}
+            isSendingRequest={Boolean(inspector.isSendingRequest || isPreparingAnnotation)}
             mode={mode}
             onBeginSelection={() => changeTool('select')}
             onEndLive={activeSession?.onEnd}
             onOpenReferences={showReferences ? () => setReferencesOpen(true) : undefined}
             onSendRequest={() => {
-              if (annotationCount > 0) void annotationSubmit.current?.();
-              else inspector.onSendRequest();
+              if (annotationCount === 0) {
+                inspector.onSendRequest();
+                return;
+              }
+              if (preparingAnnotationRef.current || !annotationSubmit.current) return;
+              preparingAnnotationRef.current = true;
+              setIsPreparingAnnotation(true);
+              void annotationSubmit.current().finally(() => {
+                preparingAnnotationRef.current = false;
+                setIsPreparingAnnotation(false);
+              });
             }}
             selectionLocked={selectionLocked}
           />
