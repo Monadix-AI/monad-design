@@ -1,5 +1,7 @@
 export type TelevisionRemoteButton = 'up' | 'down' | 'left' | 'right' | 'select' | 'menu' | 'home' | 'playPause';
 
+const stopCanvasEvent = (event: { stopPropagation: () => void }) => event.stopPropagation();
+
 export function TelevisionRemote({
   assetUrl,
   disabled,
@@ -24,6 +26,28 @@ export function TelevisionRemote({
       className="television-remote"
       data-canvas-ui
       disabled={disabled}
+      onBlur={stopCanvasEvent}
+      onClick={stopCanvasEvent}
+      onContextMenu={stopCanvasEvent}
+      onDoubleClick={stopCanvasEvent}
+      onFocus={stopCanvasEvent}
+      onKeyDown={stopCanvasEvent}
+      onMouseDown={stopCanvasEvent}
+      onMouseEnter={stopCanvasEvent}
+      onMouseLeave={stopCanvasEvent}
+      onMouseMove={stopCanvasEvent}
+      onMouseOut={stopCanvasEvent}
+      onMouseOver={stopCanvasEvent}
+      onMouseUp={stopCanvasEvent}
+      onPointerCancel={stopCanvasEvent}
+      onPointerDown={stopCanvasEvent}
+      onPointerEnter={stopCanvasEvent}
+      onPointerLeave={stopCanvasEvent}
+      onPointerMove={stopCanvasEvent}
+      onPointerOut={stopCanvasEvent}
+      onPointerOver={stopCanvasEvent}
+      onPointerUp={stopCanvasEvent}
+      onWheel={stopCanvasEvent}
     >
       <legend className="sr-only">Apple TV Remote</legend>
       {image('chrome', 'television-remote-chrome')}

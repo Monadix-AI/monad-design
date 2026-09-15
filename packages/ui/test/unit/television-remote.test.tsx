@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { TelevisionRemote } from '../../src/business/live-session/television-remote';
 import { LiveWorkspace } from '../../src/business/live-session/workspace';
 
 const inspector = {
@@ -89,4 +90,37 @@ test('iOS canvas retains its device controls', () => {
   );
   expect(markup).toContain('Simulator controls');
   expect(markup).not.toContain('Apple TV Remote');
+});
+
+test('remote mouse, pointer, and wheel events do not bubble to the canvas', () => {
+  const remote = TelevisionRemote({ disabled: false, onPress: () => {} });
+  const stopPropagation = () => {
+    stopped = true;
+  };
+  let stopped = false;
+  for (const eventName of [
+    'onClick',
+    'onContextMenu',
+    'onDoubleClick',
+    'onMouseDown',
+    'onMouseEnter',
+    'onMouseLeave',
+    'onMouseMove',
+    'onMouseOut',
+    'onMouseOver',
+    'onMouseUp',
+    'onPointerCancel',
+    'onPointerDown',
+    'onPointerEnter',
+    'onPointerLeave',
+    'onPointerMove',
+    'onPointerOut',
+    'onPointerOver',
+    'onPointerUp',
+    'onWheel'
+  ] as const) {
+    stopped = false;
+    remote.props[eventName]({ stopPropagation });
+    expect(stopped).toBe(true);
+  }
 });

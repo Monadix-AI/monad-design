@@ -3858,6 +3858,12 @@ h1 {
   box-shadow:
     0 20px 44px rgb(0 0 0 / 42%),
     inset 0 1px 2px rgb(255 255 255 / 10%);
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+.television-remote:hover,
+.television-remote:focus-within {
+  opacity: 1;
 }
 .television-remote-chrome {
   position: absolute;
@@ -3956,9 +3962,6 @@ h1 {
   width: 24px;
   height: 24px;
   pointer-events: none;
-}
-.television-remote:disabled {
-  opacity: 0.55;
 }
 .canvas-mode-annotate .device-controls,
 .canvas-mode-variants .device-controls,
