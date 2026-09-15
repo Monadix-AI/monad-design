@@ -11,6 +11,7 @@ import {
 } from '@monaddesign/simulator';
 import { EdgeAtmosphere } from '@monaddesign/ui/business/edge-atmosphere';
 import { LiveWorkspaceHeading } from '@monaddesign/ui/business/live-session/app-frame';
+import { LiveErrorNotice } from '@monaddesign/ui/business/live-session/error-notice';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
 import { LiveWorkspace } from '@monaddesign/ui/business/live-session/workspace';
@@ -208,14 +209,7 @@ export function App() {
   };
 
   const visibleError = errorMessage || axError;
-  const error = visibleError ? (
-    <p
-      className="error"
-      role="alert"
-    >
-      {visibleError}
-    </p>
-  ) : null;
+  const error = visibleError ? <LiveErrorNotice message={visibleError} /> : null;
   const showEdgeAtmosphere = Boolean(
     session &&
       session.status !== 'configuring_project' &&

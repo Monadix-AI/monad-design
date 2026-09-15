@@ -1853,6 +1853,58 @@ h1 {
   border: 1px solid #562e33;
   border-radius: 8px;
 }
+.live-error-notice {
+  min-width: 0;
+  padding: 14px 16px;
+  margin: 0 0 12px;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--destructive) 7%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--destructive) 25%, var(--border));
+  border-radius: 12px;
+}
+.live-error-copy strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.live-error-copy p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.live-error-copy .live-error-next-step {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+}
+.live-error-details {
+  min-width: 0;
+  padding-top: 10px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.live-error-details summary {
+  width: fit-content;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.live-error-details summary:hover {
+  color: var(--foreground);
+}
+.live-error-details pre {
+  max-height: 220px;
+  padding: 12px;
+  margin: 10px 0 0;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  background: var(--control-fill);
+  border-radius: 8px;
+}
 .connect-button {
   width: 100%;
   min-height: 40px;
@@ -1993,6 +2045,7 @@ h1 {
 .simulator-picker-layout-rail .page-back,
 .simulator-picker-layout-rail .active-project-heading,
 .simulator-picker-layout-rail .error-message,
+.simulator-picker-layout-rail .live-error-notice,
 .simulator-picker-layout-rail .simulator-action-bar {
   grid-column: 1 / -1;
 }
@@ -4321,6 +4374,15 @@ h1 {
   background: #331b20;
   border-radius: 8px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+.canvas-error:has(.live-error-notice) {
+  padding: 0;
+  color: var(--foreground);
+  background: transparent;
+  box-shadow: none;
+}
+.canvas-error .live-error-notice {
+  margin: 0;
 }
 .canvas-variant-strip {
   position: absolute;

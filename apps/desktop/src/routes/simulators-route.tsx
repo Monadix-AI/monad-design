@@ -7,6 +7,7 @@ import type {
 
 import { AppStoreIcon, Delete02Icon, FolderOpenIcon, PlusSignIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { LiveErrorNotice } from '@monaddesign/ui/business/live-session/error-notice';
 import { LiveSessionSimulatorPicker } from '@monaddesign/ui/business/live-session/simulator-picker';
 import { Button } from '@monaddesign/ui/primitives/button';
 import { Input } from '@monaddesign/ui/primitives/input';
@@ -283,14 +284,7 @@ export function SimulatorsRoute() {
               </div>
             )}
           </div>
-          {error && (
-            <p
-              className="error-message project-error"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
+          {error && <LiveErrorNotice message={error} />}
           <Dialog.Root
             onOpenChange={(open) => {
               if (open) return;
@@ -467,16 +461,7 @@ export function SimulatorsRoute() {
     <LiveSessionSimulatorPicker
       className={previewClassName}
       connectLabel={isConnecting ? connectLabel : undefined}
-      error={
-        error ? (
-          <p
-            className="error-message"
-            role="alert"
-          >
-            {error}
-          </p>
-        ) : null
-      }
+      error={error ? <LiveErrorNotice message={error} /> : null}
       isConnecting={isConnecting}
       isScanning={isScanning}
       onBack={closeProject}
