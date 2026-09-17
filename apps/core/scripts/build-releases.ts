@@ -24,6 +24,8 @@ for (const arch of architectures) {
       '--compile',
       `--target=bun-darwin-${arch}`,
       '--minify',
+      '--define',
+      'MONAD_DESIGN_COMPILED=true',
       '--asset',
       'ui/dist',
       '--outfile',

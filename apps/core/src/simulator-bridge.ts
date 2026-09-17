@@ -3,6 +3,8 @@ import type { SimulatorOrientation } from '@monaddesign/simulator';
 
 import { execFile, spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { createSharedOperation } from './shared-operation';
@@ -22,12 +24,17 @@ type SimMiddlewareFactory = (options: {
 
 const execFileAsync = promisify(execFile);
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-// These literal paths let `bun build --compile` embed both the middleware and
-// its N-API addon in the standalone Core executable.
+// Bundle JavaScript, but load the separately signed addon from disk. Embedding
+// a .node file would retain its pre-signing bytes inside Bun's temporary cache.
 const { simMiddleware } = require('../node_modules/serve-sim/dist/middleware.cjs') as {
   simMiddleware: SimMiddlewareFactory;
 };
-const native = require('../native/serve-sim-native.node') as {
+declare const MONAD_DESIGN_COMPILED: boolean;
+const nativePath =
+  typeof MONAD_DESIGN_COMPILED !== 'undefined' && MONAD_DESIGN_COMPILED
+    ? join(dirname(process.execPath), 'native', 'serve-sim-native.node')
+    : join(import.meta.dir, '../native/serve-sim-native.node');
+const native = createRequire(import.meta.url)(nativePath) as {
   axDescribe(udid: string): Promise<string>;
 };
 
