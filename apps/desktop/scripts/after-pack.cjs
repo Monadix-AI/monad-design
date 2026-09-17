@@ -14,10 +14,10 @@ module.exports = async (context) => {
   const manifest = JSON.parse(readFileSync(join(root, 'release.json'), 'utf8'));
   const architecture = ['ia32', 'x64', 'armv7l', 'arm64'][context.arch];
   if (architecture !== manifest.arch) throw new Error('Desktop and bundled Core architectures differ.');
-  const identity = process.env.CSC_NAME;
+  const identity = process.env.MONAD_DESIGN_DESKTOP_SIGNING_IDENTITY ?? process.env.CSC_NAME;
   if (!identity && process.env.CSC_IDENTITY_AUTO_DISCOVERY !== 'false') {
     throw new Error(
-      'Set CSC_NAME to sign the Core payload, or CSC_IDENTITY_AUTO_DISCOVERY=false for a local unsigned build.'
+      'Set MONAD_DESIGN_DESKTOP_SIGNING_IDENTITY or CSC_NAME to sign the Core payload, or CSC_IDENTITY_AUTO_DISCOVERY=false for a local unsigned build.'
     );
   }
   for (const file of ['core/monad-design', 'core/native/serve-sim-native.node']) {

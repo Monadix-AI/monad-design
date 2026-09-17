@@ -1,0 +1,171 @@
+name: Release Desktop
+
+on:
+  push:
+    tags:
+      - 'desktop@*'
+
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release metadata
+        run: |
+          bun run --cwd apps/desktop verify:release "${GITHUB_REF_NAME}"
+          if [[ "$(git cat-file -t "${GITHUB_REF_NAME}")" != tag ]]; then
+            echo "Desktop releases require an annotated tag." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Desktop release tag must point to a commit on main." >&2
+            exit 1
+          fi
+
+      - name: Check, test, and build
+        run: bun run ci
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            command: dist:arm64
+            app_directory: mac-arm64
+          - arch: x64
+            runner: macos-15-intel
+            command: dist:x64
+            app_directory: mac
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release metadata
+        run: bun run --cwd apps/desktop verify:release "${GITHUB_REF_NAME}"
+
+      - name: Build signed and notarized installers
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          CSC_NAME: 'Cheerlink Labs, Inc. (TS8D697RLN)'
+          MONAD_DESIGN_DESKTOP_SIGNING_IDENTITY: 'Developer ID Application: Cheerlink Labs, Inc. (TS8D697RLN)'
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: TS8D697RLN
+        run: |
+          rm -rf apps/desktop/release
+          bun run --cwd apps/desktop "${{ matrix.command }}"
+
+      - name: Verify application and installer payload
+        shell: bash
+        run: |
+          app="apps/desktop/release/${{ matrix.app_directory }}/Monad Design.app"
+          bun apps/desktop/scripts/verify-installer.ts "$app/Contents/Resources/installer" "${{ matrix.arch }}"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+
+      - name: Verify release assets
+        shell: bash
+        run: |
+          shopt -s nullglob
+          assets=(apps/desktop/release/*.dmg apps/desktop/release/*.zip)
+          if [[ ${#assets[@]} -ne 2 ]]; then
+            echo "Expected one DMG and one ZIP, found ${#assets[@]} release assets." >&2
+            exit 1
+          fi
+
+      - name: Upload architecture artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: monad-design-desktop-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download architecture artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: monad-design-desktop-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create checksums
+        shell: bash
+        run: |
+          shopt -s nullglob
+          assets=(release-assets/*.dmg release-assets/*.zip)
+          if [[ ${#assets[@]} -ne 4 ]]; then
+            echo "Expected two DMGs and two ZIPs, found ${#assets[@]} release assets." >&2
+            exit 1
+          fi
+          cd release-assets
+          sha256sum ./*.dmg ./*.zip > SHA256SUMS.txt
+
+      - name: Upload combined workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: monad-design-desktop-${{ github.ref_name }}
+          if-no-files-found: error
+          path: release-assets
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#desktop@}"
+          gh release create "${GITHUB_REF_NAME}" \
+            release-assets/*.dmg \
+            release-assets/*.zip \
+            release-assets/SHA256SUMS.txt \
+            --verify-tag \
+            --generate-notes \
+            --title "Monad Design Desktop ${version}"

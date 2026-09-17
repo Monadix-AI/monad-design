@@ -1,6 +1,6 @@
 {
   "name": "@monaddesign/client",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "build": {
     "npmRebuild": false,
     "afterPack": "./scripts/after-pack.cjs",
@@ -29,6 +29,7 @@
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "icon": "build/icon.icon",
+      "notarize": true,
       "target": [
         "dmg",
         "zip"
@@ -89,13 +90,16 @@
     "check": "tsc -b --pretty false",
     "dev": "vite",
     "dist": "bun run build && bun run --cwd ../core build && bun run prepare:installer && electron-builder --mac",
+    "dist:arm64": "MONAD_DESIGN_DESKTOP_ARCH=arm64 bun run dist -- --arm64",
+    "dist:x64": "MONAD_DESIGN_DESKTOP_ARCH=x64 bun run dist -- --x64",
     "lint": "biome lint .",
     "package": "bun run build && bun run --cwd ../core build && bun run prepare:installer && electron-builder --mac dir",
     "prepare:installer": "bun run scripts/prepare-installer.ts",
     "test": "bun test test",
     "test:e2e": "bun test test/e2e",
     "test:unit": "bun test test/unit",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "verify:release": "bun run scripts/verify-release.ts"
   },
   "type": "module"
 }

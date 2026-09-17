@@ -51,12 +51,39 @@ external native addon with the same identity. The addon must not be embedded in
 the compiled Core, which would preserve an unsigned/pre-signing copy.
 
 After packaging, run `bun apps/desktop/scripts/verify-installer.ts
-"<app path>/Contents/Resources/installer"`. This checks the final payload hashes,
-copies Core and its addon to a temporary installation, and requires a successful
-bootstrap and `/v1/health` response without Node/npm/Bun on PATH. It does not
-change the machine LaunchAgent, user data, or agent configuration.
+"<app path>/Contents/Resources/installer" [arm64|x64]`. The architecture argument
+defaults to the current Mac and is required when cross-verifying the other build.
+This checks the final payload hashes, copies Core and its addon to a temporary
+installation, and requires a successful bootstrap and `/v1/health` response
+without Node/npm/Bun on PATH. It does not change the machine LaunchAgent, user
+data, or agent configuration.
 
 Core and native addon hashes are checked before installation. Release testing
 must include a fresh macOS user without Node/npm/Bun, startup after logout/login,
 and actual agent tool discovery. No real user Agent configuration should be
 modified by automated fixture tests.
+
+## Release
+
+Desktop releases use independent `desktop@<version>` tags. The tag version must
+match `apps/desktop/package.json`; Core and bundled skill versions continue to
+come from `apps/cli/package.json` and do not need to match the Desktop version.
+
+The GitHub release workflow builds separate Apple Silicon and Intel DMG/ZIP
+artifacts. Before publishing it verifies the nested installer payload, the full
+application signature, the stapled notarization ticket and Gatekeeper acceptance.
+It then publishes the four installers plus `SHA256SUMS.txt` to one GitHub Release.
+
+Configure these repository secrets before pushing a Desktop tag:
+
+- `MAC_CSC_LINK`: base64-encoded Developer ID Application `.p12`
+- `MAC_CSC_KEY_PASSWORD`: password for that `.p12`
+- `APPLE_ID`: Apple Developer account email
+- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password for notarization
+
+`APPLE_TEAM_ID`, electron-builder's certificate qualifier, and the exact nested
+Core signing identity are fixed in the workflow to the repository's
+`TS8D697RLN` release team. To release, update the Desktop package and lockfile
+versions together, run `bun run --cwd apps/desktop verify:release
+desktop@<version>`, commit the release, and push an annotated tag with the same
+name. Do not move an existing release tag.

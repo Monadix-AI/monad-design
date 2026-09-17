@@ -9,7 +9,9 @@ import { readInstallerAssets } from '../electron/installer-assets';
 // Everything is isolated: no LaunchAgent, agent configuration or user state.
 const root = process.argv[2];
 if (!root) throw new Error('Usage: bun scripts/verify-installer.ts <app>/Contents/Resources/installer');
-await readInstallerAssets(resolve(root));
+const architecture = process.argv[3] ?? process.arch;
+if (!['arm64', 'x64'].includes(architecture)) throw new Error(`Unsupported Desktop architecture: ${architecture}`);
+await readInstallerAssets(resolve(root), architecture);
 const temporary = await mkdtemp(join(tmpdir(), 'monad-installer-smoke-'));
 const reservation = createServer();
 await new Promise<void>((accept) => reservation.listen(0, '127.0.0.1', accept));
