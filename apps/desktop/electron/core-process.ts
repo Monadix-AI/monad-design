@@ -6,8 +6,21 @@ import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { agentSessionVersion } from '@monaddesign/client-contract/agent-session-version';
 import { ClientApi } from '@monaddesign/client-rtk/client-api';
-import { installCoreExecutable, resolveCorePaths, stopLegacyCore } from '@monaddesign/core-installation';
+import {
+  compareCoreVersions,
+  installCoreExecutable,
+  resolveCorePaths,
+  stopLegacyCore
+} from '@monaddesign/core-installation';
+import { stopCore, waitForCoreRunning } from '@monaddesign/core-installation/core-runtime';
+import {
+  installCoreLaunchAgent,
+  isCoreLaunchAgentLoaded,
+  unloadCoreLaunchAgent
+} from '@monaddesign/core-installation/launch-agent';
 import { app, shell } from 'electron';
+
+import { readInstallerAssets } from './installer-assets';
 
 interface CoreBootstrap {
   schemaVersion: 1;
@@ -33,6 +46,7 @@ const isBootstrap = (value: unknown): value is CoreBootstrap => {
 };
 
 export class CoreProcess {
+  installationNotice: string | null = null;
   readonly #stateDirectory: string;
   readonly #bootstrapPath: string;
   readonly #executablePath: string;
@@ -75,11 +89,14 @@ export class CoreProcess {
   }
 
   async #isHealthy(bootstrap: CoreBootstrap) {
+    const client = new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 });
     try {
-      await new ClientApi(bootstrap.localClient, { requestTimeoutMilliseconds: 1_000 }).adminProjects();
+      await client.adminProjects();
       return true;
     } catch {
       return false;
+    } finally {
+      client.dispose();
     }
   }
 
@@ -112,12 +129,11 @@ export class CoreProcess {
 
   async #installBundledCore() {
     if (isDevelopment) return;
-    const bundledPath = join(process.resourcesPath, 'core', 'monad-design');
-    const bundledNativeAddonPath = join(process.resourcesPath, 'core', 'native', 'serve-sim-native.node');
+    const assets = await readInstallerAssets(join(process.resourcesPath, 'installer'));
     const result = await installCoreExecutable({
-      sourcePath: bundledPath,
-      nativeAddonPath: bundledNativeAddonPath,
-      version: app.getVersion(),
+      sourcePath: assets.corePath,
+      nativeAddonPath: assets.nativeAddonPath,
+      version: assets.manifest.coreVersion,
       source: 'desktop'
     });
     if (result.status === 'newer-preserved') {
@@ -166,18 +182,65 @@ export class CoreProcess {
   }
 
   async start() {
-    await this.#prepareMachineCore();
+    this.#spawnError = null;
+    this.#lastExitCode = null;
     const existing = await this.#readBootstrap();
     if (existing && (await this.#isHealthy(existing))) {
       if (!isDevelopment) {
-        this.#bootstrap = existing;
-        this.#client = new ClientApi(existing.localClient, { requestTimeoutMilliseconds: 2_000 });
-        return existing;
+        const assets = await readInstallerAssets(join(process.resourcesPath, 'installer'));
+        const client = new ClientApi(existing.localClient, { requestTimeoutMilliseconds: 2_000 });
+        try {
+          const { session } = await client.activeAgentSession();
+          if (session && session.status !== 'closed') {
+            this.installationNotice =
+              'Using the running Core. Close the Live session before repairing or updating the runtime.';
+            this.#bootstrap = existing;
+            this.#client = client;
+            return existing;
+          }
+          const installed = await readFile(resolveCorePaths().installManifestPath, 'utf8')
+            .then((value) => JSON.parse(value) as { version: string; sha256: string; nativeAddonSha256?: string })
+            .catch(() => null);
+          if (
+            installed &&
+            (await isCoreLaunchAgentLoaded()) &&
+            (compareCoreVersions(installed.version, assets.manifest.coreVersion) === 1 ||
+              (installed.sha256 === assets.manifest.hashes['core/monad-design'] &&
+                installed.nativeAddonSha256 === assets.manifest.hashes['core/native/serve-sim-native.node']))
+          ) {
+            try {
+              await installCoreLaunchAgent(this.#executablePath, this.#stateDirectory);
+              await waitForCoreRunning();
+              this.installationNotice = 'Core starts automatically when you sign in.';
+            } catch (error) {
+              this.installationNotice = `Auto-start needs repair: ${error instanceof Error ? error.message : String(error)}`;
+            }
+            this.#bootstrap = existing;
+            this.#client = client;
+            return existing;
+          }
+        } catch (error) {
+          client.dispose();
+          throw error;
+        }
+        client.dispose();
+        await unloadCoreLaunchAgent();
+        await stopCore();
+      } else {
+        await this.#stopDevelopmentCore(existing);
       }
-      await this.#stopDevelopmentCore(existing);
     }
 
-    this.#spawn();
+    await this.#prepareMachineCore();
+    if (!isDevelopment) {
+      try {
+        await installCoreLaunchAgent(this.#executablePath, this.#stateDirectory);
+        this.installationNotice = 'Core starts automatically when you sign in.';
+      } catch (error) {
+        this.installationNotice = `Auto-start needs repair: ${error instanceof Error ? error.message : String(error)}`;
+        this.#spawn();
+      }
+    } else this.#spawn();
     for (let attempt = 0; attempt < 100; attempt += 1) {
       if (this.#spawnError) throw this.#spawnError;
       const bootstrap = await this.#readBootstrap();

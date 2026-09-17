@@ -1,1 +1,45 @@
 @import "@monaddesign/ui/client.css";
+
+.settings-setup-section {
+  padding-top: 10px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.settings-setup-action {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.4;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  background: var(--control-fill);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  transition: background 150ms ease;
+}
+.settings-setup-action > span {
+  flex: 1;
+  min-width: 0;
+}
+.settings-setup-action > svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.settings-setup-action:hover {
+  background: var(--control-hover-fill);
+}
+.settings-setup-action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-setup-action {
+    transition: none;
+  }
+}

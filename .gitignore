@@ -53,3 +53,5 @@ apps/mobile/dist-map/
 
 # Monad Design local project binding
 .monaddesign/
+apps/desktop/dist-installer/
+apps/desktop/release-setup-validation/

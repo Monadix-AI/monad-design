@@ -4,9 +4,10 @@ import { AppHeaderFrame } from '@monaddesign/ui/business/live-session/app-frame'
 import { useClientTheme } from '@monaddesign/ui/business/live-session/theme';
 import { InstrumentButton } from '@monaddesign/ui/primitives/instrument-button';
 import { springSwap } from '@monaddesign/ui/primitives/motion';
+import { ChevronRight, Terminal } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Popover } from 'radix-ui';
-import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 
 import { useDesktopApp } from '@/desktop-app-provider';
 import { ActionIcon } from './action-icon';
@@ -16,6 +17,7 @@ const PairingQrCode = lazy(loadPairingQrCode);
 
 export function AppHeader({ center }: { center?: ReactNode }) {
   const { remoteClient } = useDesktopApp();
+  const openingSetup = useRef(false);
   const { setTheme, theme } = useClientTheme();
   const reduceMotion = useReducedMotion();
   const [pairingCopyError, setPairingCopyError] = useState<string | null>(null);
@@ -181,6 +183,11 @@ export function AppHeader({ center }: { center?: ReactNode }) {
               <Popover.Content
                 align="end"
                 asChild
+                onCloseAutoFocus={(event) => {
+                  if (!openingSetup.current) return;
+                  event.preventDefault();
+                  openingSetup.current = false;
+                }}
                 sideOffset={8}
               >
                 <motion.div
@@ -222,6 +229,28 @@ export function AppHeader({ center }: { center?: ReactNode }) {
                     </InstrumentButton>
                   </fieldset>
                   <p>Auto follows macOS. Simulator appearance stays independent.</p>
+                  <div className="settings-setup-section">
+                    <Popover.Close asChild>
+                      <InstrumentButton
+                        className="settings-setup-action"
+                        onClick={() => {
+                          openingSetup.current = true;
+                          window.dispatchEvent(new Event('monad-design:setup'));
+                        }}
+                        type="button"
+                      >
+                        <Terminal
+                          aria-hidden="true"
+                          size={15}
+                        />
+                        <span>Coding agents & runtime</span>
+                        <ChevronRight
+                          aria-hidden="true"
+                          size={14}
+                        />
+                      </InstrumentButton>
+                    </Popover.Close>
+                  </div>
                   <Popover.Arrow className="header-popover-arrow" />
                 </motion.div>
               </Popover.Content>

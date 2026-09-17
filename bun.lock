@@ -76,6 +76,7 @@
       "dependencies": {
         "@hugeicons/core-free-icons": "^4.3.3",
         "@hugeicons/react": "^1.1.10",
+        "@monaddesign/agent-integration": "workspace:*",
         "@monaddesign/client-contract": "workspace:*",
         "@monaddesign/client-rtk": "workspace:*",
         "@monaddesign/core": "workspace:*",

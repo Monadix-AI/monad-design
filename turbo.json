@@ -1,6 +1,9 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalPassThroughEnv": [
+    "CSC_NAME",
+    "CSC_IDENTITY_AUTO_DISCOVERY",
+    "MONAD_DESIGN_DESKTOP_ARCH",
     "CLAUDE_CONFIG_DIR",
     "CODEX_HOME",
     "DSH_HOME",

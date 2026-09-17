@@ -9,6 +9,7 @@ import type {
   ProjectTargetDetection
 } from '@monaddesign/client-contract';
 import type { SimulatorVariantId } from '@monaddesign/simulator';
+import type { SetupApi } from './setup-contract';
 
 export type AXElement = AccessibilitySnapshotResponse['elements'][number];
 export type AXSnapshot = AccessibilitySnapshotResponse;
@@ -32,6 +33,7 @@ export interface ProjectDirectorySelection {
 declare global {
   interface Window {
     client: {
+      setup: SetupApi;
       platform: NodeJS.Platform;
       versions: {
         chrome: string;

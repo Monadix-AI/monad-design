@@ -3,6 +3,7 @@ import { useRouterState } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
 
 import { DesktopAppProvider } from '@/desktop-app-provider';
+import { SetupGate } from '@/setup';
 
 const RouterDevtools =
   import.meta.env.VITE_ROUTER_DEVTOOLS === 'true'
@@ -19,7 +20,9 @@ export function RootRoute() {
     <>
       <div className="app-shell">
         <EdgeAtmosphere active={showEdgeAtmosphere} />
-        <DesktopAppProvider />
+        <SetupGate>
+          <DesktopAppProvider />
+        </SetupGate>
       </div>
       {RouterDevtools && (
         <Suspense fallback={null}>

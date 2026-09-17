@@ -2,6 +2,8 @@
   "name": "@monaddesign/client",
   "version": "0.0.0",
   "build": {
+    "npmRebuild": false,
+    "afterPack": "./scripts/after-pack.cjs",
     "appId": "ai.monadix.design",
     "productName": "Monad Design",
     "directories": {
@@ -16,27 +18,30 @@
     ],
     "extraResources": [
       {
-        "from": "../core/dist/monad-design",
-        "to": "core/monad-design"
-      },
-      {
-        "from": "../core/dist/native/serve-sim-native.node",
-        "to": "core/native/serve-sim-native.node"
+        "from": "dist-installer",
+        "to": "installer"
       }
     ],
     "mac": {
+      "signIgnore": [
+        "Contents/Resources/installer/core/.*"
+      ],
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
-      "icon": "build/icon.icns",
+      "icon": "build/icon.icon",
       "target": [
         "dmg",
         "zip"
       ]
+    },
+    "dmg": {
+      "icon": "build/icon.icns"
     }
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.3",
     "@hugeicons/react": "^1.1.10",
+    "@monaddesign/agent-integration": "workspace:*",
     "@monaddesign/client-contract": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core": "workspace:*",
@@ -83,9 +88,10 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "dev": "vite",
-    "dist": "bun run --cwd ../core build && electron-builder --mac",
+    "dist": "bun run build && bun run --cwd ../core build && bun run prepare:installer && electron-builder --mac",
     "lint": "biome lint .",
-    "package": "bun run --cwd ../core build && electron-builder --mac dir",
+    "package": "bun run build && bun run --cwd ../core build && bun run prepare:installer && electron-builder --mac dir",
+    "prepare:installer": "bun run scripts/prepare-installer.ts",
     "test": "bun test test",
     "test:e2e": "bun test test/e2e",
     "test:unit": "bun test test/unit",

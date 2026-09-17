@@ -1,6 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 const client = {
+  setup: {
+    status: () => ipcRenderer.invoke('setup:status'),
+    retry: () => ipcRenderer.invoke('setup:retry'),
+    scan: (scope: string) => ipcRenderer.invoke('setup:scan', scope),
+    chooseProject: () => ipcRenderer.invoke('setup:project'),
+    install: (input: unknown) => ipcRenderer.invoke('setup:install', input),
+    complete: () => ipcRenderer.invoke('setup:complete'),
+    exportKimiWork: () => ipcRenderer.invoke('setup:kimi-work')
+  },
   platform: process.platform,
   versions: {
     chrome: process.versions.chrome,

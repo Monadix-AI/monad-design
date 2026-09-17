@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 
 import { replacePreviousDevelopmentInstance } from './application-instance';
 import { CoreProcess } from './core-process';
+import { registerSetup } from './setup-service';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const devParentPid = process.env.VITE_DEV_SERVER_URL ? process.ppid : undefined;
@@ -19,6 +20,10 @@ if (devParentPid !== undefined) {
 
 const core = new CoreProcess();
 let mainWindow: BrowserWindow | null = null;
+const setup = registerSetup(
+  core,
+  (event) => event.sender === mainWindow?.webContents && event.senderFrame === mainWindow.webContents.mainFrame
+);
 
 ipcMain.handle('projects:choose', async () => {
   const result = await dialog.showOpenDialog({
@@ -53,6 +58,8 @@ const createWindow = () => {
     }
   });
   mainWindow = window;
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = null;
   });
@@ -67,7 +74,8 @@ void app
       app.dock?.setIcon(join(app.getAppPath(), 'build', 'dock-icon.png'));
     }
     await replacePreviousDevelopmentInstance();
-    await core.start();
+    createWindow();
+    await setup.start();
     core.subscribeToAgentSession((session) => {
       if (session?.status === 'selecting_simulator' || session?.status === 'variants_ready') {
         mainWindow?.show();
@@ -75,7 +83,6 @@ void app
       }
       mainWindow?.webContents.send('core:agent-session-changed', session);
     });
-    createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
