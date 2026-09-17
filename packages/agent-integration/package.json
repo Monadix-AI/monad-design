@@ -4,7 +4,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "add-mcp": "2.4.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.4.2",
     "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
