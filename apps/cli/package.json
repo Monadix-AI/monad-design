@@ -11,9 +11,11 @@
   "dependencies": {
     "@clack/prompts": "^1.8.1",
     "add-mcp": "2.4.0",
+    "jsonc-parser": "^3.3.1",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@monaddesign/agent-integration": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core": "workspace:*",
     "@monaddesign/core-installation": "workspace:*",

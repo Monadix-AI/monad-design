@@ -1,12 +1,17 @@
 {
   "name": "@monaddesign/core-installation",
   "version": "0.0.0",
+  "dependencies": {
+    "@monaddesign/client-rtk": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "^1.4.2",
     "typescript": "~7.0.2"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./launch-agent": "./src/launch-agent.ts",
+    "./core-runtime": "./src/core-runtime.ts"
   },
   "private": true,
   "scripts": {

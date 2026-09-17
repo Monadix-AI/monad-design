@@ -32,7 +32,7 @@ await mkdir(join(output, 'assets', 'core', 'native'), { recursive: true });
 
 const build = await Bun.build({
   entrypoints: [join(root, 'src', 'cli.ts')],
-  external: ['@clack/prompts', 'add-mcp', 'picocolors'],
+  external: ['@clack/prompts', 'add-mcp', 'picocolors', 'jsonc-parser'],
   outdir: output,
   target: 'node',
   naming: 'cli.js',

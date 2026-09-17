@@ -18,6 +18,25 @@ afterEach(async () => {
 });
 
 describe('Core launch agent', () => {
+  test('reuses an unchanged loaded service and replaces a stale service definition', async () => {
+    const homeDirectory = await mkdtemp(join(tmpdir(), 'monad-design-launch-agent-'));
+    temporaryDirectories.push(homeDirectory);
+    const calls: string[] = [];
+    const dependencies = {
+      homeDirectory,
+      uid: 501,
+      exec: async (_path: string, args: string[]) => {
+        calls.push(args[0] ?? '');
+      }
+    };
+    await installCoreLaunchAgent('/tmp/core-a', '/tmp/state', dependencies);
+    calls.length = 0;
+    await installCoreLaunchAgent('/tmp/core-a', '/tmp/state', dependencies);
+    expect(calls).toEqual(['print']);
+    calls.length = 0;
+    await installCoreLaunchAgent('/tmp/core-b', '/tmp/state', dependencies);
+    expect(calls).toEqual(['print', 'bootout', 'bootstrap']);
+  });
   test('writes and bootstraps a user launch agent for the stable Core executable', async () => {
     const homeDirectory = await mkdtemp(join(tmpdir(), 'monad-design-launch-agent-'));
     temporaryDirectories.push(homeDirectory);

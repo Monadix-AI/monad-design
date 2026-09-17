@@ -1,0 +1,32 @@
+{
+  "name": "@monaddesign/agent-integration",
+  "version": "0.0.0",
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "add-mcp": "2.4.0",
+    "js-yaml": "^4.1.0",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "~7.0.2"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent-targets": "./src/agent-targets.ts",
+    "./skill-installer": "./src/skill-installer.ts",
+    "./deepseek-harness": "./src/deepseek-harness.ts",
+    "./kimi-work": "./src/kimi-work.ts"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "bun test test",
+    "test:unit": "bun test test/unit",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module"
+}

@@ -1,31 +1,24 @@
-import type { AgentType, InstallResult } from 'add-mcp';
-
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import * as prompts from '@clack/prompts';
+import { detectAgents, installAgent } from '@monaddesign/agent-integration';
 import { installCoreExecutable, resolveCorePaths, stopLegacyCore } from '@monaddesign/core-installation';
-import { detectGlobalAgents, detectProjectAgents, upsertServer } from 'add-mcp';
 import colors from 'picocolors';
 
 import {
   agentDisplayName,
   agentInstallationCapability,
-  detectGlobalSkillAgents,
-  detectProjectSkillAgents,
   type InstallScope,
   type SupportedAgent,
-  skillInstallDirectory,
   supportedAgents,
   supportsInstallationScope,
   supportsProjectInstallation
 } from './agent-targets';
 import { resolveReleaseAssets } from './assets';
 import { stopCore, waitForCoreRunning } from './core-runtime';
-import { upsertDeepSeekHarnessServer } from './deepseek-harness';
 import { exportKimiWorkPlugin } from './kimi-work';
 import { installCoreLaunchAgent, unloadCoreLaunchAgent } from './launch-agent';
 import { findGitProjectRoot } from './project-root';
 import { chooseFromList, chooseScope } from './prompt';
-import { installMonadDesignSkill, removeLegacyMonadDesignSkill } from './skill-installer';
 
 export interface InstallCommandOptions {
   kimiWork?: boolean;
@@ -51,9 +44,6 @@ export const detectedAgentsForScope = (detection: AgentDetection, scope: Install
   const installable = installableAgentsForScope(scope);
   return detection[scope].filter((agent) => installable.includes(agent));
 };
-
-const uniqueSupportedAgents = (values: readonly (AgentType | string)[]) =>
-  supportedAgents.filter((agent) => values.includes(agent));
 
 export const resolveInstallDefaults = (detection: AgentDetection, hasGitProject: boolean): InstallDefaults => {
   const projectCapableGlobal = detection.global.filter(supportsProjectInstallation);
@@ -81,45 +71,6 @@ const agentHint = (agent: SupportedAgent, detection: AgentDetection, scope: Inst
     : colors.dim(`not detected ${scope === 'project' ? 'in project' : 'globally'}`);
   const capability = agentInstallationCapability(agent);
   return `${detected} · ${capability}`;
-};
-
-const detectAgents = async (projectRoot: string | null): Promise<AgentDetection> => {
-  const global = uniqueSupportedAgents([...(await detectGlobalAgents()), ...detectGlobalSkillAgents()]);
-  const project = projectRoot
-    ? uniqueSupportedAgents([
-        ...detectProjectAgents(projectRoot),
-        ...detectProjectSkillAgents(projectRoot).filter((agent) => global.includes(agent))
-      ])
-    : [];
-  return { project, global };
-};
-
-const installAgent = async (
-  agent: SupportedAgent,
-  scope: InstallScope,
-  projectRoot: string | null,
-  skillSourcePath: string,
-  mcpUrl: string
-) => {
-  const cwd = projectRoot ?? process.cwd();
-  const mcpPath =
-    agent === 'deepseek-harness'
-      ? await upsertDeepSeekHarnessServer(mcpUrl)
-      : (() => {
-          const mcp: InstallResult = upsertServer(
-            agent,
-            'monad-design',
-            { type: 'http', url: mcpUrl },
-            { local: scope === 'project', cwd }
-          );
-          if (!mcp.success) throw new Error(mcp.error ?? `Could not update ${mcp.path}`);
-          return mcp.path;
-        })();
-
-  const skillPath = skillInstallDirectory(agent, scope, projectRoot ?? undefined);
-  await installMonadDesignSkill(skillSourcePath, skillPath, { includeOpenAiMetadata: agent === 'codex' });
-  await removeLegacyMonadDesignSkill(join(dirname(skillPath), 'monad-design-live'));
-  return { mcpPath, skillPath };
 };
 
 export const runInstall = async (options: InstallCommandOptions = {}) => {
