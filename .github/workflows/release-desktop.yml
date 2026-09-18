@@ -57,11 +57,11 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: macos-15
+            runner: macos-26
             command: dist:arm64
             app_directory: mac-arm64
           - arch: x64
-            runner: macos-15-intel
+            runner: macos-26-intel
             command: dist:x64
             app_directory: mac
 
