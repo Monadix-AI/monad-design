@@ -113,8 +113,6 @@ jobs:
 
       - name: Build signed and notarized installers
         env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           CSC_NAME: 'Cheerlink Labs, Inc. (TS8D697RLN)'
           MONAD_DESIGN_DESKTOP_SIGNING_IDENTITY: 'Developer ID Application: Cheerlink Labs, Inc. (TS8D697RLN)'
           APPLE_ID: ${{ secrets.APPLE_ID }}
