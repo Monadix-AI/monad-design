@@ -1,6 +1,6 @@
 {
   "name": "@monaddesign/client",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "build": {
     "npmRebuild": false,
     "afterPack": "./scripts/after-pack.cjs",
