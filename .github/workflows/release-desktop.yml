@@ -82,6 +82,35 @@ jobs:
       - name: Verify release metadata
         run: bun run --cwd apps/desktop verify:release "${GITHUB_REF_NAME}"
 
+      - name: Import signing certificate
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          keychain_path="${RUNNER_TEMP}/desktop-signing.keychain-db"
+          certificate_path="${RUNNER_TEMP}/desktop-signing.p12"
+          keychain_password="$(openssl rand -hex 32)"
+
+          printf '%s' "${MAC_CSC_LINK#*,}" | /usr/bin/base64 -D > "${certificate_path}"
+          security create-keychain -p "${keychain_password}" "${keychain_path}"
+          security set-keychain-settings -lut 21600 "${keychain_path}"
+          security unlock-keychain -p "${keychain_password}" "${keychain_path}"
+          security import "${certificate_path}" \
+            -k "${keychain_path}" \
+            -P "${MAC_CSC_KEY_PASSWORD}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "${keychain_password}" \
+            "${keychain_path}"
+          security list-keychains -d user -s "${keychain_path}"
+          security default-keychain -d user -s "${keychain_path}"
+          security find-identity -v -p codesigning "${keychain_path}" \
+            | grep -F 'Developer ID Application: Cheerlink Labs, Inc. (TS8D697RLN)'
+          echo "CSC_KEYCHAIN=${keychain_path}" >> "${GITHUB_ENV}"
+
       - name: Build signed and notarized installers
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
@@ -122,6 +151,12 @@ jobs:
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
+
+      - name: Clean up signing keychain
+        if: always()
+        run: |
+          security delete-keychain "${RUNNER_TEMP}/desktop-signing.keychain-db" || true
+          find "${RUNNER_TEMP}" -maxdepth 1 -name desktop-signing.p12 -delete
 
   release:
     name: Publish GitHub Release
