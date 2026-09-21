@@ -142,7 +142,7 @@ jobs:
           fi
 
       - name: Upload architecture artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: monad-design-desktop-${{ matrix.arch }}
           if-no-files-found: error
@@ -183,7 +183,7 @@ jobs:
           sha256sum ./*.dmg ./*.zip > SHA256SUMS.txt
 
       - name: Upload combined workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: monad-design-desktop-${{ github.ref_name }}
           if-no-files-found: error
