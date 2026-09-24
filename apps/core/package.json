@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "dependencies": {
     "@elysia/node": "^1.4.0",
-    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.1.0",
     "@monaddesign/client-contract": "workspace:*",
     "@monaddesign/client-rtk": "workspace:*",
     "@monaddesign/core-installation": "workspace:*",
@@ -18,7 +18,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/client": "^2.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.2",

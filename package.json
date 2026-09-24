@@ -10,7 +10,7 @@
     "lefthook": "^2.1.14",
     "lint-staged": "^17.5.1",
     "syncpack": "15.3.3",
-    "turbo": "^2.11.2"
+    "turbo": "^2.11.3"
   },
   "engines": {
     "bun": ">=1.4.2"
